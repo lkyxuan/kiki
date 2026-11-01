@@ -85,7 +85,24 @@
   .msg pre code { background: none; padding: 0; font-size: inherit; }
   .msg a { color: var(--accent); text-decoration: none; }
   .msg a:hover { text-decoration: underline; }
-  .pending { color: var(--muted); display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  .pending { color: var(--muted); display: flex; gap: 8px; align-items: center; font-size: 14px; min-width: 0; }
+  .pending .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .pending .elapsed { color: var(--faint); flex: none; font-variant-numeric: tabular-nums; }
+  /* 做过的步骤（像 Claude 的工具卡片）：干活时展开，做完折叠成“用了 3 个工具” */
+  .steps { font-size: 13px; color: var(--muted); max-width: 640px; }
+  .steps summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; padding: 2px 8px 2px 4px; margin-left: -4px; border-radius: 6px; }
+  .steps summary::-webkit-details-marker { display: none; }
+  .steps summary:hover { background: var(--hover); color: var(--text); }
+  .steps .chev { width: 12px; height: 12px; transition: transform .15s; }
+  .steps[open] .chev { transform: rotate(90deg); }
+  .steps ol { list-style: none; margin: 6px 0 2px 5px; padding: 0 0 0 14px; border-left: 1px solid var(--line-strong); display: flex; flex-direction: column; gap: 4px; }
+  .steps li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .steps li .t { color: var(--text); flex: none; }
+  .steps li .d { font: 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .steps li .ms { margin-left: auto; padding-left: 8px; color: var(--faint); flex: none; font-variant-numeric: tabular-nums; }
+  .steps .ok { color: var(--ok); flex: none; width: 12px; text-align: center; }
+  .steps .bad { color: var(--err); flex: none; width: 12px; text-align: center; }
+  .steps .spin { width: 10px; height: 10px; }
   .hint { color: var(--muted); text-align: center; margin-top: 18vh; font-size: 14px; line-height: 1.8; }
   /* 奇奇的回执卡片：发到哪个宝的哪段对话 */
   .receipt { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 10px 10px 14px; margin-bottom: 12px; max-width: 520px; box-shadow: var(--shadow-sm); }
@@ -144,6 +161,7 @@
   #panel button.row:hover .name { color: var(--accent); }
   #panel .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #panel .row small { color: var(--muted); font-size: 12px; }
+  #panel .row small.st { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #panel .none { color: var(--faint); font-size: 13px; padding: 8px 0; }
   #panel .about { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; max-height: 220px; overflow: hidden; padding: 8px 0 4px; }
   #panel a { display: inline-block; color: var(--accent); font-size: 13px; text-decoration: none; padding: 4px 0 8px; }
@@ -199,6 +217,9 @@ const $ = (s) => document.querySelector(s);
 let tree = { agents: [] };
 let current = "main";
 let streaming = null; // 当前对话正在流式输出的那条消息元素
+let lastStreamed = null; // 上一段流完的文字（工具调用前说的话），最终回答跟它一样就不再重复显示
+let live = {}; // 对话 path -> 这一轮的进度 {since, status, steps}，奇奇是 main：{since, status, follow}
+const shown = new Set(); // 已经画进折叠卡片的步骤 id，正在进行的卡片里不再重复
 const unread = new Set();
 const DEFAULT_BAO = "奇奇"; // 默认的宝，和 src/migrate.ts 一致
 const aboutCache = {}; // 宝名 -> AGENTS.md 开头几行
@@ -236,7 +257,7 @@ function renderSide() {
   k.querySelector(".dot")?.remove();
   if (unread.has("main")) k.insertAdjacentHTML("beforeend", '<span class="dot"></span>');
   const sessRows = (a) => (a.sessions.length ? "" : '<div class="empty">还没有对话</div>') + a.sessions.map((s) => `
-        <button class="item sess ${s.path === current ? "on" : ""}" data-path="${esc(s.path)}">
+        <button class="item sess ${s.path === current ? "on" : ""}" data-path="${esc(s.path)}"${s.live ? ` title="${esc(s.live.status)}"` : ""}>
           <span class="name">${esc(s.name)}</span>
           ${s.background ? '<span class="tag">后台</span>' : ""}
           ${s.busy ? '<span class="spin"></span>' : unread.has(s.path) ? '<span class="dot"></span>' : ""}
@@ -258,7 +279,8 @@ function renderSide() {
 // 右栏：哪些对话在干活、后台任务、当前这个宝
 function renderPanel() {
   const all = tree.agents.flatMap((a) => a.sessions);
-  const row = (s) => `<button class="row" data-path="${esc(s.path)}">${s.busy ? '<span class="spin"></span>' : avatar(s.agent)}<span class="name">${esc(s.name)}</span><small>${esc(s.agent)}</small></button>`;
+  // 在干活的对话：后面的小字写它正在干嘛（正在运行命令…），不然写是哪个宝的
+  const row = (s) => `<button class="row" data-path="${esc(s.path)}">${s.busy ? '<span class="spin"></span>' : avatar(s.agent)}<span class="name">${esc(s.name)}</span><small class="st">${esc(s.busy && s.live ? s.live.status : s.agent)}</small></button>`;
   const busy = all.filter((s) => s.busy);
   const bg = all.filter((s) => s.background).sort((x, y) => String(y.created).localeCompare(String(x.created))).slice(0, 8);
   let html = "";
@@ -327,7 +349,8 @@ function render(text) {
   return md(text);
 }
 
-function addMsg(role, text) {
+function addMsg(role, text, steps) {
+  if (steps?.length) $("#msgs").appendChild(stepsBox(steps, false));
   const el = document.createElement("div");
   el.className = `msg ${role}`;
   if (role === "user") el.textContent = text; else el.innerHTML = render(text);
@@ -350,8 +373,9 @@ async function open(path) {
   if (!hist.length) $("#msgs").innerHTML = path === "main"
     ? '<div class="hint">跟奇奇说就行，它会分给对应的宝。<br>@宝名 可以直接指定，/help 看命令。</div>'
     : '<div class="hint">新对话，说点什么吧。</div>';
-  hist.forEach((m) => addMsg(m.role, m.text));
-  if (s?.busy) setPending(true);
+  shown.clear(); lastStreamed = null;
+  hist.forEach((m) => addMsg(m.role, m.text, m.steps));
+  renderLive();
   $("#input").focus();
 }
 
@@ -363,7 +387,11 @@ async function send() {
   syncSend();
   $(".hint")?.remove();
   const r = await fetch("/api/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: current, text }) });
-  if (r.ok && current === "main") { setPending(true); mainBusy = true; thinkEyes(); } // 奇奇要先路由再回答，给个等待提示
+  if (r.ok && current === "main") { // 奇奇要先路由再回答，先给个等待提示，服务端的进度到了会接上
+    mainBusy = true; thinkEyes();
+    if (!live.main) live.main = { since: Date.now(), status: "收到，正在看…" };
+    renderLive();
+  }
   if (!r.ok) addMsg("assistant", `出错了：${(await r.json()).error}`);
 }
 
@@ -405,6 +433,7 @@ function newBao() {
 
 async function loadTree() {
   tree = await (await fetch("/api/tree")).json();
+  syncLive();
   renderSide();
 }
 
@@ -481,39 +510,145 @@ $("#input").addEventListener("keydown", (e) => {
 const es = new EventSource("/api/events");
 es.addEventListener("message", (e) => {
   const m = JSON.parse(e.data);
-  if (m.path === "main" && m.role === "assistant" && mainBusy) { mainBusy = false; thinkEyes(); }
-  if (m.path === current && m.role === "assistant") $(".pending")?.remove();
+  if (m.path === "main" && m.role === "assistant" && mainBusy) { mainBusy = false; live.main = null; thinkEyes(); }
+  if (m.path === current && m.role === "assistant") finishLive();
   if (m.path !== current) { if (m.role === "assistant") { unread.add(m.path); renderSide(); } return; }
-  if (m.role === "assistant" && streaming) { streaming.innerHTML = render(m.text); streaming = null; return; }
+  if (m.role === "assistant" && streaming) { streaming.innerHTML = render(m.text); streaming = null; lastStreamed = null; return; }
+  if (m.role === "assistant" && lastStreamed && lastStreamed.dataset.raw.trim() === m.text.trim()) { lastStreamed.innerHTML = render(m.text); lastStreamed = null; return; }
   $(".hint")?.remove();
   addMsg(m.role, m.text);
+  if (m.role === "user") lastStreamed = null;
   const p = $(".pending"); if (p) $("#msgs").appendChild(p); // 等待提示始终在最下面
 });
 es.addEventListener("delta", (e) => {
   const d = JSON.parse(e.data);
   if (d.path !== current) return;
-  if (!streaming) { $(".pending")?.remove(); streaming = addMsg("assistant", ""); streaming.dataset.raw = ""; }
+  const atBottom = nearBottom();
+  if (!streaming) {
+    closeStepsBox(); // 工具做完开始说话了：上一组步骤折起来，话接在后面
+    streaming = addMsg("assistant", ""); streaming.dataset.raw = "";
+    const p = $(".pending"); if (p) $("#msgs").appendChild(p);
+  }
   streaming.dataset.raw += d.text;
   streaming.innerHTML = md(streaming.dataset.raw);
-  $("#log").scrollTop = $("#log").scrollHeight;
+  stickBottom(atBottom);
 });
 es.addEventListener("busy", (e) => {
   const d = JSON.parse(e.data);
   const s = find(d.path);
   if (s) { s.busy = d.busy; renderSide(); } else loadTree(); // 不认识的对话（比如刚交接出来的）就刷新左栏
-  if (d.path === current) setPending(d.busy);
+  if (d.busy && !live[d.path]) live[d.path] = { since: Date.now(), status: "正在思考…", steps: [] };
+  if (!d.busy) live[d.path] = null;
+  if (d.path === current || (current === "main" && live.main?.follow === d.path)) renderLive();
 });
-// 对话在干活、还没吐字时，显示"思考中"
-function setPending(on) {
-  $(".pending")?.remove();
-  if (on && !streaming) {
-    const el = addMsg("assistant", "");
-    el.className = "msg pending";
-    el.innerHTML = '<span class="spin"></span>思考中…';
+// 进度：正在想 / 正在调用哪个工具 / 做过哪些步骤（服务端从 pi 的事件里来，见 src/agents.ts）
+es.addEventListener("activity", (e) => {
+  const d = JSON.parse(e.data);
+  live[d.path] = d.live;
+  const s = find(d.path);
+  if (s) { s.live = d.live; renderPanel(); sideStatus(d.path); }
+  if (d.path === current || (current === "main" && (d.path === "main" || live.main?.follow === d.path))) {
+    if (d.live) renderLive(); else if (d.path === current) finishLive(); else renderLive();
   }
+});
+
+const CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+const secs = (ms) => { const t = Math.max(0, Math.round(ms / 1000)); return t < 60 ? `${t} 秒` : `${Math.floor(t / 60)} 分 ${t % 60} 秒`; };
+function stepLi(x) {
+  const icon = x.status === "running" ? '<span class="spin"></span>' : x.status === "error" ? '<span class="bad">✕</span>' : '<span class="ok">✓</span>';
+  const ms = x.ms != null && x.ms >= 1000 ? `<span class="ms">${secs(x.ms)}</span>` : "";
+  return `<li>${icon}<span class="t">${esc(x.title)}</span>${x.detail ? `<span class="d" title="${esc(x.detail)}">${esc(x.detail)}</span>` : ""}${ms}</li>`;
 }
-es.addEventListener("tree", (e) => { tree = JSON.parse(e.data); renderSide(); });
-es.addEventListener("approvals", (e) => { asks = JSON.parse(e.data); renderSide(); });
+function stepsSummary(steps, running) {
+  if (running) return `正在做第 ${steps.length} 步`;
+  const bad = steps.filter((x) => x.status === "error").length;
+  return `用了 ${steps.length} 个工具${bad ? `，${bad} 个出错` : ""}`;
+}
+// 一组步骤的卡片；open=true 是正在做的（展开），否则折叠
+function stepsBox(steps, open) {
+  const box = document.createElement("details");
+  box.className = "steps";
+  box.open = open;
+  box.innerHTML = `<summary>${CHEV}<span class="sum">${esc(stepsSummary(steps, open))}</span></summary><ol>${steps.map(stepLi).join("")}</ol>`;
+  steps.forEach((x) => shown.add(x.id));
+  return box;
+}
+// 当前对话（或奇奇正在等的那段对话）这一轮的进度
+function liveOf(path) {
+  if (path !== "main") return live[path] || null;
+  const m = live.main;
+  if (!m) return null;
+  const f = m.follow ? live[m.follow] : null;
+  const where = m.follow ? find(m.follow) : null;
+  const who = where ? `${where.agent} › ${where.name}：` : "";
+  return { since: m.since, status: f ? who + f.status : m.status, steps: f ? f.steps : [], follow: m.follow };
+}
+// 在改内容之前先看一眼是不是在最下面；是的话改完再滚到底（内容一下长很多也照样跟着）
+function nearBottom() {
+  const log = $("#log");
+  return log.scrollHeight - log.scrollTop - log.clientHeight < 160;
+}
+function stickBottom(was) {
+  if (was) $("#log").scrollTop = $("#log").scrollHeight;
+}
+function renderLive() {
+  const l = liveOf(current);
+  if (!l) return finishLive();
+  const atBottom = nearBottom();
+  // 正在做的这一组步骤（已经画过的不再画）
+  const fresh = (l.steps || []).filter((x) => !shown.has(x.id) || $("#live-steps")?.dataset.ids?.split(",").includes(x.id));
+  let box = $("#live-steps");
+  if (fresh.length) {
+    if (!box) {
+      box = document.createElement("details");
+      box.id = "live-steps"; box.className = "steps"; box.open = true;
+      box.innerHTML = `<summary>${CHEV}<span class="sum"></span></summary><ol></ol>`;
+      $("#msgs").appendChild(box);
+      if (streaming) { lastStreamed = streaming; streaming = null; } // 先说的话留在上面，后面的话接在步骤下面
+    }
+    box.dataset.ids = fresh.map((x) => x.id).join(",");
+    fresh.forEach((x) => shown.add(x.id));
+    box.querySelector(".sum").textContent = stepsSummary(fresh, true);
+    box.querySelector("ol").innerHTML = fresh.map(stepLi).join("");
+  }
+  // 最下面一行：转圈 + 现在在干嘛 + 过了多久
+  let line = $(".pending");
+  if (!line) { line = document.createElement("div"); line.className = "msg pending"; line.setAttribute("aria-live", "polite"); }
+  const waiting = asks.some((a) => a.path === (l.follow || current));
+  line.innerHTML = `<span class="spin"></span><span class="what">${esc(waiting ? "等你点头：看下面的卡片" : l.status)}</span><span class="elapsed" data-since="${l.since}">· ${secs(Date.now() - l.since)}</span>`;
+  $("#msgs").appendChild(line);
+  $(".hint")?.remove();
+  stickBottom(atBottom);
+}
+// 收起正在做的这组步骤：改成“用了 N 个工具”，折叠
+function closeStepsBox() {
+  const box = $("#live-steps");
+  if (!box) return;
+  box.removeAttribute("id");
+  box.open = false;
+  const n = box.querySelectorAll("li").length, bad = box.querySelectorAll(".bad").length;
+  box.querySelector(".sum").textContent = `用了 ${n} 个工具${bad ? `，${bad} 个出错` : ""}`;
+  box.querySelectorAll("li .spin").forEach((sp) => sp.outerHTML = '<span class="ok">✓</span>');
+}
+function finishLive() {
+  $(".pending")?.remove();
+  closeStepsBox();
+}
+// 每秒刷新"过了多久"
+setInterval(() => document.querySelectorAll(".elapsed").forEach((el) => el.textContent = `· ${secs(Date.now() - Number(el.dataset.since))}`), 1000);
+// 左栏转圈的地方悬停能看到在干嘛
+function sideStatus(path) {
+  const s = find(path);
+  const btn = [...document.querySelectorAll("aside .sess")].find((b) => b.dataset.path === path);
+  if (btn) btn.title = s?.live?.status || "";
+}
+es.addEventListener("tree", (e) => { tree = JSON.parse(e.data); syncLive(); renderSide(); });
+// 从列表里同步进度（刷新页面、重连、打开一段已经在干活的对话时用）
+function syncLive() {
+  if (tree.main !== undefined) live.main = tree.main || (mainBusy ? live.main : null);
+  for (const a of tree.agents) for (const s of a.sessions) live[s.path] = s.live || (s.busy ? live[s.path] : null);
+}
+es.addEventListener("approvals", (e) => { asks = JSON.parse(e.data); renderSide(); if (liveOf(current)) renderLive(); });
 
 // 更新提示：只在有新版本、正在装、出错或回滚时出现；平时不显示
 function renderUpdate(u) {

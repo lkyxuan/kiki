@@ -53,6 +53,8 @@ export class Router {
   rules: () => string = () => "判断完就直接做，做完告诉用户。";
   /** 设置页的能力开关（features.ts），main.ts 接上；默认全开。 */
   isOn: (id: "route" | "background") => boolean = () => true;
+  /** 奇奇分派时的进度（正在想交给谁 / 已交给哪段对话），网页显示“正在处理”用；server.ts 接上。 */
+  progress: (chatId: string, p: { status: string; path?: string }) => void = () => {};
 
   constructor(
     private agents: AgentBackend,
@@ -149,6 +151,7 @@ export class Router {
       text = at[2].trim();
     }
     // 不出选择题：模型自己挑最合适的地方，分错了用 /to 改投
+    this.progress(chatId, { status: "正在想交给哪个宝…" });
     const d = await this.decide(chatId, text, onlyAgent);
     return this.deliver(chatId, text, d, reply, release);
   }
@@ -232,6 +235,7 @@ export class Router {
       how = made ? "新建宝并新开" : "新开";
     }
     this.registry.setCurrent(chatId, rec.path);
+    this.progress(chatId, { status: `已交给 ${label(rec)}`, path: rec.path });
     const pending = this.agents.send(rec.agent, rec.path, text); // 已排进对话队列
     release();
     const answer = await pending;
