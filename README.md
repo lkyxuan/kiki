@@ -254,9 +254,50 @@ npm run check     # 类型检查
 
 ## 🙏 致谢
 
-- [pi](https://pi.dev)：Kiki 内核所基于的开源 Agent 框架
-- OpenClaw：session 工具设计的灵感来源
+Kiki 站在许多优秀项目的肩膀上。感谢下面这些个人 Agent 和编程 Agent，它们的开源代码、产品设计和公开分享给了 Kiki 很多启发。
+
+**Kiki 直接依赖的**
+
+- [pi](https://pi.dev)（[pi-mono](https://github.com/badlogic/pi-mono)）：Kiki 内核所基于的开源 Agent 框架
+- [DeepSeek](https://www.deepseek.com)：Kiki 默认使用的大模型
+- [cua](https://github.com/trycua/cua)：电脑操控（Computer-Use Agent）的开源基础设施，cua-driver 开关来自这里
+
+**个人 Agent 与 Agent 网关**
+
+- [OpenClaw](https://github.com/openclaw/openclaw)：本地运行的个人 AI 助手，session 工具设计的灵感来源
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent)：Nous Research 的自我成长型个人 Agent，Kiki 的前身就是在它之上起步的
 - Grok Bot：交互形态的灵感来源
+- [Letta](https://github.com/letta-ai/letta)（原 MemGPT）：有长期记忆的有状态 Agent
+- [Open Interpreter](https://github.com/openinterpreter/open-interpreter)：让大模型在本机跑代码、操作电脑
+- [AutoGPT](https://github.com/Significant-Gravitas/AutoGPT)：自主 Agent 的早期开创者
+- [Manus](https://manus.im)：通用型自主 Agent
+- [browser-use](https://github.com/browser-use/browser-use)：让 Agent 操作浏览器
+
+**编程 Agent**
+
+- [Claude Code](https://github.com/anthropics/claude-code)：Anthropic 的终端编程 Agent
+- [Codex](https://github.com/openai/codex)：OpenAI 的开源终端编程 Agent
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli)：Google 的开源终端 Agent
+- [Qwen Code](https://github.com/QwenLM/qwen-code)：通义千问的终端编程 Agent
+- [Kimi CLI](https://github.com/MoonshotAI/kimi-cli)：月之暗面的终端 Agent
+- [opencode](https://github.com/sst/opencode)：开源、可接任意模型的终端编程 Agent
+- [Crush](https://github.com/charmbracelet/crush)：Charm 出品的终端编程 Agent
+- [Aider](https://github.com/Aider-AI/aider)：终端里的 AI 结对编程，git 原生
+- [Goose](https://github.com/block/goose)：Block 开源的本地可扩展 Agent
+- [OpenHands](https://github.com/All-Hands-AI/OpenHands)：开源的 AI 软件工程师平台
+- [SWE-agent](https://github.com/SWE-agent/SWE-agent)：让大模型自动修 GitHub issue 的研究型 Agent
+- [Cline](https://github.com/cline/cline)：VS Code 里的自主编程 Agent，每一步都可审批
+- [Roo Code](https://github.com/RooCodeInc/Roo-Code)：多角色模式的编辑器内 Agent
+- [Kilo Code](https://github.com/Kilo-Org/kilocode)：开源的编辑器内编程 Agent
+- [Continue](https://github.com/continuedev/continue)：开源的 IDE 编程助手
+- [Cursor](https://cursor.com)、[Windsurf](https://windsurf.com)、[Zed](https://zed.dev)、[Amp](https://ampcode.com)、[Devin](https://devin.ai)、[GitHub Copilot](https://github.com/features/copilot)：把 Agent 带进日常开发的产品
+
+**开放标准**
+
+- [Model Context Protocol](https://modelcontextprotocol.io)：Agent 连接工具和数据的开放协议
+- [AGENTS.md](https://agents.md)：给 Agent 看的项目说明约定，每个宝的 AGENTS.md 沿用了它
+
+以上项目的名称和商标归各自所有者所有，列在这里只为致谢，不代表任何合作或背书。
 
 ## 📄 许可证
 
