@@ -30,6 +30,20 @@ export function migrateToQiqi(dataDir: string, templateDir: string, now = new Da
     done.push(`旧的宝 ${name} 已挪到 ${to}`);
   }
 
+  // 名册里去掉已归档的宝的对话，当前接着的对话如果指向它们也清掉，免得路由投到挪走的文件
+  const moved = OLD.filter((n) => done.some((l) => l.startsWith(`旧的宝 ${n} `)));
+  const regFile = join(dataDir, "registry.json");
+  if (moved.length && existsSync(regFile)) {
+    const reg = JSON.parse(readFileSync(regFile, "utf8")) as { sessions?: { agent: string; path: string }[]; chats?: Record<string, string> };
+    const gone = new Set((reg.sessions ?? []).filter((x) => moved.includes(x.agent)).map((x) => x.path));
+    if (gone.size) {
+      reg.sessions = (reg.sessions ?? []).filter((x) => !gone.has(x.path));
+      for (const [chat, path] of Object.entries(reg.chats ?? {})) if (gone.has(path)) delete reg.chats![chat];
+      writeFileSync(regFile, JSON.stringify(reg, null, 2));
+      done.push(`对话名册里去掉了 ${gone.size} 段已归档的对话`);
+    }
+  }
+
   // 分派规则里“交给生活宝（life）”这句换成奇奇；用户改过别的地方不动
   const rules = join(dataDir, "分派规则.md");
   if (existsSync(rules)) {
