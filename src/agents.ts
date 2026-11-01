@@ -131,6 +131,23 @@ export class Agents extends EventEmitter {
     return run;
   }
 
+  /** 往对话末尾记一条消息（显示出来、下次回答时模型也能看到），不触发回答。后台任务回报用。 */
+  note(agent: string, path: string, text: string): Promise<void> {
+    const prev = this.queues.get(path) ?? Promise.resolve();
+    const run = prev.catch(() => {}).then(async () => {
+      const s = await this.get(agent, path);
+      await s.sendCustomMessage({ customType: "kiki-task", content: text, display: true }, { triggerTurn: false });
+      this.emit("message", { path, role: "assistant", text });
+    });
+    this.queues.set(path, run);
+    return run;
+  }
+
+  /** 停掉正在跑的对话（后台任务超时用）。 */
+  async abort(path: string) {
+    await this.live.get(path)?.abort();
+  }
+
   /** 一次性问模型一句话（不进任何对话），路由用。 */
   async complete(system: string, user: string, spec?: string): Promise<string> {
     const rt = await this.runtime;
@@ -174,17 +191,18 @@ export class Agents extends EventEmitter {
         .split("\n")
         .filter(Boolean)
         .map((l) => JSON.parse(l))
-        .filter((e) => e.type === "message")
-        .map((e) => e.message);
+        .filter((e) => e.type === "message" || e.type === "custom_message")
+        .map((e) => (e.type === "message" ? e.message : { role: "custom", content: e.content }));
     else return [];
     const out: ChatLine[] = [];
     for (const m of msgs) {
-      if (m.role !== "user" && m.role !== "assistant") continue;
+      if (m.role !== "user" && m.role !== "assistant" && m.role !== "custom") continue;
+      const role: ChatLine["role"] = m.role === "user" ? "user" : "assistant"; // 后台任务回报按助手消息显示
       const text =
         typeof m.content === "string"
           ? m.content
           : (m.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
-      if (text.trim()) out.push({ role: m.role, text: text.trim() });
+      if (text.trim()) out.push({ role, text: text.trim() });
       else if (m.role === "assistant" && m.stopReason === "error") out.push({ role: "assistant", text: `出错了：${m.errorMessage ?? "未知错误"}` });
     }
     return out;

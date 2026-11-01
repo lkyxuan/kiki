@@ -8,6 +8,7 @@ import { Agents } from "./agents.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { startServer } from "./server.js";
+import { FileTaskStore } from "./tasks.js";
 import { Updater, VERSION } from "./update.js";
 
 // 自动更新装新版本前会先跑一次 --selftest：能走到这里说明 Node 和全部代码都加载成功了
@@ -39,14 +40,20 @@ if (!existsSync(dataDir)) {
 
 const agents = new Agents(dataDir, process.env.MODEL || "deepseek/deepseek-flash");
 const registry = new Registry(join(dataDir, "registry.json"));
-const router = new Router(agents, registry, process.env.DEFAULT_AGENT || "life");
+// 后台任务：每个任务一个 Markdown 文件，在数据目录 tasks/ 下
+const router = new Router(agents, registry, process.env.DEFAULT_AGENT || "life", new FileTaskStore(join(dataDir, "tasks")), {
+  concurrency: Number(process.env.TASK_CONCURRENCY || 2),
+  timeoutMs: Number(process.env.TASK_TIMEOUT_MIN || 30) * 60_000,
+});
 
 const port = Number(process.env.PORT || 4567);
 const updater = new Updater({
   dataDir,
   port,
   // 没有对话在跑才自动装，免得打断干活
-  isIdle: () => registry.list().every((s) => !agents.isBusy(s.path)),
+  isIdle: () =>
+    registry.list().every((s) => !agents.isBusy(s.path)) &&
+    router.tasks.list((t) => t.status === "queued" || t.status === "running").length === 0,
 });
 updater.start();
 
