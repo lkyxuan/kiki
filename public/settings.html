@@ -160,12 +160,12 @@
     <h3 class="sub">MCP 服务器 <small>和 Claude、Cursor 用的是同一种工具接口</small></h3>
     <div id="mcp" class="msg">读取中…</div>
     <div class="row">
-      <input type="text" id="new-mcp-name" placeholder="名字，比如 cua-driver" style="max-width: 180px" spellcheck="false" autocomplete="off" aria-label="MCP 服务器名字">
-      <input type="text" id="new-mcp-spec" placeholder="命令（cua-driver mcp）、网址或 JSON" style="max-width: 320px" spellcheck="false" autocomplete="off" aria-label="MCP 服务器命令">
+      <input type="text" id="new-mcp-name" placeholder="名字" style="max-width: 180px" spellcheck="false" autocomplete="off" aria-label="MCP 服务器名字">
+      <input type="text" id="new-mcp-spec" placeholder="命令、网址或 JSON" style="max-width: 320px" spellcheck="false" autocomplete="off" aria-label="MCP 服务器命令">
       <button class="btn" id="new-mcp-go">添加</button>
       <span class="msg" id="mcp-msg"></span>
     </div>
-    <p class="msg">本机命令填一行，比如 <span class="mono">cua-driver mcp</span>；远程服务器填 https:// 网址；也可以直接粘贴别的软件里那段 mcpServers JSON。新开的对话就能用。Kiki 在后台运行，找不到命令时请填完整路径（终端里 <span class="mono">command -v cua-driver</span> 能查到）。</p>
+    <p class="msg">常用的已经列在上面，打开开关就行。要加别的：本机命令填一行；远程服务器填 https:// 网址；也可以直接粘贴别的软件里那段 mcpServers JSON。找不到命令时请填完整路径（终端里 <span class="mono">command -v 命令名</span> 能查到）。</p>
   </section>
 
   <div class="cols">
@@ -389,16 +389,18 @@ async function loadMcp() {
   if (r.error) { box.textContent = r.error; box.className = "msg err"; return; }
   box.className = "";
   box.innerHTML = r.servers.length ? r.servers.map((s) => `
-    <div class="toggle-row" data-name="${esc(s.name)}"><div class="t"><b>${esc(s.name)}</b><span class="mono">${esc(s.summary)}</span></div>
-      <button class="btn rm">删除</button><label class="switch"><input type="checkbox" ${s.on ? "checked" : ""} aria-label="${esc(s.name)}"><i></i></label></div>`).join("")
+    <div class="toggle-row" data-name="${esc(s.name)}"><div class="t"><b>${esc(s.name)}</b>${s.desc ? `<span>${esc(s.desc)}</span><br>` : ""}<span class="mono">${esc(s.summary)}</span>
+      ${s.preset && !s.installed ? `<br><span>先在终端安装：<span class="mono">${esc(s.install)}</span></span>` : ""}</div>
+      ${s.preset ? "" : `<button class="btn rm">删除</button>`}<label class="switch"><input type="checkbox" ${s.on ? "checked" : ""} aria-label="${esc(s.name)}"><i></i></label></div>`).join("")
     : `<p class="msg">还没有 MCP 服务器。</p>`;
   for (const row of document.querySelectorAll("#mcp .toggle-row")) {
     const name = row.dataset.name, input = row.querySelector("input");
     input.onchange = async () => {
-      try { await api("/api/settings/mcp/toggle", { name, on: input.checked }); say("#mcp-msg", "新开的对话生效", "ok"); }
+      try { await api("/api/settings/mcp/toggle", { name, on: input.checked }); say("#mcp-msg", "新开的对话生效", "ok"); loadMcp(); }
       catch (e) { input.checked = !input.checked; say("#mcp-msg", e.message, "err"); }
     };
-    row.querySelector(".rm").onclick = async () => {
+    const rm = row.querySelector(".rm");
+    if (rm) rm.onclick = async () => {
       if (!confirm(`删除 MCP 服务器 ${name}？`)) return;
       try { await api("/api/settings/mcp/remove", { name }); say("#mcp-msg", "已删除", "ok"); loadMcp(); }
       catch (e) { say("#mcp-msg", e.message, "err"); }
