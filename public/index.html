@@ -310,6 +310,7 @@ async function open(path) {
   document.body.classList.remove("show-panel");
   renderSide();
   const hist = await (await fetch(`/api/history?path=${encodeURIComponent(path)}`)).json();
+  if (path !== current) return; // 连点两段对话时，先发的请求可能后回来，别把上一段的内容画到这一段
   $("#msgs").innerHTML = "";
   if (!hist.length) $("#msgs").innerHTML = path === "main"
     ? '<div class="hint">跟奇奇说就行，它会分给对应的宝。<br>@宝名 可以直接指定，/help 看命令。</div>'
