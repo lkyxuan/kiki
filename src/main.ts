@@ -5,6 +5,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
 import { Agents } from "./agents.js";
+import { handoffTool } from "./handoff.js";
+import { loadRules } from "./rules.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { startServer } from "./server.js";
@@ -45,6 +47,9 @@ const router = new Router(agents, registry, process.env.DEFAULT_AGENT || "life",
   concurrency: Number(process.env.TASK_CONCURRENCY || 2),
   timeoutMs: Number(process.env.TASK_TIMEOUT_MIN || 30) * 60_000,
 });
+// 对话里的 agent 可以把一件新事交接到新对话（自己写交接说明）
+router.rules = () => loadRules(dataDir);
+agents.toolsFor = () => [handoffTool({ listBaos: () => agents.listAgents(), rules: router.rules, onHandoff: (r) => router.handoff(r) })];
 
 const port = Number(process.env.PORT || 4567);
 const updater = new Updater({
