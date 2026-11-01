@@ -10,7 +10,7 @@ import { handoffTool } from "./handoff.js";
 import { loadRules } from "./rules.js";
 import { kikiTools } from "./tools.js";
 import { type FeatureId, isOn } from "./features.js";
-import { DEFAULT_BAO, migrateToQiqi } from "./migrate.js";
+import { DEFAULT_BAO, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { startServer } from "./server.js";
@@ -44,7 +44,8 @@ if (!existsSync(dataDir)) {
   console.log(`已在 ${dataDir} 建好数据目录，记得改 AGENTS.md（关于我）。`);
 }
 // 老数据目录升级：只留奇奇一个默认宝，旧的 dev、life 挪进 archive/（不删）
-for (const line of migrateToQiqi(dataDir, join(root, "data-template"))) console.log(`升级数据目录：${line}`);
+for (const line of [...migrateToQiqi(dataDir, join(root, "data-template")), ...upgradeQiqiNote(dataDir, join(root, "data-template"))])
+  console.log(`升级数据目录：${line}`);
 
 const agents = new Agents(dataDir, process.env.MODEL || "deepseek/deepseek-flash");
 // 审批：收不回来的动作先问一句（见 approval.ts）
@@ -65,7 +66,7 @@ router.isOn = (id) => isOn(dataDir, id);
 // 设置页关掉的能力不挂给 agent（新开的对话生效）
 agents.toolsFor = () =>
   [
-    handoffTool({ listBaos: () => agents.listAgents(), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
+    handoffTool({ listBaos: () => agents.listAgents(), describe: (b) => agents.describe(b), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
     ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
   ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
 

@@ -17,6 +17,7 @@ import {
   SessionManager,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
+import { baoFile, createBao } from "./bao.js";
 
 export interface ChatLine {
   role: "user" | "assistant";
@@ -57,6 +58,11 @@ export class Agents extends EventEmitter {
     const root = join(this.dataDir, "agents");
     if (!existsSync(root)) return [];
     return readdirSync(root).filter((n) => statSync(join(root, n)).isDirectory());
+  }
+
+  /** 新建一个宝（自动分派时没有合适的宝就建）。 */
+  createBao(name: string, duty: string) {
+    createBao(this.dataDir, name, duty);
   }
 
   exists(agent: string) {
@@ -193,7 +199,7 @@ export class Agents extends EventEmitter {
 
   /** 这个宝是干什么的：取 AGENTS.md 里"我负责什么"下面那段，没有就取标题。 */
   describe(agent: string): string {
-    const f = join(this.agentDir(agent), "AGENTS.md");
+    const f = baoFile(this.dataDir, agent);
     if (!existsSync(f)) return "";
     const md = readFileSync(f, "utf8");
     const duty = md.match(/##\s*我负责什么\s*\n+([^\n#][^\n]*)/);
