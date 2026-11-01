@@ -41,12 +41,12 @@
   .item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
   /* 奇奇主按钮：和对话条目不一样，居中、大图标 */
   .kiki { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 18px 10px 14px; border-radius: 14px; font-weight: 650; font-size: 16px; }
-  .kiki img { width: 64px; height: 64px; border-radius: 18px; transition: transform .15s; }
+  .kiki img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; transition: transform .15s; }
   .kiki:hover { background: var(--hover); }
   .kiki:hover img { transform: scale(1.04); }
   .kiki.on { background: var(--active); }
   .kiki.on img { box-shadow: 0 0 0 3px var(--side), 0 0 0 5px var(--accent); }
-  .kiki .dot { position: absolute; top: 18px; right: calc(50% - 38px); width: 10px; height: 10px; border: 2px solid var(--side); }
+  .kiki .dot { position: absolute; top: 18px; right: calc(50% - 40px); width: 10px; height: 10px; border: 2px solid var(--side); }
   .label { font-size: 12px; color: var(--muted); padding: 16px 10px 6px; letter-spacing: .04em; }
   .bao { margin-bottom: 4px; }
   .bao-head { display: flex; align-items: center; gap: 10px; padding: 6px 4px 6px 10px; font-size: 14px; font-weight: 500; }
@@ -125,7 +125,7 @@
 </head>
 <body>
 <aside>
-  <button class="kiki" data-path="main" aria-label="奇奇"><img src="/icon.svg" alt=""><span class="name">奇奇</span></button>
+  <button class="kiki" data-path="main" aria-label="奇奇"><img src="/qiqi.png" alt=""><span class="name">奇奇</span></button>
   <div class="label">我的宝</div>
   <div id="agents"></div>
   <button class="item add-bao" id="add-bao"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="name">新建一个宝</span></button>

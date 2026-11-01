@@ -19,6 +19,7 @@ const STATIC: Record<string, string> = {
   "/icon.svg": "image/svg+xml",
   "/icon-180.png": "image/png",
   "/settings.html": "text/html; charset=utf-8", // 设置页
+  "/qiqi.png": "image/png", // 奇奇的头像
 };
 
 export function startServer(opts: {
