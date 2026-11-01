@@ -47,6 +47,12 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 把 `package.json` 里的版本号改大（比如 `npm version patch --no-git-tag-version`），合进 main。GitHub Actions 会检查、测试、打 arm64 和 x64 两个包，建好 Release。各台机器上的 Kiki 会在 6 小时内自己装上。
 
+## 在别的电脑上用 Kiki 的 App（前后端分离）
+
+App 第一次打开会问：**在这台电脑上运行**，还是**连接远程地址**。比如 Kiki 跑在 Mac mini 上，MacBook 上也装一个 Kiki.app，选“连接远程地址”，填 Mac mini 的 Tailscale 地址（见下一节），这台 MacBook 就只当界面，不跑后台、不存数据。以后想换，菜单「Kiki → 连接到…」（⌘,）。
+
+界面是从后端加载的，所以后端（Mac mini）更新以后，各台电脑上看到的界面也跟着是新的。
+
 ## 远程使用（安全地）
 
 Kiki 能在 Mac mini 上读写文件、跑命令，所以**绝不能直接暴露到公网**。它只监听本机（127.0.0.1），也没有自己的登录。远程用的推荐办法是 Tailscale：只有你登录了同一个 Tailscale 账号的设备才连得上，传输全程加密，还有 HTTPS。

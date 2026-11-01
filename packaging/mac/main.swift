@@ -1,5 +1,7 @@
 // Kiki 的原生窗口外壳。
-// 后台服务（Node）由 launchd 运行；这个 App 只负责：登记并等服务起来 → 在原生窗口里显示 Kiki 的界面。
+// 两种用法（第一次打开时选，菜单「连接到…」随时改，和 Hermes 的远程网关一样前后端分离）：
+//   本机：在这台电脑上运行 Kiki——登记 launchd 后台服务、等它起来，再在窗口里显示界面
+//   远程：只当界面，连另一台电脑上的 Kiki（比如经 Tailscale 的 https://mac-mini.xxx.ts.net:8888），本机不跑后台
 // 关掉窗口不会停服务；点 Dock 图标再打开。外部链接用默认浏览器打开。
 import Cocoa
 import WebKit
@@ -14,14 +16,79 @@ let pageBackground = NSColor(name: nil) { appearance in
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
     var window: NSWindow!
     var webView: WKWebView!
-    var port = "4567"
+    var base = URL(string: "http://localhost:4567")!  // 当前连的 Kiki
     var loaded = false
+    var generation = 0  // 切换连接时作废旧的等待/重试
+
+    // 保存的选择："local" 或远程地址；nil 表示还没选过
+    var server: String? {
+        get { UserDefaults.standard.string(forKey: "server") }
+        set { UserDefaults.standard.set(newValue, forKey: "server") }
+    }
+    var isRemote: Bool { server != nil && server != "local" }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
         buildWindow()
-        showSplash("正在启动 Kiki…")
-        startBackend()
+        if server == nil {
+            showSplash("")
+            chooseServer(firstTime: true)
+        } else {
+            connect()
+        }
+    }
+
+    func connect() {
+        generation += 1
+        loaded = false
+        if isRemote, let url = URL(string: server!) {
+            base = url
+            showSplash("正在连接 \(url.host ?? "")…")
+            waitForServer(tries: 0, gen: generation)
+        } else {
+            showSplash("正在启动 Kiki…")
+            startBackend(gen: generation)
+        }
+    }
+
+    // MARK: 选择连哪个 Kiki
+
+    @objc func changeServer(_ sender: Any?) { chooseServer(firstTime: false) }
+
+    func chooseServer(firstTime: Bool, error: String? = nil) {
+        let a = NSAlert()
+        a.messageText = firstTime ? "欢迎使用 Kiki" : "连接到哪个 Kiki？"
+        a.informativeText = (error.map { $0 + "\n\n" } ?? "") + """
+        在这台电脑上运行 Kiki；或者只把这里当界面，连接另一台电脑（比如家里的 Mac mini）上的 Kiki。\
+        连远程时两台电脑都要开着 Tailscale，地址形如 https://mac-mini.xxx.ts.net:8888
+        """
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 340, height: 24))
+        field.placeholderString = "远程地址，比如 https://mac-mini.xxx.ts.net:8888"
+        if isRemote { field.stringValue = server! }
+        a.accessoryView = field
+        a.addButton(withTitle: "连接远程地址")
+        a.addButton(withTitle: "在这台电脑上运行")
+        if !firstTime { a.addButton(withTitle: "取消") }
+        a.window.initialFirstResponder = field
+        a.beginSheetModal(for: window) { r in
+            switch r {
+            case .alertFirstButtonReturn:
+                var text = field.stringValue.trimmingCharacters(in: .whitespaces)
+                if !text.isEmpty && !text.contains("://") { text = "https://" + text }
+                while text.hasSuffix("/") { text.removeLast() }
+                guard let url = URL(string: text), url.host != nil, ["http", "https"].contains(url.scheme ?? "") else {
+                    DispatchQueue.main.async { self.chooseServer(firstTime: firstTime, error: "地址看起来不对。") }
+                    return
+                }
+                self.server = url.absoluteString
+                self.connect()
+            case .alertSecondButtonReturn:
+                self.server = "local"
+                self.connect()
+            default:
+                break
+            }
+        }
     }
 
     // 点 Dock 图标时把窗口叫回来
@@ -80,7 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     // MARK: 后台服务
 
-    func startBackend() {
+    func startBackend(gen: Int) {
         let setup = Bundle.main.resourceURL!.appendingPathComponent("kiki-setup")
         DispatchQueue.global().async {
             let p = Process()
@@ -91,23 +158,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             try? p.run()
             p.waitUntilExit()
             let text = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            if let last = text.split(separator: "\n").last, Int(last) != nil { self.port = String(last) }
-            DispatchQueue.main.async { self.waitForServer(tries: 0) }
+            let port = text.split(separator: "\n").last.flatMap { Int($0) } ?? 4567
+            DispatchQueue.main.async {
+                guard gen == self.generation else { return }
+                self.base = URL(string: "http://localhost:\(port)")!
+                self.waitForServer(tries: 0, gen: gen)
+            }
         }
     }
 
-    func waitForServer(tries: Int) {
-        let url = URL(string: "http://127.0.0.1:\(port)/api/health")!
-        var req = URLRequest(url: url)
-        req.timeoutInterval = 2
-        URLSession.shared.dataTask(with: req) { _, resp, _ in
+    func waitForServer(tries: Int, gen: Int) {
+        var req = URLRequest(url: base.appendingPathComponent("api/health"))
+        req.timeoutInterval = 3
+        URLSession.shared.dataTask(with: req) { data, resp, _ in
             DispatchQueue.main.async {
-                if (resp as? HTTPURLResponse)?.statusCode == 200 {
+                guard gen == self.generation else { return }
+                let ok = (resp as? HTTPURLResponse)?.statusCode == 200
+                    && String(data: data ?? Data(), encoding: .utf8)?.contains("\"ok\":true") == true
+                if ok {
                     self.loaded = true
-                    self.webView.load(URLRequest(url: URL(string: "http://localhost:\(self.port)/")!))
+                    self.webView.load(URLRequest(url: self.base))
                 } else if tries < 60 {
-                    if tries == 10 { self.showSplash("Kiki 启动得有点慢，再等等…") }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.waitForServer(tries: tries + 1) }
+                    if tries == 8 {
+                        self.showSplash(self.isRemote
+                            ? "还没连上 \(self.base.host ?? "")，确认两台电脑都开着 Tailscale…"
+                            : "Kiki 启动得有点慢，再等等…")
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.waitForServer(tries: tries + 1, gen: gen) }
+                } else if self.isRemote {
+                    self.showSplash("连不上 \(self.base.absoluteString)")
+                    self.chooseServer(firstTime: false, error: "连不上 \(self.base.absoluteString)。")
                 } else {
                     self.showSplash("Kiki 没能启动。日志在 ~/Library/Logs/Kiki/server.log")
                 }
@@ -122,21 +202,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard loaded else { return }
         loaded = false
         showSplash("正在重新连接 Kiki…")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.waitForServer(tries: 0) }
+        let gen = generation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.waitForServer(tries: 0, gen: gen) }
     }
 
     // MARK: 链接
 
-    static func isLocal(_ url: URL?) -> Bool {
+    // 是不是 Kiki 自己的页面（不是就交给浏览器）
+    func isKiki(_ url: URL?) -> Bool {
         guard let url = url else { return true }
         if url.scheme == "about" || url.scheme == "data" { return true }
-        return url.host == "localhost" || url.host == "127.0.0.1"
+        return url.host == base.host && url.port == base.port
     }
 
     // 外部链接交给默认浏览器
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if let url = navigationAction.request.url, !AppDelegate.isLocal(url) {
+        if let url = navigationAction.request.url, !isKiki(url) {
             NSWorkspace.shared.open(url)
             decisionHandler(.cancel)
         } else {
@@ -171,11 +253,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // MARK: 菜单
 
     @objc func reload(_ sender: Any?) {
-        if loaded { webView.reload() } else { waitForServer(tries: 0) }
+        if loaded { webView.reload() } else { connect() }
     }
 
     @objc func openInBrowser(_ sender: Any?) {
-        NSWorkspace.shared.open(URL(string: "http://localhost:\(port)/")!)
+        NSWorkspace.shared.open(base)
     }
 
     @objc func showLogs(_ sender: Any?) {
@@ -194,6 +276,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let appItem = NSMenuItem()
         let app = NSMenu()
         app.addItem(withTitle: "关于 Kiki", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(.separator())
+        app.addItem(withTitle: "连接到…", action: #selector(changeServer(_:)), keyEquivalent: ",")
         app.addItem(.separator())
         app.addItem(withTitle: "打开数据文件夹", action: #selector(showData(_:)), keyEquivalent: "")
         app.addItem(withTitle: "打开日志文件夹", action: #selector(showLogs(_:)), keyEquivalent: "")
