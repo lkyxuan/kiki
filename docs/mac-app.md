@@ -55,7 +55,7 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 ## 在别的电脑上用 Kiki 的 App（前后端分离）
 
-App 第一次打开会问：**在这台电脑上运行**，还是**连接远程地址**。比如 Kiki 跑在 Mac mini 上，MacBook 上也装一个 Kiki.app，选“连接远程地址”，填 Mac mini 的 Tailscale 地址（见下一节），这台 MacBook 就只当界面，不跑后台、不存数据。以后想换，菜单「Kiki → 连接到…」（⌘,）。
+App 第一次打开会问：**在这台电脑上运行**，还是**连接远程地址**。比如 Kiki 跑在 Mac mini 上，MacBook 上也装一个 Kiki.app，选“连接远程地址”，填 Mac mini 的 Tailscale 地址（见下一节），这台 MacBook 就只当界面，不跑后台、不存数据。以后想换，菜单「Kiki → 连接到…」（⇧⌘K）。设置是 ⌘,，外观（跟随系统 / 浅色 / 深色）在设置里或菜单「显示 → 外观」。
 
 界面是从后端加载的，所以后端（Mac mini）更新以后，各台电脑上看到的界面也跟着是新的。
 
