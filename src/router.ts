@@ -23,6 +23,8 @@ export interface AgentBackend {
   recent(path: string, n: number): string[];
   /** 一段对话的聊天记录（给 kiki_peek 看） */
   history?(path: string): { role: "user" | "assistant"; text: string }[];
+  /** 新建一个宝（自动分派时没有合适的宝就建） */
+  createBao?(name: string, duty: string): void;
   /** 往对话末尾记一条消息，不触发回答（后台任务回报用） */
   note(agent: string, path: string, text: string): Promise<void>;
   /** 通知界面这段对话有了一条完整回答（可选） */
@@ -175,9 +177,14 @@ export class Router {
     try {
       const raw = await this.agents.complete(
         buildRouteSystem(this.rules()),
-        buildRouteInput({ text, candidates, current: cur ? label(cur) : undefined, onlyAgent }),
+        buildRouteInput({ text, candidates, current: cur ? label(cur) : undefined, onlyAgent, now: nowText() }),
       );
-      const d = parseDecision(raw, { agents: onlyAgent ? [onlyAgent] : agents, targets: onlyAgent ? targets.filter((t) => t.startsWith(`${onlyAgent}/`)) : targets });
+      const d = parseDecision(raw, {
+        agents: onlyAgent ? [onlyAgent] : agents,
+        targets: onlyAgent ? targets.filter((t) => t.startsWith(`${onlyAgent}/`)) : targets,
+        allowNewBao: !onlyAgent && !!this.agents.createBao, // 用户 @ 了宝就只在它下面选
+        allowReply: !onlyAgent,
+      });
       if (d) return d;
       console.warn("[route] 模型输出看不懂，用默认去处：", raw.slice(0, 200));
     } catch (e) {
@@ -189,6 +196,20 @@ export class Router {
   /** 按决定把这句话送进对话，回执 + 回答一起回给用户。 */
   private async deliver(chatId: string, text: string, d: Decision, reply: Reply, release: () => void = () => {}) {
     this.last.set(chatId, text);
+    if (d.action === "reply") {
+      release();
+      return reply(`奇奇 · 直接回答\n\n${d.text}`);
+    }
+    let made = "";
+    if (d.action === "new" && d.newBao && !this.agents.exists(d.agent)) {
+      try {
+        this.agents.createBao!(d.agent, d.newBao);
+        made = `新建宝「${d.agent}」，`;
+      } catch (e) {
+        console.warn("[route] 新建宝失败，用默认的宝：", (e as Error).message);
+        d = { ...d, agent: this.defaultAgent, newBao: undefined };
+      }
+    }
     if (d.mode === "background" && !this.isOn("background")) d = { ...d, mode: "chat", taskTitle: undefined };
     if (d.mode === "background") {
       // 接着某段对话派的活：分叉那段对话去后台做（带着前面的讨论），结果也回报到那段对话；
@@ -208,7 +229,7 @@ export class Router {
       let name = d.name;
       for (let i = 2; this.registry.get(d.agent, name); i++) name = `${d.name}${i}`; // 防重名
       rec = await this.newSession(d.agent, name);
-      how = "新开";
+      how = made ? "新建宝并新开" : "新开";
     }
     this.registry.setCurrent(chatId, rec.path);
     const pending = this.agents.send(rec.agent, rec.path, text); // 已排进对话队列
@@ -302,7 +323,13 @@ export class Router {
   /** 交接：对话里的 agent 调 kiki_handoff 时走这里。新对话的第一条消息就是交接说明。
    *  不等新对话回答（工具调用还卡在原对话里，等了会拖住原对话）。 */
   async handoff(req: HandoffRequest): Promise<string> {
-    if (!this.agents.exists(req.bao)) throw new Error(`没有宝「${req.bao}」，可选：${this.agents.listAgents().join("、")}`);
+    let made = "";
+    if (!this.agents.exists(req.bao)) {
+      if (!req.duty?.trim() || !this.agents.createBao)
+        throw new Error(`没有宝「${req.bao}」。已有：${this.agents.listAgents().join("、")}；要新建就同时填 duty（这个宝负责什么）`);
+      this.agents.createBao(req.bao, req.duty);
+      made = `新建了宝「${req.bao}」，`;
+    }
     const base = req.name.replace(/[\/\n]/g, " ").trim().slice(0, 30) || stamp();
     if (req.mode === "background" && !this.isOn("background")) req = { ...req, mode: "chat" }; // 后台任务关了就开成普通对话
     const from = req.fromPath ? this.registry.byPath(req.fromPath) : undefined;
@@ -312,7 +339,7 @@ export class Router {
       // 后台：按交接说明开一段干净的新对话去做（不分叉原对话，只带说明里的上下文），做完回报到原对话
       // reportTo：只回报、不分叉，存进任务文件，重启后 /retry 也会回报到原对话
       this.tasks.start({ agent: req.bao, title: base, prompt: msg, reportTo: from?.path, chatId: "handoff" });
-      return `已交给后台任务「${base}」（${req.bao}），做完会回报到这段对话。`;
+      return `${made}已交给后台任务「${base}」（${req.bao}），做完会回报到这段对话。`;
     }
 
     // 先同步占住名字再去建对话：两段对话同时交接同名的事，不会落到同一个名字上
@@ -330,7 +357,7 @@ export class Router {
       .send(rec.agent, rec.path, msg)
       .then((r) => this.agents.announce?.(rec.path, r))
       .catch((e) => this.agents.announce?.(rec.path, `出错了：${(e as Error).message}`));
-    return `已交接到 ${label(rec)}，新对话已收到交接说明。用户在左边栏点「${name}」就能过去。`;
+    return `${made}已交接到 ${label(rec)}，新对话已收到交接说明。用户在左边栏点「${name}」就能过去。`;
   }
 
   /** 找一段对话：宝名/对话名。 */
@@ -406,6 +433,13 @@ export class Router {
     this.registry.add(rec);
     return rec;
   }
+}
+
+/** 本机时间和时区，比如 "2026/11/2 06:15 星期一（Asia/Shanghai）" */
+function nowText(d = new Date()) {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const t = d.toLocaleString("zh-CN", { hour12: false, year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", weekday: "long" });
+  return `${t}（${tz}）`;
 }
 
 const label = (s: SessionRecord) => `${s.agent}/${s.name}`;

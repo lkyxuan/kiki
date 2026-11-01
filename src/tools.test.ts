@@ -17,3 +17,12 @@ test("kiki_remember：写进关于我 / 宝的说明，第一次加小标题，�
   assert.throws(() => remember(dir, ["dev"], "work", "x"), /没有宝「work」/);
   assert.throws(() => remember(dir, ["dev"], "我", "  "), /空的/);
 });
+
+test("createBao：写好说明文件，重名和坏名字报错", async () => {
+  const { createBao, baoFile } = await import("./bao.js");
+  const dir = mkdtempSync(join(tmpdir(), "kiki-"));
+  createBao(dir, "生活宝", "日常生活：购物、\n家里的事");
+  assert.match(readFileSync(baoFile(dir, "生活宝"), "utf8"), /^# 生活宝\n\n## 我负责什么\n日常生活：购物、 家里的事\n/);
+  assert.throws(() => createBao(dir, "生活宝", "x"), /已经有/);
+  assert.throws(() => createBao(dir, "../x", "x"), /不行/);
+});
