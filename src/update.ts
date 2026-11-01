@@ -39,6 +39,8 @@ export interface UpdateState {
   url?: string; // 发布页
   status: UpdateStatus;
   message?: string;
+  /** 正在进行的一步和进度，给设置页画进度条：1 下载 → 2 校验 → 3 自检 → 4 备份 → 5 等对话跑完 → 6 切换重启 */
+  step?: { n: number; of: number; label: string; percent?: number };
   checkedAt?: string;
   canApply: boolean; // 从 Kiki.app 跑的才能自己替换
   auto: boolean; // 空闲时自动装
@@ -201,28 +203,43 @@ export class Updater extends EventEmitter {
     const staging = join(dirname(app), ".Kiki-update"); // 和 App 同一个盘，替换时是瞬间改名
     try {
       // 1. 下载并校验
-      this.set({ status: "downloading", message: `正在下载 ${to}…` });
+      this.set({ status: "downloading", message: `正在下载 ${to}…`, step: undefined });
       rmSync(work, { recursive: true, force: true });
       mkdirSync(work, { recursive: true });
       const zip = join(work, zipAsset.name);
+      const STEPS = 6;
+      const step = (n: number, label: string, percent?: number) =>
+        this.set({ step: { n, of: STEPS, label, percent }, message: `${label}…` });
+      step(1, `正在下载 ${to}`, 0);
       const res = await this.gh(zipAsset.url, "application/octet-stream");
+      const total = Number(res.headers.get("content-length")) || 0;
       const hash = createHash("sha256");
+      let got = 0;
+      let shown = -1;
       await pipeline(
         Readable.fromWeb(res.body as never),
-        async function* (src) {
+        async function* (this: void, src) {
           for await (const chunk of src) {
             hash.update(chunk);
+            got += chunk.length;
+            const pct = total ? Math.floor((got / total) * 100) : undefined;
+            if (pct !== undefined && pct !== shown) {
+              shown = pct;
+              step(1, `正在下载 ${to}（${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB）`, pct);
+            }
             yield chunk;
           }
         },
         createWriteStream(zip),
       );
+      step(2, "正在核对校验和");
       const sums = await (await this.gh(sumAsset.url, "application/octet-stream")).text();
       const want = sumFor(sums, zipAsset.name);
       if (!want || want !== hash.digest("hex")) throw new Error("校验和对不上，已放弃");
 
       // 2. 解压到暂存区，用新版本自带的 Node 跑一次自检（相当于 Hermes 更新后先编译关键文件）
-      this.set({ status: "installing", message: `正在检查 ${to}…` });
+      this.set({ status: "installing" });
+      step(3, `正在解压并自检 ${to}`);
       rmSync(staging, { recursive: true, force: true });
       mkdirSync(staging, { recursive: true });
       await run("/usr/bin/ditto", ["-x", "-k", zip, staging]);
@@ -234,12 +251,13 @@ export class Updater extends EventEmitter {
       if (!stdout.includes(`kiki ${to} ok`)) throw new Error(`新版本自检没通过：${stdout.slice(0, 200)}`);
 
       // 3. 备份状态文件（只是小文件；对话记录不会被更新动到）
+      step(4, "正在备份设置");
       this.backup();
 
       // 4. 等手上的对话都跑完再切（下载和自检期间可能有新对话开始）。
       //    检查空闲和启动替换脚本之间是同步的，中间插不进新消息。
       while (!this.opts.isIdle()) {
-        this.set({ message: `${to} 已准备好，等对话跑完就切换` });
+        step(5, `${to} 已准备好，等手上的对话跑完就切换`);
         await new Promise((r) => setTimeout(r, 5000));
       }
 
@@ -252,10 +270,10 @@ export class Updater extends EventEmitter {
         detached: true,
         stdio: ["ignore", log, log],
       }).unref();
-      this.set({ message: `正在切换到 ${to}，Kiki 会重启一下` });
+      step(6, `正在切换到 ${to}，Kiki 会重启几秒`);
     } catch (e) {
       rmSync(staging, { recursive: true, force: true });
-      this.set({ status: "error", message: `更新失败：${(e as Error).message}` });
+      this.set({ status: "error", message: `更新失败：${(e as Error).message}`, step: undefined });
     }
     return this.state;
   }

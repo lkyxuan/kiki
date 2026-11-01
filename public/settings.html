@@ -264,6 +264,10 @@
     <h2>更新</h2>
     <div class="card">
       <div id="upd" class="msg">查询中…</div>
+      <div id="upd-prog" hidden style="margin: 8px 0">
+        <progress max="100" value="0" style="width: 100%; height: 8px; accent-color: var(--accent, #2f7d4f)"></progress>
+        <div class="msg" id="upd-step"></div>
+      </div>
       <label class="check"><input type="checkbox" id="auto"> 空闲时自动更新</label>
       <div class="row" style="margin-top: 6px">
         <button class="btn" id="check">检查更新</button>
@@ -467,7 +471,7 @@ async function loadUpdate() {
   clearTimeout(updTimer);
   if (!u) {
     // 更新切换时 Kiki 会重启几秒，连不上就过一会儿再看
-    if (window.__updating) { el.textContent = "Kiki 正在重启…"; updTimer = setTimeout(loadUpdate, 2000); return; }
+    if (window.__updating) { el.textContent = "Kiki 正在重启，马上就好…"; $("#upd-prog").hidden = false; $("#upd-prog progress").value = 95; updTimer = setTimeout(loadUpdate, 2000); return; }
     el.textContent = "更新功能不可用"; return;
   }
   if (window.__updating && window.__updating !== u.current) { location.reload(); return; } // 新版本起来了
@@ -480,6 +484,14 @@ async function loadUpdate() {
   if (!u.canApply) t += "<br>开发模式下用 git pull 更新";
   el.innerHTML = t;
   $("#apply").hidden = !(u.status === "available" && u.canApply);
+  // 进度条：6 步（下载、校验、自检、备份、等对话、切换），下载那步按字节算百分比
+  const st = (u.status === "downloading" || u.status === "installing") && u.step;
+  $("#upd-prog").hidden = !st;
+  if (st) {
+    const overall = Math.round(((st.n - 1) + (st.percent ?? 0) / 100) / st.of * 100);
+    $("#upd-prog progress").value = overall;
+    $("#upd-step").textContent = `第 ${st.n}/${st.of} 步：${st.label}${st.percent !== undefined && st.n === 1 ? ` · ${st.percent}%` : ""}`;
+  }
   if (busy) {
     if (u.status !== "checking") window.__updating = u.current;
     updTimer = setTimeout(loadUpdate, 2000); // 下载、安装中：每 2 秒刷新进度
