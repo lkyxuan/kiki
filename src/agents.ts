@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node
 import { join } from "node:path";
 import {
   type AgentSession,
+  type ExtensionFactory,
   type ToolDefinition,
   createAgentSession,
   createCodemodeExtension,
@@ -29,6 +30,8 @@ export class Agents extends EventEmitter {
   readonly engineDir: string;
   /** Kiki 给对话里的 agent 额外提供的工具（比如交接），由 main.ts 注入。 */
   toolsFor?: (agent: string) => ToolDefinition[];
+  /** Kiki 自己的 pi 扩展（比如审批），由 main.ts 注入。 */
+  extensions: ExtensionFactory[] = [];
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
 
@@ -77,7 +80,7 @@ export class Agents extends EventEmitter {
       cwd,
       agentDir: this.engineDir,
       settingsManager,
-      extensionFactories: [createCodemodeExtension(), createToolSearchExtension(), createMcpExtension()],
+      extensionFactories: [...this.extensions, createCodemodeExtension(), createToolSearchExtension(), createMcpExtension()],
     });
     await resourceLoader.reload();
     const { session } = await createAgentSession({

@@ -6,6 +6,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { Agents, ChatLine } from "./agents.js";
+import type { Approvals, Decision } from "./approval.js";
 import { rejectReason } from "./guard.js";
 import type { Registry } from "./registry.js";
 import type { Router } from "./router.js";
@@ -20,6 +21,8 @@ const STATIC: Record<string, string> = {
   "/icon-180.png": "image/png",
   "/settings.html": "text/html; charset=utf-8", // 设置页
   "/qiqi.png": "image/png", // 奇奇的头像
+  "/theme.css": "text/css; charset=utf-8", // 浅色 / 深色配色，两个页面共用
+  "/theme.js": "text/javascript; charset=utf-8", // 外观切换（跟随系统 / 浅色 / 深色）
 };
 
 export function startServer(opts: {
@@ -30,6 +33,7 @@ export function startServer(opts: {
   registry: Registry;
   router: Router;
   updater?: Updater;
+  approvals?: Approvals;
 }) {
   const { agents, registry, router } = opts;
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
@@ -48,6 +52,7 @@ export function startServer(opts: {
     push("tree", tree());
   });
   opts.updater?.on("state", (s) => push("update", s));
+  opts.approvals?.on("change", (list) => push("approvals", list)); // 等你点头的卡片
 
   const mainSay = (role: ChatLine["role"], text: string) => {
     appendFileSync(mainLog, JSON.stringify({ role, text, ts: new Date().toISOString() }) + "\n");
@@ -101,6 +106,19 @@ export function startServer(opts: {
           return json({ error: (e as Error).message }, 400);
         }
       }
+    }
+
+    // 审批：GET 看等你点头的卡片，POST /api/approvals/decide {id, decision: yes|no|always}
+    if (url.pathname === "/api/approvals" && opts.approvals) return json(opts.approvals.list());
+    if (url.pathname === "/api/approvals/decide" && req.method === "POST" && opts.approvals) {
+      const { id, decision } = await body();
+      if (!["yes", "no", "always"].includes(decision)) return json({ error: "decision 要是 yes、no 或 always" }, 400);
+      try {
+        opts.approvals.decide(String(id), decision as Decision);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      return json({ ok: true });
     }
 
     if (url.pathname === "/api/history") {

@@ -6,85 +6,132 @@
 <title>Kiki 设置</title>
 <link rel="icon" href="/icon.svg">
 <link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="stylesheet" href="/theme.css">
+<script src="/theme.js"></script>
+<script>if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add("embed");</script>
 <style>
-  :root {
-    --bg: #ffffff; --side: #f6f6f4; --line: #e6e5e1; --text: #1d1d1b; --muted: #6f6e69;
-    --hover: #ecebe7; --card: #ffffff; --code: #f3f2ee; --accent: #5b6cf0;
-    --ok: #1f7a3a; --warn: #9a5b00; --err: #b3261e; --note: #fff6e0;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1b1b1d; --side: #141416; --line: #2c2c30; --text: #ececec; --muted: #9b9ba2;
-      --hover: #222226; --card: #202023; --code: #26262b; --accent: #8b97ff;
-      --ok: #6fd18e; --warn: #f0b860; --err: #ff8a80; --note: #2e2816;
-    }
-  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--side); color: var(--text); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--grouped); color: var(--text); font: 14px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
+  /* 左右两栏，像「系统设置」：左边分类，右边只显示选中的那一块 */
+  .layout { display: flex; min-height: 100%; }
+  nav { width: 220px; flex: none; background: var(--side); border-right: 1px solid var(--line); padding: 14px 10px 10px; position: sticky; top: 0; height: 100vh; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+  #nav-items { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 32px; padding: 4px 8px; border: 0; border-radius: 7px; background: none; text-align: left; font-size: 13.5px; white-space: nowrap; }
+  .nav-item:hover { background: var(--hover); }
+  .nav-item.on { background: var(--accent); color: var(--on-accent); }
+  .nav-item .ic { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; flex: none; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.12); }
+  .nav-item .ic svg { width: 14px; height: 14px; }
+  #ver { margin-top: auto; padding: 10px 8px 2px; white-space: pre-line; color: var(--faint); font-size: 11px; word-break: break-all; line-height: 1.5; }
+  .content { flex: 1; min-width: 0; }
+  .pane { display: none; }
+  .pane.on { display: block; }
   button, input, select, textarea { font: inherit; color: inherit; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
-  .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-  .top h1, .top a { flex: none; white-space: nowrap; }
-  .top h1 { margin: 0; font-size: 20px; }
-  .top small { color: var(--muted); flex: 1 1 100%; font-size: 12px; word-break: break-all; }
-  a.back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); text-decoration: none; background: var(--card); }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 22px 28px 60px; }
+  .top { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 0 4px 12px; }
+  .top h1 { margin: 0; font-size: 20px; font-weight: 700; }
+  .embed a.back { display: none; }
+  .embed .top { padding-top: 4px; }
+  a.back { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 7px; color: var(--text); text-decoration: none; background: var(--card); box-shadow: var(--shadow-sm); }
   a.back:hover { background: var(--hover); }
+  a { color: var(--accent); }
   .banner { display: none; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--note); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; }
   .banner.on { display: flex; }
-  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
-  section h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
-  section h2 small { font-weight: 400; color: var(--muted); font-size: 13px; }
-  section h2 .right { margin-left: auto; }
+  /* 每一组设置一张圆角卡片，像「系统设置」 */
+  /* 每一块：大标题 + 说明，下面是一张或几张圆角卡片 */
+  .pane h2 { margin: 0 0 16px; padding: 0 4px; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; }
+  .pane h2 small { order: 2; flex-basis: 100%; font-weight: 400; color: var(--muted); font-size: 13px; }
+  .pane h2 .right { margin-left: auto; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; box-shadow: var(--shadow-sm); }
+  .card > p.msg:first-child, .card > .msg:only-child { margin-top: 0; }
   .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   @media (max-width: 600px) { .grid { grid-template-columns: minmax(0, 1fr); } }
   .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .field label { font-size: 13px; color: var(--muted); }
-  input[type=text], input[type=password], textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  input:disabled { opacity: .6; }
-  textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
+  .field label { font-size: 12.5px; color: var(--muted); }
+  input[type=text], input[type=password], textarea { width: 100%; min-height: 32px; padding: 5px 10px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--raised); outline: 0; transition: border-color .15s, box-shadow .15s; }
+  input[type=text]:focus, input[type=password]:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  input::placeholder, textarea::placeholder { color: var(--faint); }
+  input:disabled { opacity: .55; }
+  textarea { min-height: 220px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; resize: vertical; padding: 8px 10px; }
+  .toggle-row select { min-height: 28px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--raised); box-shadow: var(--shadow-sm); font-size: 13px; }
   .src { font-size: 12px; color: var(--muted); }
   .src.external { color: var(--warn); }
   .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-  .btn { min-height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; }
+  /* 按钮：macOS 的普通按钮 / 强调按钮 */
+  .btn { min-height: 28px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--raised); box-shadow: var(--shadow-sm); font-size: 13px; font-weight: 500; white-space: nowrap; }
   .btn:hover { background: var(--hover); }
-  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
-  .btn:disabled { opacity: .4; cursor: default; }
-  .msg { font-size: 13px; color: var(--muted); }
+  .btn:active { background: var(--active); }
+  .btn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn:disabled { opacity: .4; }
+  .msg { font-size: 12.5px; color: var(--muted); }
   .msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; word-break: break-all; }
+  p.msg { margin: 12px 0 0; line-height: 1.6; }
+  .mono { font-family: var(--mono); font-size: 12px; word-break: break-all; }
   .bao { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
   .bao .avatar { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
   .bao .name { font-weight: 500; flex: 1; }
   .editor { padding: 4px 0 12px; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
-  .dot.ok { background: var(--ok); }
-  .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-  .cols section { margin-bottom: 0; }
-  @media (max-width: 600px) { .cols { grid-template-columns: minmax(0, 1fr); } }
-  h3.sub { font-size: 14px; margin: 14px 0 4px; display: flex; gap: 8px; align-items: baseline; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--faint); }
+  .dot.ok { background: var(--switch); }
+  h3.sub { font-size: 13px; font-weight: 600; color: var(--muted); margin: 4px 4px 6px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
   h3.sub small { font-weight: 400; color: var(--muted); font-size: 12px; }
   .toggle-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .card .toggle-row:first-child, .card .bao-wrap:first-child .bao { border-top: 0; padding-top: 2px; }
   .toggle-row .t { flex: 1; min-width: 0; }
   .toggle-row .t b { font-weight: 500; display: block; }
-  .toggle-row .t span { font-size: 13px; color: var(--muted); }
-  .switch { position: relative; width: 44px; height: 26px; flex: none; }
-  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; inset: 0; z-index: 1; }
-  .switch i { position: absolute; inset: 0; border-radius: 13px; background: var(--line); transition: background .15s; }
-  .switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s; }
-  .switch input:checked + i { background: var(--ok); }
-  .switch input:checked + i::after { transform: translateX(18px); }
-  .switch input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .toggle-row .t span { font-size: 12.5px; color: var(--muted); }
+  /* 开关：iOS / macOS 的绿色开关 */
+  .switch { position: relative; width: 38px; height: 22px; flex: none; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; inset: 0; z-index: 1; }
+  .switch i { position: absolute; inset: 0; border-radius: 11px; background: var(--fill); box-shadow: inset 0 0 0 .5px var(--line); transition: background .2s; }
+  .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25), 0 0 0 .5px rgba(0,0,0,.04); transition: transform .2s cubic-bezier(.2,.8,.2,1); }
+  .switch input:checked + i { background: var(--switch); }
+  .switch input:checked + i::after { transform: translateX(16px); }
+  .switch input:focus-visible + i { outline: 3px solid var(--accent-soft); outline-offset: 1px; }
   label.check { display: flex; align-items: center; gap: 8px; min-height: 32px; }
-  label.check input { width: 18px; height: 18px; }
+  label.check input { width: 16px; height: 16px; accent-color: var(--accent); }
+  /* 外观：三张小窗口缩略图，像 macOS「外观」设置 */
+  .looks { display: flex; gap: 18px; flex-wrap: wrap; }
+  .look { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); position: relative; }
+  .look input { position: absolute; opacity: 0; pointer-events: none; }
+  .look .pic { width: 96px; height: 62px; border-radius: 8px; overflow: hidden; display: flex; box-shadow: 0 0 0 1px var(--line-strong), var(--shadow-sm); transition: box-shadow .15s; }
+  .look input:checked ~ .pic { box-shadow: 0 0 0 1px var(--card), 0 0 0 4px var(--accent); }
+  .look input:checked ~ span { color: var(--text); font-weight: 500; }
+  .look input:focus-visible ~ .pic { outline: 3px solid var(--accent-soft); outline-offset: 4px; }
+  .pic .half { flex: 1; display: flex; padding: 7px 0 0 7px; }
+  .pic .lt { background: #f5f5f7; } .pic .dk { background: #262628; }
+  .pic .w { flex: 1; border-radius: 4px 0 0 0; display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+  .pic .lt .w { background: #fff; box-shadow: -1px -1px 0 rgba(0,0,0,.06); } .pic .dk .w { background: #1e1e1f; box-shadow: -1px -1px 0 rgba(255,255,255,.08); }
+  .pic .w i { display: block; height: 5px; border-radius: 3px; background: #5b6cf0; width: 60%; align-self: flex-end; }
+  .pic .w i + i { width: 75%; align-self: flex-start; }
+  .pic .lt .w i + i { background: #d8d8dc; } .pic .dk .w i + i { background: #48484c; }
+  /* 窄屏：分类变成顶部一行，可以横着滑 */
+  @media (max-width: 640px) {
+    .layout { flex-direction: column; }
+    nav { width: 100%; height: auto; position: sticky; top: 0; z-index: 2; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; }
+    #nav-items { flex-direction: row; overflow-x: auto; }
+    .nav-item { width: auto; }
+    #ver { display: none; }
+    .wrap { padding: 18px 16px 48px; }
+    .top { flex-direction: row; align-items: center; padding-bottom: 6px; }
+    .top h1 { font-size: 17px; }
+    .embed nav { padding-right: 56px; } /* 给弹窗的 × 让位 */
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="layout">
+<nav id="nav" aria-label="设置分类">
   <div class="top">
     <a class="back" href="/">← 回到聊天</a>
     <h1>设置</h1>
-    <small id="ver"></small>
   </div>
+  <div id="nav-items"></div>
+  <small id="ver"></small>
+</nav>
+<main class="content">
+<div class="wrap">
 
   <div class="banner" id="banner">
     <span>改动要重启 Kiki 才生效。</span>
@@ -92,8 +139,20 @@
     <span class="msg" id="restart-msg"></span>
   </div>
 
-  <section>
+  <section class="pane" id="pane-look" data-title="外观">
+    <h2>外观 <small>只影响这台设备</small></h2>
+    <div class="card">
+    <div class="looks" role="radiogroup" aria-label="外观">
+      <label class="look"><input type="radio" name="theme" value="system"><div class="pic"><div class="half lt"><div class="w"><i></i><i></i></div></div><div class="half dk"><div class="w"><i></i><i></i></div></div></div><span>跟随系统</span></label>
+      <label class="look"><input type="radio" name="theme" value="light"><div class="pic"><div class="half lt"><div class="w"><i></i><i></i></div></div></div><span>浅色</span></label>
+      <label class="look"><input type="radio" name="theme" value="dark"><div class="pic"><div class="half dk"><div class="w"><i></i><i></i></div></div></div><span>深色</span></label>
+    </div>
+    </div>
+  </section>
+
+  <section class="pane" id="pane-model" data-title="模型与密钥">
     <h2>模型与密钥</h2>
+    <div class="card">
     <div class="grid">
       <div class="field">
         <label for="MODEL">默认模型</label>
@@ -113,19 +172,23 @@
       <span class="msg" id="model-msg"></span>
     </div>
     <p class="msg">推荐把密钥存进 macOS 钥匙串，这里填 <span class="mono">keychain:名字</span>，做法见 docs/mac-app.md。也能直接填密钥，或填 1Password 引用（op://…，但后台重启时常常拿不到授权）。</p>
+    </div>
   </section>
 
-  <section>
+  <section class="pane" id="pane-about" data-title="关于我">
     <h2>关于我 <small>所有宝都会读这份</small><button class="btn right" id="about-toggle">编辑</button></h2>
+    <div class="card">
     <div class="mono msg" id="about-path"></div>
     <div id="about-editor" hidden>
       <textarea id="about-text" aria-label="关于我"></textarea>
       <div class="row"><button class="btn primary" id="about-save">保存</button><span class="msg" id="about-msg"></span></div>
     </div>
+    </div>
   </section>
 
-  <section>
+  <section class="pane" id="pane-baos" data-title="我的宝">
     <h2>我的宝 <small>每个宝是一个文件夹，说明写在它的 AGENTS.md</small></h2>
+    <div class="card">
     <div class="field" style="margin-bottom: 12px">
       <label for="DEFAULT_AGENT">拿不准时默认发给</label>
       <div class="row" style="margin-top: 0">
@@ -142,13 +205,29 @@
       <button class="btn" id="new-bao-go">新建一个宝</button>
       <span class="msg" id="new-msg"></span>
     </div>
+    </div>
   </section>
 
-  <section>
+  <section class="pane" id="pane-approval" data-title="审批">
+    <h2>审批 <small>收不回来的动作，做之前先问你一句；改了马上生效</small></h2>
+    <div class="card">
+    <div id="approval" class="msg">读取中…</div>
+    </div>
+    <h3 class="sub">以后都同意的 <small>在卡片上点过“以后这类都同意”的，删掉就会重新问</small></h3>
+    <div class="card">
+    <div id="always" class="msg">读取中…</div>
+    <p class="msg">读密码、写代码、装依赖这些都直接做，不会问。问的时候只暂停那一步，别的对话照常跑。<span id="ap-msg"></span></p>
+    </div>
+  </section>
+
+  <section class="pane" id="pane-ext" data-title="扩展">
     <h2>扩展 <small>改完新开的对话就生效，已经开着的对话要重启 Kiki</small></h2>
     <h3 class="sub">奇奇自带能力</h3>
+    <div class="card">
     <div id="features" class="msg">读取中…</div>
+    </div>
     <h3 class="sub">pi 扩展 <small>装在 engine 目录，和你电脑上另装的 pi 互不影响</small></h3>
+    <div class="card">
     <div id="packages" class="msg">读取中…</div>
     <div class="row">
       <label for="new-pkg" class="msg">安装</label>
@@ -157,7 +236,12 @@
       <span class="msg" id="pkg-msg"></span>
     </div>
     <p class="msg">扩展能在你电脑上跑代码，只装你信得过的。安装需要电脑上有 npm（比如用 Homebrew 装的 Node）。</p>
-    <h3 class="sub">MCP 服务器 <small>和 Claude、Cursor 用的是同一种工具接口</small></h3>
+    </div>
+  </section>
+
+  <section class="pane" id="pane-mcp" data-title="MCP 服务器">
+    <h2>MCP 服务器 <small>和 Claude、Cursor 用的是同一种工具接口；新开的对话就能用</small></h2>
+    <div class="card">
     <div id="mcp" class="msg">读取中…</div>
     <div class="row">
       <input type="text" id="new-mcp-name" placeholder="名字" style="max-width: 180px" spellcheck="false" autocomplete="off" aria-label="MCP 服务器名字">
@@ -166,29 +250,87 @@
       <span class="msg" id="mcp-msg"></span>
     </div>
     <p class="msg">常用的已经列在上面，打开开关就行。要加别的：本机命令填一行；远程服务器填 https:// 网址；也可以直接粘贴别的软件里那段 mcpServers JSON。找不到命令时请填完整路径（终端里 <span class="mono">command -v 命令名</span> 能查到）。</p>
+    </div>
   </section>
 
-  <div class="cols">
-    <section>
-      <h2>远程访问</h2>
+  <section class="pane" id="pane-remote" data-title="远程访问">
+    <h2>远程访问</h2>
+    <div class="card">
       <div id="remote" class="msg">查询中…</div>
-    </section>
-    <section>
-      <h2>更新</h2>
+    </div>
+  </section>
+
+  <section class="pane" id="pane-update" data-title="更新">
+    <h2>更新</h2>
+    <div class="card">
       <div id="upd" class="msg">查询中…</div>
       <label class="check"><input type="checkbox" id="auto"> 空闲时自动更新</label>
       <div class="row" style="margin-top: 6px">
         <button class="btn" id="check">检查更新</button>
         <button class="btn primary" id="apply" hidden>现在更新</button>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
+</div>
+</main>
 </div>
 
 <script>
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 let S = null;
+
+// 左栏分类：每块一个彩色小图标，像「系统设置」
+const W = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICONS = {
+  look: ["#636366", W('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="#fff"/>')],
+  model: ["#ff9500", W('<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/>')],
+  about: ["#007aff", W('<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/>')],
+  baos: ["#af52de", W('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>')],
+  approval: ["#ff3b30", W('<path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/>')],
+  ext: ["#34c759", W('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>')],
+  mcp: ["#30b0c7", W('<path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/>')],
+  remote: ["#32ade6", W('<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/>')],
+  update: ["#8e8e93", W('<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>')],
+};
+const panes = [...document.querySelectorAll(".pane")];
+$("#nav-items").innerHTML = panes.map((p) => {
+  const id = p.id.slice(5), [bg, svg] = ICONS[id] || ["#8e8e93", ""];
+  return `<button class="nav-item" data-pane="${id}"><span class="ic" style="background:${bg}">${svg}</span>${esc(p.dataset.title)}</button>`;
+}).join("");
+function showPane(id) {
+  if (!document.getElementById("pane-" + id)) id = "look";
+  for (const p of panes) p.classList.toggle("on", p.id === "pane-" + id);
+  for (const b of document.querySelectorAll(".nav-item")) {
+    const on = b.dataset.pane === id;
+    b.classList.toggle("on", on);
+    if (on) { b.setAttribute("aria-current", "page"); b.scrollIntoView({ block: "nearest", inline: "nearest" }); } else b.removeAttribute("aria-current");
+  }
+  try { localStorage.setItem("kiki.settingsPane", id); } catch {}
+  if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
+  window.scrollTo(0, 0);
+}
+$("#nav-items").onclick = (e) => { const b = e.target.closest("[data-pane]"); if (b) showPane(b.dataset.pane); };
+// ↑↓ 在分类之间移动
+$("#nav-items").onkeydown = (e) => {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  const items = [...document.querySelectorAll(".nav-item")], i = items.findIndex((b) => b.classList.contains("on"));
+  const next = items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length];
+  e.preventDefault(); showPane(next.dataset.pane); next.focus();
+};
+window.addEventListener("hashchange", () => showPane(location.hash.slice(1)));
+showPane(location.hash.slice(1) || (() => { try { return localStorage.getItem("kiki.settingsPane"); } catch { return null; } })() || "look");
+
+// 外观
+function syncLook() { for (const r of document.querySelectorAll('input[name=theme]')) r.checked = r.value === kikiTheme.get(); }
+for (const r of document.querySelectorAll('input[name=theme]')) r.onchange = () => kikiTheme.set(r.value);
+window.addEventListener("storage", syncLook);
+syncLook();
+// 在聊天页的弹窗里：Esc 关掉弹窗
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || e.defaultPrevented) return;
+  try { if (window.parent !== window && parent.kikiCloseSettings) { e.preventDefault(); parent.kikiCloseSettings(); } } catch {}
+});
 
 async function api(path, body) {
   const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -207,7 +349,8 @@ const SRC = {
 
 async function load() {
   S = await api("/api/settings");
-  $("#ver").textContent = `v${S.version} · 配置文件 ${S.envFile}`;
+  $("#ver").textContent = `Kiki v${S.version}\n${S.envFile}`;
+  $("#ver").title = "配置文件";
   for (const k of ["MODEL", "DEEPSEEK_API_KEY", "DEFAULT_AGENT"]) {
     const e = S.env[k];
     const input = $("#" + k);
@@ -313,7 +456,7 @@ async function loadRemote() {
   if (!r || !r.installed) { el.innerHTML = "没检测到 Tailscale。装好并登录后，运行 <span class=\"mono\">tailscale serve --bg 4567</span> 就能在手机上用。"; return; }
   if (!r.online) { el.innerHTML = `<span class="dot"></span>Tailscale 没连上`; return; }
   el.innerHTML = `<div><span class="dot ok"></span>Tailscale 已连接</div>` +
-    (r.serving && r.url ? `<div class="mono"><a href="${esc(r.url)}">${esc(r.url)}</a></div><div>手机上打开这个地址，添加到主屏幕。</div>`
+    (r.serving && r.url ? `<div class="mono"><a href="${esc(r.url)}" target="_blank">${esc(r.url)}</a></div><div>手机上打开这个地址，添加到主屏幕。</div>`
       : `<div>还没开放给手机，运行 <span class="mono">tailscale serve --bg 4567</span></div>`);
 }
 
@@ -381,6 +524,35 @@ $("#new-pkg-go").onclick = async () => {
   finally { $("#new-pkg-go").disabled = false; }
 };
 loadExtensions();
+
+const MODES = [["allow", "直接做"], ["ask", "先问"], ["deny", "不做"]];
+async function loadApproval() {
+  let r;
+  try { r = await api("/api/settings/approval"); } catch (e) { $("#approval").textContent = e.message; return; }
+  $("#approval").className = "";
+  $("#approval").innerHTML = r.categories.map((c) => `
+    <div class="toggle-row" data-id="${esc(c.id)}"><div class="t"><b>${esc(c.name)}</b><span>${esc(c.desc)}</span></div>
+      <select aria-label="${esc(c.name)}">${MODES.map(([v, l]) => `<option value="${v}" ${c.mode === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>`).join("");
+  for (const row of document.querySelectorAll("#approval .toggle-row")) {
+    const sel = row.querySelector("select");
+    sel.onchange = async () => {
+      try { await api("/api/settings/approval/mode", { category: row.dataset.id, mode: sel.value }); say("#ap-msg", "已保存", "ok"); }
+      catch (e) { say("#ap-msg", e.message, "err"); loadApproval(); }
+    };
+  }
+  const box = $("#always");
+  box.className = r.always.length ? "" : "msg";
+  box.innerHTML = r.always.length ? r.always.map((a) => `
+    <div class="toggle-row" data-key="${esc(a.key)}"><div class="t"><span>${esc(a.label)}</span></div><button class="btn rm">删掉</button></div>`).join("")
+    : "还没有。";
+  for (const row of document.querySelectorAll("#always .toggle-row")) {
+    row.querySelector(".rm").onclick = async () => {
+      try { await api("/api/settings/approval/forget", { key: row.dataset.key }); loadApproval(); }
+      catch (e) { say("#ap-msg", e.message, "err"); }
+    };
+  }
+}
+loadApproval();
 
 async function loadMcp() {
   const box = $("#mcp");
