@@ -1,6 +1,6 @@
 #!/bin/bash
 # 打包 Kiki.app：自带 Node + 编译好的 Kiki + 生产依赖（含锁定的 pi 1.4.0）+ 网页。
-# Mac 和 Linux 上都能跑（GitHub Actions 用 Linux 打包，省钱）。
+# 在 Mac 上打包才有原生窗口（GitHub Actions 用 macOS 机器）；Linux 上也能打，但界面会用浏览器打开。
 # 用法：packaging/build.sh [arm64|x64]      产物：out/Kiki-mac-<arch>.zip 和 out/SHA256SUMS
 set -euo pipefail
 ARCH="${1:-arm64}"
@@ -35,9 +35,18 @@ tar -xzf "$CACHE/$TGZ" -C "$RES/node" --strip-components=1 "node-v$NODE_VERSION-
 
 # 4. App 外壳
 sed "s/__VERSION__/$VERSION/g" packaging/Info.plist > "$APP/Contents/Info.plist"
-cp packaging/Kiki packaging/kiki-server "$APP/Contents/MacOS/"
-cp packaging/swap.sh packaging/AppIcon.icns "$RES/"
-chmod +x "$APP/Contents/MacOS/"* "$RES/swap.sh" "$RES/node/bin/node"
+cp packaging/kiki-server "$APP/Contents/MacOS/"
+cp packaging/kiki-setup packaging/swap.sh packaging/AppIcon.icns "$RES/"
+# 原生窗口：在 Mac 上用 swiftc 编译；别的系统上编不了，退回到"用浏览器打开"的脚本
+if command -v swiftc >/dev/null && [ "$(uname)" = Darwin ]; then
+  T=$([ "$ARCH" = x64 ] && echo x86_64 || echo arm64)
+  swiftc -O -target "$T-apple-macos12" -framework Cocoa -framework WebKit \
+    -o "$APP/Contents/MacOS/Kiki" packaging/mac/main.swift
+else
+  echo "（这台机器编译不了原生窗口，Kiki.app 会用浏览器打开界面）"
+  cp packaging/mac/launcher.sh "$APP/Contents/MacOS/Kiki"
+fi
+chmod +x "$APP/Contents/MacOS/"* "$RES/kiki-setup" "$RES/swap.sh" "$RES/node/bin/node"
 
 # 在 Mac 上打包时顺手做个本地签名（没有开发者证书也行）
 if command -v codesign >/dev/null; then codesign --force --deep --sign - "$APP" 2>/dev/null || true; fi

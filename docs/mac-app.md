@@ -5,7 +5,7 @@ Kiki 装在 Mac mini 上一直开着，你在 MacBook、iPhone 上用浏览器�
 ## 它是什么样的
 
 - **Kiki.app** 里自带运行环境（Node）和 Kiki 内核，Mac 上不用另装任何东西，也不会往系统里装全局命令。
-- 双击 Kiki.app：把 Kiki 登记成后台服务（登录后自动启动，崩了自动拉起），然后打开网页 `http://localhost:4567`。关掉网页 Kiki 也照样在后台跑。
+- 双击 Kiki.app：打开 Kiki 自己的窗口（原生 macOS 窗口，有 Dock 图标和菜单），同时把 Kiki 登记成后台服务（登录后自动启动，崩了自动拉起）。关掉窗口或退出 App，Kiki 照样在后台跑，手机上照样能用。
 - 数据都在 `~/kiki-data`，装、重装、更新都不会动它。日志在 `~/Library/Logs/Kiki/`。
 
 ## 安装
@@ -84,4 +84,3 @@ rm -rf /Applications/Kiki.app /Applications/.Kiki-previous.app
 ## 以后可以做的
 
 - 苹果开发者签名和公证（每年 99 美元）：之后可以直接从网页下载 .dmg 双击安装，不用终端。
-- 原生窗口外壳（现在用浏览器/“添加到程序坞”代替）。
