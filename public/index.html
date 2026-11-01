@@ -523,6 +523,7 @@ es.addEventListener("message", (e) => {
 es.addEventListener("delta", (e) => {
   const d = JSON.parse(e.data);
   if (d.path !== current) return;
+  const atBottom = nearBottom();
   if (!streaming) {
     closeStepsBox(); // 工具做完开始说话了：上一组步骤折起来，话接在后面
     streaming = addMsg("assistant", ""); streaming.dataset.raw = "";
@@ -530,7 +531,7 @@ es.addEventListener("delta", (e) => {
   }
   streaming.dataset.raw += d.text;
   streaming.innerHTML = md(streaming.dataset.raw);
-  stickBottom();
+  stickBottom(atBottom);
 });
 es.addEventListener("busy", (e) => {
   const d = JSON.parse(e.data);
@@ -582,13 +583,18 @@ function liveOf(path) {
   const who = where ? `${where.agent} › ${where.name}：` : "";
   return { since: m.since, status: f ? who + f.status : m.status, steps: f ? f.steps : [], follow: m.follow };
 }
-function stickBottom() {
+// 在改内容之前先看一眼是不是在最下面；是的话改完再滚到底（内容一下长很多也照样跟着）
+function nearBottom() {
   const log = $("#log");
-  if (log.scrollHeight - log.scrollTop - log.clientHeight < 160) log.scrollTop = log.scrollHeight;
+  return log.scrollHeight - log.scrollTop - log.clientHeight < 160;
+}
+function stickBottom(was) {
+  if (was) $("#log").scrollTop = $("#log").scrollHeight;
 }
 function renderLive() {
   const l = liveOf(current);
   if (!l) return finishLive();
+  const atBottom = nearBottom();
   // 正在做的这一组步骤（已经画过的不再画）
   const fresh = (l.steps || []).filter((x) => !shown.has(x.id) || $("#live-steps")?.dataset.ids?.split(",").includes(x.id));
   let box = $("#live-steps");
@@ -612,7 +618,7 @@ function renderLive() {
   line.innerHTML = `<span class="spin"></span><span class="what">${esc(waiting ? "等你点头：看下面的卡片" : l.status)}</span><span class="elapsed" data-since="${l.since}">· ${secs(Date.now() - l.since)}</span>`;
   $("#msgs").appendChild(line);
   $(".hint")?.remove();
-  stickBottom();
+  stickBottom(atBottom);
 }
 // 收起正在做的这组步骤：改成“用了 N 个工具”，折叠
 function closeStepsBox() {
