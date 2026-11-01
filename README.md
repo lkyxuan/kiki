@@ -18,7 +18,7 @@
 
 **一个收件箱，多个专属 Bot，无限具名对话。你的数据永远留在你自己的机器上。**
 
-[快速开始](#-快速开始) · [核心特性](#-核心特性) · [架构](#️-架构) · [路线图](#️-路线图) · [参与贡献](#-参与贡献)
+[安装 Mac App](#-安装成-mac-app) · [快速开始](#-快速开始) · [核心特性](#-核心特性) · [架构](#️-架构) · [路线图](#️-路线图) · [参与贡献](#-参与贡献)
 
 </div>
 
@@ -33,7 +33,7 @@
 Kiki 内核负责建对话、续对话、调用模型和工具，轻量、可扩展，随 Kiki 一起锁版本发布。
 
 > [!NOTE]
-> 项目处于早期阶段。当前版本提供本机聊天网页，macOS 原生 App 正在规划中，欢迎 Star 关注进展。
+> 项目处于早期阶段，已提供可一键安装、自动更新的 Mac App，欢迎 Star 关注进展。
 
 ## ✨ 核心特性
 
@@ -84,7 +84,25 @@ flowchart LR
 2. **专属 Bot**：`~/kiki-data/agents/<名字>/` 下的一个文件夹，`AGENTS.md` 写清楚它负责什么、怎么干、交回什么。
 3. **具名对话**：Bot 下的 session，以 JSONL 格式保存在本地，可读、可备份、可迁移。
 
+## 🍎 安装成 Mac App
+
+推荐的用法：Kiki 装在常开的 Mac mini 上，你在 MacBook、iPhone 上远程用。在 Mac mini 的“终端”里跑一行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash
+```
+
+- **开箱即用**：Kiki.app 自带运行环境和 Kiki 内核，不用另装 Node，登录后自动在后台启动，崩溃自动拉起。
+- **自动更新**：有新版本时网页右上角会提示，默认在没有对话运行时自动安装，失败自动回滚。
+- **安全远程**：Kiki 只监听本机，远程访问通过 [Tailscale](https://tailscale.com) 加密连接，只有你自己的设备能连上。
+
+> 首个正式版本发布前，可以按指南里的步骤从源码打包安装。
+
+装好后编辑 `~/kiki-data/.env` 填入模型 API Key 即可。完整的安装、更新、远程使用和卸载说明见 **[Mac App 指南](docs/mac-app.md)**。
+
 ## 🚀 快速开始
+
+想从源码运行或参与开发，按下面的步骤来。
 
 ### 环境要求
 
@@ -181,7 +199,8 @@ npm install -g @earendil-works/pi-coding-agent@1.4.0
 - [x] 本机聊天网页（流式输出）
 - [ ] 主 Bot 自动路由：用轻量模型判断该接哪段对话
 - [ ] Kiki 自带扩展（`extensions/`）
-- [ ] macOS 原生 App
+- [x] Mac App：一键安装、开机自启、自动更新
+- [x] 通过 Tailscale 安全远程使用
 - [ ] 消息通道插件接口（微信等）
 - [ ] 定时任务
 
@@ -191,7 +210,7 @@ npm install -g @earendil-works/pi-coding-agent@1.4.0
 |---|---|
 | Agent 内核 | Kiki 内核，基于开源的 [pi](https://pi.dev) 1.4.0 构建 |
 | 语言与运行时 | TypeScript · Node.js 22 |
-| 界面 | 本机网页（SSE 流式输出），后续封装为 macOS App |
+| 界面 | 本机网页（SSE 流式输出），封装为 Mac App |
 | 存储 | 本地文件：Markdown + JSONL，无数据库 |
 
 <details>
