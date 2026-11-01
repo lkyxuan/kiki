@@ -185,6 +185,8 @@ export class Updater extends EventEmitter {
 
   async apply(): Promise<UpdateState> {
     if (!this.state.canApply) throw new Error("开发模式（npm start）不自动替换代码，请用 git pull 更新");
+    // 已经在装了（比如后台自动更新刚好开始，或者点了两下）：不报错，返回当前进度
+    if (["downloading", "installing"].includes(this.state.status)) return this.state;
     if (this.state.status !== "available" || !this.release) throw new Error("现在没有可装的新版本");
     const app = this.appPath!;
     const to = this.state.latest!;

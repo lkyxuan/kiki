@@ -460,21 +460,37 @@ async function loadRemote() {
       : `<div>还没开放给手机，运行 <span class="mono">tailscale serve --bg 4567</span></div>`);
 }
 
+let updTimer = null;
 async function loadUpdate() {
   const u = await api("/api/update").catch(() => null);
   const el = $("#upd");
-  if (!u) { el.textContent = "更新功能不可用"; return; }
+  clearTimeout(updTimer);
+  if (!u) {
+    // 更新切换时 Kiki 会重启几秒，连不上就过一会儿再看
+    if (window.__updating) { el.textContent = "Kiki 正在重启…"; updTimer = setTimeout(loadUpdate, 2000); return; }
+    el.textContent = "更新功能不可用"; return;
+  }
+  if (window.__updating && window.__updating !== u.current) { location.reload(); return; } // 新版本起来了
   let t = `当前 v${esc(u.current)}`;
+  const busy = ["checking", "downloading", "installing"].includes(u.status);
   if (u.status === "available") t += `，有新版本 v${esc(u.latest)}`;
   else if (u.status === "error") t += `，${esc(u.message || "检查出错")}`;
-  else if (["checking", "downloading", "installing"].includes(u.status)) t += "，处理中…";
+  else if (busy) t += `，${esc(u.message || "处理中…")}`;
   else if (u.checkedAt) t += "，已是最新";
   if (!u.canApply) t += "<br>开发模式下用 git pull 更新";
   el.innerHTML = t;
   $("#apply").hidden = !(u.status === "available" && u.canApply);
+  if (busy) {
+    if (u.status !== "checking") window.__updating = u.current;
+    updTimer = setTimeout(loadUpdate, 2000); // 下载、安装中：每 2 秒刷新进度
+  }
 }
 $("#check").onclick = async () => { $("#upd").textContent = "检查中…"; await api("/api/update/check", {}).catch(() => {}); loadUpdate(); };
-$("#apply").onclick = async () => { try { await api("/api/update/apply", {}); loadUpdate(); } catch (e) { say("#upd", e.message, "err"); } };
+$("#apply").onclick = async () => {
+  $("#apply").hidden = true;
+  try { const u = await api("/api/update/apply", {}); window.__updating = u.current; loadUpdate(); }
+  catch (e) { say("#upd", e.message, "err"); loadUpdate(); }
+};
 
 load().catch((e) => document.body.insertAdjacentHTML("afterbegin", `<p class="msg err" style="padding:16px">${esc(e.message)}</p>`));
 loadRemote();
