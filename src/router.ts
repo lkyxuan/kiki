@@ -234,7 +234,7 @@ export class Router {
 
   private async cmdNew(chatId: string, args: string[], reply: Reply) {
     const [agent, ...nameParts] = args;
-    if (!agent) return reply("用法：/new <agent> <名字>，比如 /new dev 路由器");
+    if (!agent) return reply("用法：/new <agent> <名字>，比如 /new 奇奇 周报");
     if (!this.agents.exists(agent)) return reply(`没有 agent「${agent}」。现有：${this.agents.listAgents().join("、")}`);
     const name = nameParts.join(" ") || stamp();
     if (this.registry.get(agent, name)) return reply(`${agent}/${name} 已经有了，用 /use ${agent}/${name} 切过去。`);
