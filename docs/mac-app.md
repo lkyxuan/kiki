@@ -5,7 +5,7 @@ Kiki 装在 Mac mini 上一直开着，你在 MacBook、iPhone 上用浏览器�
 ## 它是什么样的
 
 - **Kiki.app** 里自带运行环境（Node）和 Kiki 内核，Mac 上不用另装任何东西，也不会往系统里装全局命令。
-- 双击 Kiki.app：把 Kiki 登记成后台服务（登录后自动启动，崩了自动拉起），然后打开网页 `http://localhost:4567`。关掉网页 Kiki 也照样在后台跑。
+- 双击 Kiki.app：打开 Kiki 自己的窗口（原生 macOS 窗口，有 Dock 图标和菜单），同时把 Kiki 登记成后台服务（登录后自动启动，崩了自动拉起）。关掉窗口或退出 App，Kiki 照样在后台跑，手机上照样能用。
 - 数据都在 `~/kiki-data`，装、重装、更新都不会动它。日志在 `~/Library/Logs/Kiki/`。
 
 ## 安装
@@ -47,6 +47,12 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 把 `package.json` 里的版本号改大（比如 `npm version patch --no-git-tag-version`），合进 main。GitHub Actions 会检查、测试、打 arm64 和 x64 两个包，建好 Release。各台机器上的 Kiki 会在 6 小时内自己装上。
 
+## 在别的电脑上用 Kiki 的 App（前后端分离）
+
+App 第一次打开会问：**在这台电脑上运行**，还是**连接远程地址**。比如 Kiki 跑在 Mac mini 上，MacBook 上也装一个 Kiki.app，选“连接远程地址”，填 Mac mini 的 Tailscale 地址（见下一节），这台 MacBook 就只当界面，不跑后台、不存数据。以后想换，菜单「Kiki → 连接到…」（⌘,）。
+
+界面是从后端加载的，所以后端（Mac mini）更新以后，各台电脑上看到的界面也跟着是新的。
+
 ## 远程使用（安全地）
 
 Kiki 能在 Mac mini 上读写文件、跑命令，所以**绝不能直接暴露到公网**。它只监听本机（127.0.0.1），也没有自己的登录。远程用的推荐办法是 Tailscale：只有你登录了同一个 Tailscale 账号的设备才连得上，传输全程加密，还有 HTTPS。
@@ -84,4 +90,3 @@ rm -rf /Applications/Kiki.app /Applications/.Kiki-previous.app
 ## 以后可以做的
 
 - 苹果开发者签名和公证（每年 99 美元）：之后可以直接从网页下载 .dmg 双击安装，不用终端。
-- 原生窗口外壳（现在用浏览器/“添加到程序坞”代替）。

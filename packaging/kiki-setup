@@ -1,7 +1,7 @@
 #!/bin/bash
-# 双击 Kiki.app 时跑的就是这个：
+# Kiki.app 每次打开时先跑这个（放在 Contents/Resources/）：
 #   1. 把后台服务登记给 launchd（开机/登录自动起、挂了自动拉起），已登记就跳过
-#   2. 等服务起来，打开网页
+#   2. 等服务起来，最后一行输出端口号；带 --open 时改为用浏览器打开（没有原生窗口时的退路）
 # 真正干活的是 kiki-server（由 launchd 运行），这个脚本几秒就退出。
 APP="$(cd "$(dirname "$0")/../.." && pwd)"
 LABEL=com.lkyxuan.kiki
@@ -57,4 +57,4 @@ for _ in $(seq 1 40); do
   curl -fsS --max-time 1 "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && break
   sleep 0.5
 done
-open "http://localhost:$PORT"
+if [ "${1:-}" = "--open" ]; then open "http://localhost:$PORT"; else echo "$PORT"; fi
