@@ -55,3 +55,15 @@ test("检查更新：发现新版本；开发模式不能自己装", async () =>
     server.close();
   }
 });
+
+test("已经在装了再点更新：返回进度，不报“没有可装的新版本”", async () => {
+  const { Updater } = await import("./update.js");
+  const u = new Updater({ dataDir: "/tmp", port: 0, isIdle: () => true });
+  u.state.canApply = true;
+  u.state.status = "downloading";
+  u.state.message = "正在下载 9.9.9…";
+  const s = await u.apply();
+  assert.equal(s.status, "downloading");
+  u.state.status = "idle";
+  await assert.rejects(() => u.apply(), /没有可装/);
+});

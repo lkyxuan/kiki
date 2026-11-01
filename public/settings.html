@@ -264,6 +264,10 @@
     <h2>更新</h2>
     <div class="card">
       <div id="upd" class="msg">查询中…</div>
+      <div id="upd-prog" hidden style="margin: 8px 0">
+        <progress max="100" value="0" style="width: 100%; height: 8px; accent-color: var(--accent, #2f7d4f)"></progress>
+        <div class="msg" id="upd-step"></div>
+      </div>
       <label class="check"><input type="checkbox" id="auto"> 空闲时自动更新</label>
       <div class="row" style="margin-top: 6px">
         <button class="btn" id="check">检查更新</button>
@@ -460,21 +464,48 @@ async function loadRemote() {
       : `<div>还没开放给手机，运行 <span class="mono">tailscale serve --bg 4567</span></div>`);
 }
 
+let updTimer = null;
 async function loadUpdate() {
   const u = await api("/api/update").catch(() => null);
   const el = $("#upd");
-  if (!u) { el.textContent = "更新功能不可用"; return; }
+  clearTimeout(updTimer);
+  if (!u) {
+    // 更新切换时 Kiki 会重启几秒，连不上就过一会儿再看
+    if (window.__updating) { el.textContent = "Kiki 正在重启，马上就好…"; $("#upd-prog").hidden = false; $("#upd-prog progress").value = 95; updTimer = setTimeout(loadUpdate, 2000); return; }
+    el.textContent = "更新功能不可用"; return;
+  }
+  if (window.__updating && window.__updating !== u.current) { location.reload(); return; } // 新版本起来了
   let t = `当前 v${esc(u.current)}`;
+  const busy = ["checking", "downloading", "installing"].includes(u.status);
   if (u.status === "available") t += `，有新版本 v${esc(u.latest)}`;
   else if (u.status === "error") t += `，${esc(u.message || "检查出错")}`;
-  else if (["checking", "downloading", "installing"].includes(u.status)) t += "，处理中…";
+  else if (busy) t += `，${esc(u.message || "处理中…")}`;
   else if (u.checkedAt) t += "，已是最新";
   if (!u.canApply) t += "<br>开发模式下用 git pull 更新";
   el.innerHTML = t;
   $("#apply").hidden = !(u.status === "available" && u.canApply);
+  // 进度条：6 步（下载、校验、自检、备份、等对话、切换），下载那步按字节算百分比
+  const st = (u.status === "downloading" || u.status === "installing") && u.step;
+  $("#upd-prog").hidden = !st;
+  if (st) {
+    const overall = Math.round(((st.n - 1) + (st.percent ?? 0) / 100) / st.of * 100);
+    $("#upd-prog progress").value = overall;
+    $("#upd-step").textContent = `第 ${st.n}/${st.of} 步：${st.label}${st.percent !== undefined && st.n === 1 ? ` · ${st.percent}%` : ""}`;
+  }
+  if (busy) {
+    if (u.status !== "checking") window.__updating = u.current;
+    updTimer = setTimeout(loadUpdate, 2000); // 下载、安装中：每 2 秒刷新进度
+  }
 }
 $("#check").onclick = async () => { $("#upd").textContent = "检查中…"; await api("/api/update/check", {}).catch(() => {}); loadUpdate(); };
-$("#apply").onclick = async () => { try { await api("/api/update/apply", {}); loadUpdate(); } catch (e) { say("#upd", e.message, "err"); } };
+$("#apply").onclick = async () => {
+  $("#apply").hidden = true;
+  // 接口要等下载、自检都做完才返回，所以先开始轮询进度，别干等着
+  const req = api("/api/update/apply", {});
+  updTimer = setTimeout(loadUpdate, 500);
+  try { const u = await req; window.__updating = u.current; loadUpdate(); }
+  catch (e) { clearTimeout(updTimer); say("#upd", e.message, "err"); }
+};
 
 load().catch((e) => document.body.insertAdjacentHTML("afterbegin", `<p class="msg err" style="padding:16px">${esc(e.message)}</p>`));
 loadRemote();

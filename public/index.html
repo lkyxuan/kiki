@@ -521,7 +521,8 @@ function renderUpdate(u) {
   if (!u) return;
   if (u.status === "available")
     el.innerHTML = u.canApply ? `新版本 v${esc(u.latest)} <button id="upd-go">更新</button>` : `新版本 v${esc(u.latest)}（git pull 更新）`;
-  else if (u.status === "downloading" || u.status === "installing") el.innerHTML = `<span class="spin"></span>${esc(u.message || "")}`;
+  else if (u.status === "downloading" || u.status === "installing")
+    el.innerHTML = `<span class="spin"></span>${u.step ? `${u.step.n}/${u.step.of} ` : ""}${esc(u.message || "")}${u.step?.percent !== undefined && u.step.n === 1 ? ` ${u.step.percent}%` : ""}`;
   else if (u.status === "error") el.innerHTML = `<span title="${esc(u.message || "")}">更新出错</span>`;
   else if (u.last && u.last.result === "rolled_back" && u.last.from === u.current) el.textContent = `v${u.last.to} 没起来，已回滚`;
   else el.textContent = "";
