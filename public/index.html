@@ -51,6 +51,7 @@
   .spin { width: 11px; height: 11px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: r .8s linear infinite; flex: none; }
   @keyframes r { to { transform: rotate(360deg); } }
   .new-input { margin: 2px 0 4px 18px; width: calc(100% - 18px); padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; font-size: 14px; }
+  .settings { margin-top: auto; color: var(--text); text-decoration: none; font-size: 14px; }
   .empty { color: var(--muted); font-size: 13px; padding: 2px 10px 2px 28px; }
 
   /* 右边聊天 */
@@ -91,6 +92,7 @@
   <div class="brand"><img src="/icon.svg" alt="">Kiki</div>
   <button class="item main-bot" data-path="main"><img class="avatar" src="/icon.svg" alt=""><span class="name">主 bot</span></button>
   <div id="agents"></div>
+  <a class="item settings" href="/settings.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="name">设置</span></a>
 </aside>
 <main>
   <header><span id="title">主 bot</span><small id="sub">随手扔一句、用命令管理对话、收后台回报</small><span id="upd"></span></header>
