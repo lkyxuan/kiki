@@ -3,7 +3,8 @@
 // 设置页加的服务器都用 "exposure": "direct"：工具直接给模型看，不走 pi 的 codemode 脚本，模型用起来最省事。
 // 改完新开的对话就生效，已经开着的对话要重启 Kiki。
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { homedir } from "node:os";
+import { delimiter, join } from "node:path";
 
 type Cfg = Record<string, unknown>;
 
@@ -96,6 +97,42 @@ export function summary(c: Cfg): string {
   return [c?.command, ...args].map(String).join(" ");
 }
 
+/**
+ * 预置的服务器：设置页里直接有一个开关，不用自己填。打开时找到程序的完整路径写进 mcp.json
+ * （Kiki 在后台跑，PATH 很短，只写名字常常找不到）。
+ */
+export const PRESETS: Record<string, { desc: string; bin: string; dirs: string[]; args: string[]; install: string }> = {
+  "cua-driver": {
+    desc: "操作 Mac 上的 App：看屏幕、点按、输入",
+    bin: "cua-driver",
+    dirs: ["/Applications/CuaDriver.app/Contents/MacOS", join(homedir(), "Applications", "CuaDriver.app", "Contents", "MacOS")],
+    args: ["mcp"],
+    install: '/bin/bash -c "$(curl -fsSL https://cua.ai/driver/install.sh)"',
+  },
+};
+
+/** 在常见位置和 PATH 里找程序，找不到返回 undefined。 */
+export function findBin(bin: string, extraDirs: string[] = []): string | undefined {
+  const dirs = [
+    join(homedir(), ".local", "bin"),
+    ...extraDirs,
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    ...(process.env.PATH ?? "").split(delimiter),
+  ].filter(Boolean);
+  for (const d of dirs) if (existsSync(join(d, bin))) return join(d, bin);
+}
+
+export interface ServerRow {
+  name: string;
+  preset: boolean;
+  summary: string;
+  on: boolean;
+  desc?: string;
+  installed?: boolean;
+  install?: string;
+}
+
 export class Mcp {
   readonly file: string;
   constructor(engineDir: string) {
@@ -112,8 +149,28 @@ export class Mcp {
     writeFileSync(this.file, JSON.stringify(j, null, 2) + "\n");
   }
 
-  list() {
-    return Object.entries(this.read().mcpServers).map(([name, c]) => ({ name, summary: summary(c), on: c.enabled !== false }));
+  /** 预置的排在前面（没配过也列出来，开关是关的），然后是自己加的。 */
+  list(find = findBin): ServerRow[] {
+    const servers = this.read().mcpServers;
+    const presets = Object.entries(PRESETS).map(([name, p]) => {
+      const c = servers[name];
+      const saved = typeof c?.command === "string" && c.command.includes("/") && existsSync(c.command) ? c.command : undefined;
+      const path = saved ?? find(p.bin, p.dirs);
+      const installed = !!path;
+      return {
+        name,
+        preset: true,
+        desc: p.desc,
+        summary: c ? summary(c) : installed ? `${path} ${p.args.join(" ")}` : "还没装",
+        installed,
+        install: p.install,
+        on: !!c && c.enabled !== false,
+      };
+    });
+    const own = Object.entries(servers)
+      .filter(([name]) => !PRESETS[name])
+      .map(([name, c]) => ({ name, preset: false, summary: summary(c), on: c.enabled !== false }));
+    return [...presets, ...own];
   }
 
   add(name: string, spec: string) {
@@ -125,10 +182,25 @@ export class Mcp {
     return r.name;
   }
 
-  setOn(name: string, on: boolean) {
+  setOn(name: string, on: boolean, find = findBin) {
     const j = this.read();
+    const p = PRESETS[name];
+    if (p && on) {
+      const cur = j.mcpServers[name];
+      const cmd = typeof cur?.command === "string" ? cur.command : "";
+      // 没配过，或者配的是光秃秃的命令名（后台 PATH 里找不到）、路径已经失效：找完整路径
+      if (!cur || !cmd.includes("/") || !existsSync(cmd)) {
+        const path = find(p.bin, p.dirs);
+        if (!path) throw new Error(`还没装 ${name}。在终端里运行：${p.install}`);
+        // 已有配置只换 command，别的（args、env 等）原样保留
+        j.mcpServers[name] = cur ? { ...cur, command: path } : { command: path, args: p.args, exposure: "direct", description: p.desc };
+      }
+    }
     const c = j.mcpServers[name];
-    if (!c) throw new Error(`没有 ${name}`);
+    if (!c) {
+      if (p) return; // 预置的还没配过，关着就是关着
+      throw new Error(`没有 ${name}`);
+    }
     if (on) delete c.enabled;
     else c.enabled = false;
     this.write(j);
