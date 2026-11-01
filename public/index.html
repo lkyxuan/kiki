@@ -101,6 +101,17 @@
   .receipt b { font-weight: 600; }
   .receipt button { border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 13px; background: var(--bg); }
   .receipt button:hover { background: var(--hover); }
+  .relay-back { border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px 10px 14px; max-width: 520px; }
+  .relay-back summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+  .relay-back summary::-webkit-details-marker { display: none; }
+  .relay-back .where { flex: 1; min-width: 0; }
+  .relay-back .how { display: block; font-size: 12px; color: var(--muted); }
+  .relay-back b { font-weight: 600; }
+  .relay-back .peek { display: block; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .relay-back[open] .peek { display: none; }
+  .relay-back[open] summary { margin-bottom: 8px; }
+  .relay-back button { border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 13px; background: var(--bg); }
+  .relay-back button:hover { background: var(--hover); }
   .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .choices button { border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; text-align: left; font-size: 14px; }
   .choices button:hover { background: var(--hover); }
@@ -282,6 +293,12 @@ async function loadAbout(name) {
 function render(text) {
   const r = text.match(/^→ (\S+?)\/(.+?) · (\S+)\n\n([\s\S]*)$/);
   if (r) return `<div class="receipt">${avatar(r[1])}<span class="where"><span class="how">${esc(r[3])}</span><b>${esc(r[1])} › ${esc(r[2])}</b></span><button data-goto="${esc(r[1] + "/" + r[2])}">打开对话</button></div>` + md(r[4]);
+  // 捎话的回复（kiki_relay 记回来的）：完整内容在那段对话里已经有了，这里折叠成一张卡片，免得两段对话看起来一模一样
+  const back = text.match(/^【(\S+?)\/(.+?) (回复|出错)】\s*([\s\S]*)$/);
+  if (back) {
+    const first = back[4].split("\n").find((l) => l.trim()) ?? "";
+    return `<details class="relay-back"><summary><span class="where"><span class="how">${back[3] === "回复" ? "捎话的回复" : "捎话出错"}</span><b>${esc(back[1])} › ${esc(back[2])}</b><span class="peek">${esc(first.replace(/[*#`]/g, "").slice(0, 60))}</span></span><button data-goto="${esc(back[1] + "/" + back[2])}">打开对话</button></summary>${md(back[4])}</details>`;
+  }
   if (text.startsWith("🤔")) {
     const [head, ...opts] = text.split("\n");
     return md(head.replace(/^🤔\s*/, "")) + '<div class="choices">' + opts.map((o) => {
