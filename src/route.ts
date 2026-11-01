@@ -12,25 +12,23 @@ export type Mode = "chat" | "background";
 
 export type Decision =
   | { action: "continue"; target: string; mode: Mode; taskTitle?: string; reason?: string }
-  | { action: "new"; agent: string; name: string; mode: Mode; taskTitle?: string; reason?: string }
-  | { action: "ask"; options: Option[]; reason?: string };
+  | { action: "new"; agent: string; name: string; mode: Mode; taskTitle?: string; reason?: string };
 
-/** 拿不准时给用户的选项：要么接进已有对话（target），要么在某个宝下新开（agent + name）。 */
-export type Option = { target: string } | { agent: string; name: string };
 
-export const ROUTE_SYSTEM = `你是个人助理 Kiki 的分诊台。用户的每句话要放进一段合适的对话里。
+/** 路由的系统提示词 = 固定开头 + 用户可改的分派规则（~/kiki-data/分派规则.md）+ 固定输出格式。
+ *  判断标准放在规则文件里给用户改；输出格式是程序要解析的，留在代码里。 */
+export function buildRouteSystem(rules: string): string {
+  return `你是个人助理 Kiki 的分诊台。用户的每句话要放进一段合适的对话里。
 对话按"宝"分组，每个宝负责一个领域，下面有若干具名对话。你只负责分派，不回答问题本身。
+一定要自己做决定，不要反问用户。
 
-规则：
-1. 如果这句话明显是在接着某段已有对话的话题，选 continue。用户当前所在的对话优先：只要不是明显换了话题，就继续留在当前对话。
-2. 如果是一个新话题，选 new：挑最合适的宝，给对话起一个 2 到 8 个字的中文短名，概括话题（不要带日期，不要和该宝已有对话重名）。
-3. 只有在两三个去处都说得通、选错代价明显时，才选 ask，给出 2 个选项。能定就定，别动不动就问。
-4. mode：要产出东西、要多步执行、要跑工具或改文件、预计超过一两分钟的，填 background，并给 taskTitle（10 个字以内的任务名）；提问、讨论、闲聊填 chat。拿不准填 chat。
+下面是用户定的分派规则：
+${rules.trim()}
 
-只输出一个 JSON 对象，不要任何别的文字。三种格式：
+只输出一个 JSON 对象，不要任何别的文字。两种格式（mode 为 background 时加 "taskTitle"：10 个字以内的任务名）：
 {"action":"continue","target":"宝名/对话名","mode":"chat","reason":"一句话理由"}
-{"action":"new","agent":"宝名","name":"对话短名","mode":"chat","reason":"一句话理由"}
-{"action":"ask","options":[{"target":"宝名/对话名"},{"agent":"宝名","name":"对话短名"}],"reason":"为什么拿不准"}`;
+{"action":"new","agent":"宝名","name":"对话短名","mode":"chat","reason":"一句话理由"}`;
+}
 
 export function buildRouteInput(opts: {
   text: string;
@@ -75,21 +73,12 @@ export function parseDecision(raw: string, valid: { agents: string[]; targets: s
   if (d.action === "new" && valid.agents.includes(d.agent) && cleanName(d.name)) {
     return { action: "new", agent: d.agent, name: cleanName(d.name), mode, taskTitle, reason: d.reason };
   }
-  if (d.action === "ask" && Array.isArray(d.options)) {
-    const options: Option[] = [];
+  // 模型若还是给了选项（旧习惯），直接取第一个合法的，不把问题抛回给用户
+  if (Array.isArray(d.options)) {
     for (const o of d.options) {
-      if (o?.target && valid.targets.includes(o.target)) options.push({ target: o.target });
-      else if (o?.agent && valid.agents.includes(o.agent) && cleanName(o.name)) options.push({ agent: o.agent, name: cleanName(o.name) });
-    }
-    if (options.length >= 2) return { action: "ask", options: options.slice(0, 3), reason: d.reason };
-    if (options.length === 1) {
-      const o = options[0];
-      return "target" in o
-        ? { action: "continue", target: o.target, mode, reason: d.reason }
-        : { action: "new", agent: o.agent, name: o.name, mode, reason: d.reason };
+      if (o?.target && valid.targets.includes(o.target)) return { action: "continue", target: o.target, mode, taskTitle, reason: d.reason };
+      if (o?.agent && valid.agents.includes(o.agent) && cleanName(o.name)) return { action: "new", agent: o.agent, name: cleanName(o.name), mode, taskTitle, reason: d.reason };
     }
   }
   return undefined;
 }
-
-export const optionLabel = (o: Option) => ("target" in o ? `接进 ${o.target}` : `在 ${o.agent} 下新开「${o.name}」`);

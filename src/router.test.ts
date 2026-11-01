@@ -17,6 +17,7 @@ function setup() {
     sends: [] as string[], // send 被调用的顺序
     forks: [] as string[], // fork 的来源
     notes: [] as string[], // 回报到原对话的消息
+    announced: [] as string[], // 通知界面的完整回答
   };
   const backend: AgentBackend = {
     listAgents: () => ["dev", "life"],
@@ -41,6 +42,7 @@ function setup() {
     describe: (a) => (a === "dev" ? "写代码" : "日常生活"),
     recent: () => [],
     note: async (a, path, text) => void ctl.notes.push(`${path} ${text}`),
+    announce: (path, text) => void ctl.announced.push(`${path} ${text}`),
   };
   const reg = new Registry(join(mkdtempSync(join(tmpdir(), "kiki-")), "registry.json"));
   const router = new Router(backend, reg, "life");
@@ -86,13 +88,11 @@ test("模型给了不存在的对话：不乱建，退回当前对话", async ()
   assert.match(out.at(-1)!, /^→ dev\/路由器 · 接着聊/);
 });
 
-test("拿不准：列出选项，回数字后投递", async () => {
+test("模型给了选项也不反问用户：直接取第一个", async () => {
   const { out, say, ctl, reg } = setup();
   await say("/new dev 路由器");
-  ctl.routeAnswer = '{"action":"ask","options":[{"target":"dev/路由器"},{"agent":"life","name":"买电脑"}],"reason":"都沾边"}';
+  ctl.routeAnswer = '{"action":"ask","options":[{"agent":"life","name":"买电脑"},{"target":"dev/路由器"}],"reason":"都沾边"}';
   await say("Mac mini 要不要升级内存");
-  assert.match(out.at(-1)!, /拿不准（都沾边）.*\n1\. 接进 dev\/路由器\n2\. 在 life 下新开「买电脑」/);
-  await say("2");
   assert.match(out.at(-1)!, /^→ life\/买电脑 · 新开\n\n\[.*\] Mac mini 要不要升级内存$/);
   assert.equal(reg.current("app")?.name, "买电脑");
 });
@@ -207,8 +207,51 @@ test("parseDecision 过滤非法输出", () => {
     action: "continue",
     target: "dev/a",
     mode: "chat",
+    taskTitle: undefined,
     reason: undefined,
   });
   const d = parseDecision('{"action":"new","agent":"dev","name":"a/b\\nc","mode":"background","taskTitle":"t"}', valid);
   assert.deepEqual(d, { action: "new", agent: "dev", name: "a b c", mode: "background", taskTitle: "t", reason: undefined });
+});
+
+test("交接（聊）：新开对话，第一条消息是交接说明，重名加序号", async () => {
+  const { router, say, reg, ctl } = setup();
+  await say("/new dev 主线");
+  const from = reg.current("app")!.path;
+  const r = await router.handoff({ fromPath: from, bao: "life", name: "买电脑", brief: "【目标】选一台 Mac", mode: "chat" });
+  assert.match(r, /已交接到 life\/买电脑/);
+  await new Promise((x) => setTimeout(x, 5));
+  assert.match(ctl.sends.at(-1)!, /从「dev\/主线」交接过来.*\n\n【目标】选一台 Mac\n\n先读完/s);
+  assert.match(ctl.announced.at(-1)!, /交接过来/, "新对话的回答要通知界面收尾");
+  await router.handoff({ fromPath: from, bao: "life", name: "买电脑", brief: "x", mode: "chat" });
+  assert.ok(reg.get("life", "买电脑2"));
+  assert.equal(reg.current("app")!.path, from, "交接不改当前对话");
+});
+
+test("交接给不存在的宝会报错", async () => {
+  const { router } = setup();
+  await assert.rejects(router.handoff({ fromPath: undefined, bao: "nope", name: "x", brief: "x", mode: "chat" }), /没有宝/);
+});
+
+test("交接（后台）：按说明开干净的新对话去做，不分叉原对话，做完回报到原对话", async () => {
+  const { router, say, reg, ctl } = setup();
+  await say("/new dev 主线");
+  const from = reg.current("app")!.path;
+  const r = await router.handoff({ fromPath: from, bao: "dev", name: "写脚本", brief: "【目标】写个备份脚本", mode: "background" });
+  assert.match(r, /后台任务「写脚本」/);
+  await new Promise((x) => setTimeout(x, 30));
+  assert.deepEqual(ctl.forks, []);
+  assert.match(ctl.sends.at(-1)!, /【目标】写个备份脚本\n\n请直接开始做/);
+  assert.match(ctl.notes.at(-1)!, new RegExp(`^${from} ✅ 后台任务「写脚本」完成`));
+});
+
+test("交接：同时交接同名的事，各自拿到不同的名字", async () => {
+  const { router, reg } = setup();
+  const [a, b] = await Promise.all([
+    router.handoff({ fromPath: undefined, bao: "life", name: "买电脑", brief: "x", mode: "chat" }),
+    router.handoff({ fromPath: undefined, bao: "life", name: "买电脑", brief: "y", mode: "chat" }),
+  ]);
+  assert.match(a, /life\/买电脑，/);
+  assert.match(b, /life\/买电脑2，/);
+  assert.deepEqual(reg.list("life").map((s) => s.name).sort(), ["买电脑", "买电脑2"]);
 });

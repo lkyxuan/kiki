@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node
 import { join } from "node:path";
 import {
   type AgentSession,
+  type ToolDefinition,
   createAgentSession,
   createCodemodeExtension,
   createMcpExtension,
@@ -26,6 +27,8 @@ export class Agents extends EventEmitter {
   private runtime: Promise<ModelRuntime>;
   /** Kiki 自己的 pi 配置目录（设置、密钥、模型、扩展、技能），和用户自己装的 pi（~/.pi）完全分开。 */
   readonly engineDir: string;
+  /** Kiki 给对话里的 agent 额外提供的工具（比如交接），由 main.ts 注入。 */
+  toolsFor?: (agent: string) => ToolDefinition[];
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
 
@@ -86,6 +89,7 @@ export class Agents extends EventEmitter {
       model: await this.model(),
       thinkingLevel: "off",
       modelRuntime: await this.runtime,
+      customTools: this.toolsFor?.(agent) ?? [],
     });
     // 发 session_start：MCP 扩展在这时去连服务器（后台连，不挡着对话）
     await session.bindExtensions({});
@@ -149,6 +153,11 @@ export class Agents extends EventEmitter {
     });
     this.queues.set(path, run);
     return run;
+  }
+
+  /** 告诉网页某段对话有了一条完整的回答（不是经网页发出的消息，网页收不到结束信号，靠这个收尾）。 */
+  announce(path: string, text: string) {
+    this.emit("message", { path, role: "assistant", text });
   }
 
   /** 往对话末尾记一条消息（显示出来、下次回答时模型也能看到），不触发回答。后台任务回报用。 */
