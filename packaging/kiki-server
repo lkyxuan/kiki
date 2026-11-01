@@ -12,16 +12,24 @@ cd "$DATA_DIR" 2>/dev/null || cd "$HOME"
 # 先把 .env 里的密钥引用换成真值再启动，取不到也照样启动（不能让后台卡住，否则自动更新会判定失败）：
 #   KEY=keychain:<名字>   从 macOS 钥匙串取（推荐：登录后就能取，不用每次授权）
 #   KEY=op://…            从 1Password 取（最多等 20 秒；后台常常拿不到授权，见 docs/mac-app.md）
+trim() {
+  local s="$1"
+  s="${s#"${s%%[![:space:]]*}"}"
+  s="${s%"${s##*[![:space:]]}"}"
+  printf '%s' "$s"
+}
 op_read() {
   command -v op >/dev/null 2>&1 || return 0
   local out pid timer
   out=$(mktemp)
   op read "$1" >"$out" 2>/dev/null &
   pid=$!
-  ( sleep 20; kill "$pid" 2>/dev/null ) &
+  # 看门狗的输出必须丢掉，否则它的 sleep 会占着 $( ) 的管道，成功了也要等满 20 秒
+  ( sleep 20; kill "$pid" 2>/dev/null ) </dev/null >/dev/null 2>&1 &
   timer=$!
   wait "$pid" 2>/dev/null
   kill "$timer" 2>/dev/null
+  pkill -P "$timer" 2>/dev/null
   cat "$out"
   rm -f "$out"
 }
@@ -30,7 +38,14 @@ if [ -f "$ENVF" ]; then
     case "$line" in ''|'#'*) continue ;; *=*) ;; *) continue ;; esac
     key="${line%%=*}"
     val="${line#*=}"
-    val="${val%\"}"; val="${val#\"}"; val="${val%\'}"; val="${val#\'}"
+    # 和 Node 的 .env 解析保持一致：去掉 export 前缀、两边空白、引号，未加引号时去掉行尾 # 注释
+    key="${key#export }"
+    key="$(trim "$key")"
+    val="$(trim "$val")"
+    case "$val" in
+      \"*\"|\'*\') val="${val:1:${#val}-2}" ;;
+      *) val="$(trim "${val%%[[:space:]]#*}")" ;;
+    esac
     case "$val" in
       keychain:*) v=$(security find-generic-password -s "${val#keychain:}" -w 2>/dev/null) ;;
       op://*) v=$(op_read "$val") ;;
