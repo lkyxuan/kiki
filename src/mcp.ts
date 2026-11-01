@@ -154,8 +154,9 @@ export class Mcp {
     const servers = this.read().mcpServers;
     const presets = Object.entries(PRESETS).map(([name, p]) => {
       const c = servers[name];
-      const path = typeof c?.command === "string" ? c.command : find(p.bin, p.dirs);
-      const installed = !!path && (!path.includes("/") || existsSync(path));
+      const saved = typeof c?.command === "string" && c.command.includes("/") && existsSync(c.command) ? c.command : undefined;
+      const path = saved ?? find(p.bin, p.dirs);
+      const installed = !!path;
       return {
         name,
         preset: true,
@@ -184,12 +185,16 @@ export class Mcp {
   setOn(name: string, on: boolean, find = findBin) {
     const j = this.read();
     const p = PRESETS[name];
-    if (p && on && (!j.mcpServers[name] || (String(j.mcpServers[name].command).includes("/") && !existsSync(String(j.mcpServers[name].command))))) {
-      const path = find(p.bin, p.dirs);
-      if (!path) throw new Error(`还没装 ${name}。在终端里运行：${p.install}`);
-      j.mcpServers[name] = { command: path, args: p.args, exposure: "direct", description: p.desc };
-      this.write(j);
-      return;
+    if (p && on) {
+      const cur = j.mcpServers[name];
+      const cmd = typeof cur?.command === "string" ? cur.command : "";
+      // 没配过，或者配的是光秃秃的命令名（后台 PATH 里找不到）、路径已经失效：找完整路径
+      if (!cur || !cmd.includes("/") || !existsSync(cmd)) {
+        const path = find(p.bin, p.dirs);
+        if (!path) throw new Error(`还没装 ${name}。在终端里运行：${p.install}`);
+        // 已有配置只换 command，别的（args、env 等）原样保留
+        j.mcpServers[name] = cur ? { ...cur, command: path } : { command: path, args: p.args, exposure: "direct", description: p.desc };
+      }
     }
     const c = j.mcpServers[name];
     if (!c) {

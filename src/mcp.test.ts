@@ -71,3 +71,15 @@ test("预置的 cua-driver：没配过也列出来，打开时写上完整路径
   assert.equal(m.list(found)[0].on, false);
   assert.equal(JSON.parse(readFileSync(m.file, "utf8")).mcpServers["cua-driver"].command, bin);
 });
+
+test("以前手填的 cua-driver mcp：打开时换成完整路径，别的设置保留", () => {
+  const dir = mkdtempSync(join(tmpdir(), "kiki-mcp-"));
+  const m = new Mcp(dir);
+  m.add("cua-driver", `{"command":"cua-driver","args":["mcp","--x"],"env":{"A":"1"}}`);
+  m.setOn("cua-driver", false);
+  const bin = join(dir, "cua-driver");
+  writeFileSync(bin, "");
+  m.setOn("cua-driver", true, () => bin);
+  const cfg = JSON.parse(readFileSync(m.file, "utf8")).mcpServers["cua-driver"];
+  assert.deepEqual(cfg, { command: bin, args: ["mcp", "--x"], env: { A: "1" }, exposure: "direct" });
+});
