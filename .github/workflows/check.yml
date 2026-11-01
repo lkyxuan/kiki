@@ -1,0 +1,26 @@
+# 每个 PR：类型检查、测试，并在 Mac 上真打一次包（确认原生窗口能编译）
+name: check
+on:
+  pull_request:
+jobs:
+  check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check && npm test
+      - run: packaging/build.sh arm64
+      - name: 自检打出来的 App
+        run: |
+          APP=out/build-arm64/Kiki.app
+          file "$APP/Contents/MacOS/Kiki"
+          "$APP/Contents/Resources/node/bin/node" "$APP/Contents/Resources/app/dist/main.js" --selftest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kiki-mac-arm64
+          path: out/Kiki-mac-arm64.zip
+          retention-days: 7
