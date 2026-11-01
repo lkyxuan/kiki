@@ -4,17 +4,19 @@
 // 别的主机名要放行就写进 KIKI_ALLOWED_HOSTS（逗号分隔）。
 import type { IncomingMessage } from "node:http";
 
-const extra = (process.env.KIKI_ALLOWED_HOSTS || "")
-  .split(",")
-  .map((s) => s.trim().toLowerCase())
-  .filter(Boolean);
+// 每次现读：这个模块比 main.ts 读 .env 更早加载
+const extra = () =>
+  (process.env.KIKI_ALLOWED_HOSTS || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
 
 const hostname = (host: string) => host.toLowerCase().replace(/:\d+$/, "").replace(/^\[|\]$/g, "");
 
 export function allowedHost(host: string | undefined): boolean {
   if (!host) return false;
   const h = hostname(host);
-  return h === "localhost" || h === "127.0.0.1" || h === "::1" || h.endsWith(".ts.net") || extra.includes(h);
+  return h === "localhost" || h === "127.0.0.1" || h === "::1" || h.endsWith(".ts.net") || extra().includes(h);
 }
 
 /** 返回拒绝原因；放行返回 undefined。 */

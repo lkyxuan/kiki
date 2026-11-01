@@ -23,6 +23,9 @@ test("主机名白名单", () => {
   assert.equal(allowedHost("mac-mini.tail1234.ts.net"), true);
   assert.equal(allowedHost("evil.com"), false);
   assert.equal(allowedHost(undefined), false);
+  process.env.KIKI_ALLOWED_HOSTS = "kiki.home"; // 读 .env 晚于加载模块，也要生效
+  assert.equal(allowedHost("kiki.home:4567"), true);
+  delete process.env.KIKI_ALLOWED_HOSTS;
 });
 
 test("检查更新：发现新版本；开发模式不能自己装", async () => {
