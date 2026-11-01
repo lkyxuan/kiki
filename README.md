@@ -195,6 +195,10 @@ npm run pi -- list                        # 看已装的扩展
 | [pi-web-access](https://www.npmjs.com/package/pi-web-access) | 联网搜索、读取网页、PDF、GitHub 仓库 | `npm run pi -- install npm:pi-web-access` |
 | [cc-safety-net](https://ccsafetynet.com/docs/installation/pi) | 拦截 `rm -rf` 等危险命令与密钥文件读取 | 见[官方说明](https://ccsafetynet.com/docs/installation/pi) |
 
+### MCP 服务器
+
+Kiki 支持 MCP（和 Claude、Cursor 同一种工具接口）。在 **设置 → 扩展 → MCP 服务器** 里添加：本机命令填一行（比如 `cua-driver mcp`，让 Bot 操作 Mac 上的 App），远程服务器填 https:// 网址，也可以直接粘贴别的软件里的 `mcpServers` JSON。配置存在 `~/kiki-data/engine/mcp.json`，新开的对话就能用，工具名形如 `mcp__cua-driver__click`。
+
 > [!WARNING]
 > Bot 可以读写文件、执行命令，在你的电脑上拥有真实权限。强烈建议安装 cc-safety-net。
 
