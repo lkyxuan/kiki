@@ -208,10 +208,11 @@ export class Approvals extends EventEmitter {
         if (!hit) return;
         const state = readState(this.dataDir);
         const mode = modeOf(state, hit.category);
-        if (mode === "allow" || state.always.some((a) => a.key === hit.key)) return;
         const name = nameOf(hit.category);
+        // 先看“不做”：设成不做之后，以前点过的“以后都同意”也不算数
         if (mode === "deny")
           return { block: true, reason: `用户在 Kiki 设置里把「${name}」设成了不做。不要换个写法绕过去，告诉用户这一步需要他自己来。` };
+        if (mode === "allow" || state.always.some((a) => a.key === hit.key)) return;
         const decision = await this.request(
           {
             agent: basename(ctx.cwd),

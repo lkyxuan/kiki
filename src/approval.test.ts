@@ -89,8 +89,9 @@ test("先问：暂停在这一步，等点了同意 / 不同意 / 以后都同�
   assert.equal(await call("bash", { command: "git push -f origin x" }, cwd), undefined); // 记住了，不再问
   assert.equal(ap.list().length, 0);
 
+  setMode(dir, "force", "deny"); // 设成不做后，以前的“以后都同意”也不算数
+  assert.equal((await call("bash", { command: "git push --force" }, cwd)).block, true);
   removeAlways(dir, "rule:git.push-force");
-  setMode(dir, "force", "deny");
   const denied = await call("bash", { command: "git push --force" }, cwd);
   assert.equal(denied.block, true);
   assert.match(denied.reason, /不做/);
