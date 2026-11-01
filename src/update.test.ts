@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { test } from "node:test";
+import { allowedHost } from "./guard.js";
+import { assetName, newer, sumFor, Updater, VERSION } from "./update.js";
+
+test("版本比较", () => {
+  assert.equal(newer("0.2.0", "0.1.9"), true);
+  assert.equal(newer("v0.10.0", "0.9.9"), true);
+  assert.equal(newer("0.1.0", "0.1.0"), false);
+  assert.equal(newer("0.1.0", "0.2.0"), false);
+});
+
+test("从 SHA256SUMS 里找校验和", () => {
+  const sums = "aaa  Kiki-mac-arm64.zip\nbbb  Kiki-mac-x64.zip\n";
+  assert.equal(sumFor(sums, "Kiki-mac-x64.zip"), "bbb");
+  assert.equal(sumFor(sums, "nope.zip"), undefined);
+});
+
+test("主机名白名单", () => {
+  assert.equal(allowedHost("localhost:4567"), true);
+  assert.equal(allowedHost("127.0.0.1:4567"), true);
+  assert.equal(allowedHost("mac-mini.tail1234.ts.net"), true);
+  assert.equal(allowedHost("evil.com"), false);
+  assert.equal(allowedHost(undefined), false);
+});
+
+test("检查更新：发现新版本；开发模式不能自己装", async () => {
+  const server = createServer((req, res) => {
+    res.setHeader("content-type", "application/json");
+    res.end(
+      JSON.stringify({
+        tag_name: "v99.0.0",
+        html_url: "https://example.com/r",
+        body: "改了些东西",
+        assets: [{ name: assetName(), url: "http://x/1" }],
+      }),
+    );
+  }).listen(0);
+  await new Promise((r) => server.once("listening", r));
+  const port = (server.address() as { port: number }).port;
+  process.env.KIKI_UPDATE_API = `http://127.0.0.1:${port}`;
+  process.env.GITHUB_TOKEN = "test"; // 免得去调 gh
+  try {
+    const u = new Updater({ dataDir: "/tmp", port: 0, isIdle: () => true });
+    const s = await u.check();
+    assert.equal(s.current, VERSION);
+    assert.equal(s.latest, "99.0.0");
+    assert.equal(s.status, "available");
+    if (!process.env.KIKI_APP) await assert.rejects(u.apply(), /开发模式/);
+  } finally {
+    server.close();
+  }
+});

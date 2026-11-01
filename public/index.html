@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kiki</title>
+<!-- 装成 App：Mac 上 Safari「文件 → 添加到程序坞」，iPhone 上「分享 → 添加到主屏幕」 -->
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kiki">
 <style>
   :root {
     --bg: #ffffff; --side: #f6f6f4; --line: #e6e5e1; --text: #1d1d1b; --muted: #8a8984;
@@ -49,6 +55,9 @@
   main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   header { padding: 14px 24px; border-bottom: 1px solid var(--line); font-weight: 600; display: flex; gap: 10px; align-items: baseline; }
   header small { color: var(--muted); font-weight: 400; }
+  /* 右上角更新提示 */
+  #upd { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  #upd button { color: #fff; background: var(--accent); border-radius: 6px; padding: 1px 8px; font-size: 12px; }
   #log { flex: 1; overflow: auto; padding: 24px; }
   .msgs { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
   .msg { white-space: normal; word-wrap: break-word; }
@@ -76,7 +85,7 @@
   <div id="agents"></div>
 </aside>
 <main>
-  <header><span id="title">主 bot</span><small id="sub">随手扔一句、用命令管理对话、收后台回报</small></header>
+  <header><span id="title">主 bot</span><small id="sub">随手扔一句、用命令管理对话、收后台回报</small><span id="upd"></span></header>
   <div id="log"><div class="msgs" id="msgs"></div></div>
   <div class="composer">
     <div class="box">
@@ -243,6 +252,31 @@ function setPending(on) {
   }
 }
 es.addEventListener("tree", (e) => { tree = JSON.parse(e.data); renderSide(); });
+
+// 更新提示：有新版本时右上角出一个按钮；正在装 / 出错时显示一行字
+function renderUpdate(u) {
+  const el = $("#upd");
+  if (!u) return;
+  const last = u.last && u.last.to === u.current && u.last.result === "ok" ? `已更新到 v${u.current}` :
+    u.last && u.last.result === "rolled_back" && u.last.from === u.current ? `v${u.last.to} 没起来，已回滚` : "";
+  if (u.status === "available")
+    el.innerHTML = u.canApply ? `新版本 v${esc(u.latest)} <button id="upd-go">更新</button>` : `新版本 v${esc(u.latest)}（git pull 更新）`;
+  else if (u.status === "downloading" || u.status === "installing") el.innerHTML = `<span class="spin"></span>${esc(u.message || "")}`;
+  else if (u.status === "error") el.innerHTML = `<span title="${esc(u.message || "")}">更新出错</span>`;
+  else el.textContent = last || `v${u.current}`;
+  const go = $("#upd-go");
+  if (go) go.onclick = () => fetch("/api/update/apply", { method: "POST" });
+}
+es.addEventListener("update", (e) => renderUpdate(JSON.parse(e.data)));
+// 每次（重新）连上都刷新一下；Kiki 更新重启后版本号变了，就整页重载，用上新网页
+let seenVersion = null;
+es.addEventListener("open", () =>
+  fetch("/api/update").then((r) => r.ok && r.json()).then((u) => {
+    if (!u) return;
+    if (seenVersion && seenVersion !== u.current) return location.reload();
+    seenVersion = u.current;
+    renderUpdate(u);
+  }).catch(() => {}));
 
 loadTree().then(() => open("main"));
 </script>

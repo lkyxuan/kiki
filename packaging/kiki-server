@@ -1,0 +1,17 @@
+#!/bin/bash
+# launchd 运行的后台服务：用 App 里自带的 Node 启动 Kiki。日志在 ~/Library/Logs/Kiki/server.log
+RES="$(cd "$(dirname "$0")/../Resources" && pwd)"
+export KIKI_APP="$(cd "$RES/../.." && pwd)"   # 告诉 Kiki 自己装在哪，自动更新要用
+export DATA_DIR="${DATA_DIR:-$HOME/kiki-data}"
+NODE="$RES/node/bin/node"
+MAIN="$RES/app/dist/main.js"
+ENVF="$DATA_DIR/.env"
+# 工作目录放在数据目录，Kiki 会读这里的 .env；第一次启动时数据目录还没建，先待在家目录
+cd "$DATA_DIR" 2>/dev/null || cd "$HOME"
+
+# .env 里写的是 1Password 引用（op://…）并且装了 op，就用 op run 注入密钥。
+# 无人值守开机时，op 需要 OP_SERVICE_ACCOUNT_TOKEN 或者 1Password 已解锁，见 docs/mac-app.md
+if [ -f "$ENVF" ] && grep -q 'op://' "$ENVF" && command -v op >/dev/null 2>&1; then
+  exec op run --env-file="$ENVF" -- "$NODE" "$MAIN"
+fi
+exec "$NODE" "$MAIN"
