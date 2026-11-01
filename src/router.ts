@@ -46,6 +46,7 @@ const HELP = `我是 Kiki。直接说话，我会判断该接进哪段对话，�
 
 export class Router {
   readonly tasks: Tasks;
+  private reserved = new Set<string>(); // 正在建的对话名（宝/名），交接时防重名
   /** 分派规则（用户可改的 Markdown），每次路由现读，改完不用重启。main.ts 里接到 ~/kiki-data/分派规则.md。 */
   rules: () => string = () => "判断完就直接做，做完告诉用户。";
 
@@ -309,9 +310,17 @@ export class Router {
       return `已交给后台任务「${base}」（${req.bao}），做完会回报到这段对话。`;
     }
 
+    // 先同步占住名字再去建对话：两段对话同时交接同名的事，不会落到同一个名字上
     let name = base;
-    for (let i = 2; this.registry.get(req.bao, name); i++) name = `${base}${i}`;
-    const rec = await this.newSession(req.bao, name);
+    for (let i = 2; this.registry.get(req.bao, name) || this.reserved.has(`${req.bao}/${name}`); i++) name = `${base}${i}`;
+    const key = `${req.bao}/${name}`;
+    this.reserved.add(key);
+    let rec: SessionRecord;
+    try {
+      rec = await this.newSession(req.bao, name);
+    } finally {
+      this.reserved.delete(key);
+    }
     this.agents
       .send(rec.agent, rec.path, msg)
       .then((r) => this.agents.announce?.(rec.path, r))
