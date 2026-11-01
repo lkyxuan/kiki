@@ -9,12 +9,49 @@ type Cfg = Record<string, unknown>;
 
 export const validServerName = (n: unknown): n is string => typeof n === "string" && /^[\w-]{1,40}$/.test(n);
 
-/** 把一行命令拆成参数，支持单双引号：cua-driver mcp、npx -y "@scope/pkg" --flag */
+/** 像 shell 一样把一行命令拆成参数：支持引号（也可以在参数中间，比如 --dir="a b"）和反斜杠转义。 */
 export function splitCommand(line: string): string[] {
   const out: string[] = [];
-  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
-  for (let m; (m = re.exec(line)); ) out.push(m[1] ?? m[2] ?? m[3]);
+  let cur = "";
+  let has = false;
+  let q: string | null = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) {
+      if (c === q) q = null;
+      else if (c === "\\" && q === '"' && i + 1 < line.length) cur += line[++i];
+      else cur += c;
+    } else if (c === '"' || c === "'") {
+      q = c;
+      has = true;
+    } else if (c === "\\" && i + 1 < line.length) {
+      cur += line[++i];
+      has = true;
+    } else if (/\s/.test(c)) {
+      if (has) out.push(cur);
+      cur = "";
+      has = false;
+    } else {
+      cur += c;
+      has = true;
+    }
+  }
+  if (q) throw new Error("引号没配对");
+  if (has) out.push(cur);
   return out;
+}
+
+/** 存之前检查字段类型，免得一条坏配置把整个列表弄挂。 */
+function checkConfig(c: Cfg) {
+  const strs = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === "string");
+  const strMap = (v: unknown) => !!v && typeof v === "object" && !Array.isArray(v) && Object.values(v).every((x) => typeof x === "string");
+  if (typeof c.url === "string") {
+    if (!/^https?:\/\//.test(c.url)) throw new Error("url 要以 http:// 或 https:// 开头");
+    if (c.headers !== undefined && !strMap(c.headers)) throw new Error("headers 要是字符串键值对");
+  } else if (typeof c.command === "string" && c.command) {
+    if (c.args !== undefined && !strs(c.args)) throw new Error("args 要是字符串数组");
+    if (c.env !== undefined && !strMap(c.env)) throw new Error("env 要是字符串键值对");
+  } else throw new Error("JSON 里要有 command 或 url");
 }
 
 /**
@@ -39,7 +76,7 @@ export function parseSpec(name: string, spec: string): { name: string; config: C
       if (entries.length !== 1) throw new Error("一次只加一个服务器");
       [name, config] = [name || entries[0][0], entries[0][1]];
     } else config = j;
-    if (typeof config.command !== "string" && typeof config.url !== "string") throw new Error("JSON 里要有 command 或 url");
+    if (!config || typeof config !== "object") throw new Error("JSON 格式不对");
   } else if (/^https?:\/\//.test(s)) {
     if (/\s/.test(s)) throw new Error("网址里不能有空格");
     config = { url: s };
@@ -47,14 +84,16 @@ export function parseSpec(name: string, spec: string): { name: string; config: C
     const [command, ...args] = splitCommand(s);
     config = args.length ? { command, args } : { command };
   }
+  checkConfig(config);
   if (!validServerName(name)) throw new Error("名字只能用字母、数字、- 和 _，最多 40 个字");
   return { name, config: { ...config, exposure: config.exposure ?? "direct" } };
 }
 
 /** 列表里显示的一行：命令和参数，或者网址。 */
 export function summary(c: Cfg): string {
-  if (typeof c.url === "string") return c.url;
-  return [c.command, ...((c.args as unknown[]) ?? [])].map(String).join(" ");
+  if (typeof c?.url === "string") return c.url;
+  const args = Array.isArray(c?.args) ? c.args : [];
+  return [c?.command, ...args].map(String).join(" ");
 }
 
 export class Mcp {

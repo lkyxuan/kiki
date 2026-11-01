@@ -7,6 +7,9 @@ import { Mcp, parseSpec, splitCommand } from "./mcp.js";
 
 test("命令行拆参数，支持引号", () => {
   assert.deepEqual(splitCommand(`npx -y "@scope/pkg" --dir 'a b'`), ["npx", "-y", "@scope/pkg", "--dir", "a b"]);
+  assert.deepEqual(splitCommand(`srv --directory="/Users/me/My Files" ''`), ["srv", "--directory=/Users/me/My Files", ""]);
+  assert.deepEqual(splitCommand(`/Applications/My\\ App/bin/srv mcp`), ["/Applications/My App/bin/srv", "mcp"]);
+  assert.throws(() => splitCommand(`a "b`));
 });
 
 test("设置页填的一行变成配置", () => {
@@ -22,6 +25,8 @@ test("设置页填的一行变成配置", () => {
   assert.throws(() => parseSpec("坏 名字", "a"));
   assert.throws(() => parseSpec("x", ""));
   assert.throws(() => parseSpec("x", `{"args":[]}`));
+  assert.throws(() => parseSpec("x", `{"command":"server","args":123}`));
+  assert.throws(() => parseSpec("x", `{"url":"ftp://x"}`));
 });
 
 test("增、关、删只动 mcp.json 里对应那一项", () => {
