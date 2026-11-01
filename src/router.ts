@@ -320,12 +320,8 @@ export class Router {
 
     if (req.mode === "background") {
       // 后台：按交接说明开一段干净的新对话去做（不分叉原对话，只带说明里的上下文），做完回报到原对话
-      this.tasks.start({ agent: req.bao, title: base, prompt: msg, chatId: "handoff" }, (t: Task) => {
-        if (!from || (t.status !== "done" && t.status !== "failed")) return;
-        const where = t.session ? this.registry.byPath(t.session) : undefined;
-        const head = t.status === "done" ? `✅ 交接出去的「${t.title}」做完了` : `❌ 交接出去的「${t.title}」失败了`;
-        void this.agents.note(from.agent, from.path, `${head}${where ? `（${label(where)}）` : ""}：\n\n${t.result ?? ""}`);
-      });
+      // reportTo：只回报、不分叉，存进任务文件，重启后 /retry 也会回报到原对话
+      this.tasks.start({ agent: req.bao, title: base, prompt: msg, reportTo: from?.path, chatId: "handoff" });
       return `已交给后台任务「${base}」（${req.bao}），做完会回报到这段对话。`;
     }
 
