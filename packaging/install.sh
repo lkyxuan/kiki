@@ -2,9 +2,7 @@
 # 安装（或重装）Kiki：下载最新的 Kiki.app 放进"应用程序"，启动后台服务，打开网页。
 # 已有的数据（~/kiki-data）不会动。
 #
-#   私有仓库阶段（需要先 gh auth login）：
-#     gh api repos/lkyxuan/kiki/contents/packaging/install.sh -H "Accept: application/vnd.github.raw" | bash
-#   仓库公开以后：
+#   一行安装：
 #     curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash
 #   用自己打的包：
 #     packaging/install.sh out/Kiki-mac-arm64.zip
