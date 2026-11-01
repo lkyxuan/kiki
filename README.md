@@ -96,8 +96,6 @@ curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install
 - **自动更新**：有新版本时网页右上角会提示，默认在没有对话运行时自动安装，失败自动回滚。
 - **安全远程**：Kiki 只监听本机，远程访问通过 [Tailscale](https://tailscale.com) 加密连接，只有你自己的设备能连上。
 
-> 首个正式版本发布前，可以按指南里的步骤从源码打包安装。
-
 装好后编辑 `~/kiki-data/.env` 填入模型 API Key，再重启 Kiki 生效：`launchctl kickstart -k gui/$(id -u)/com.lkyxuan.kiki`。完整的安装、更新、远程使用和卸载说明见 **[Mac App 指南](docs/mac-app.md)**。
 
 ## 🚀 快速开始
