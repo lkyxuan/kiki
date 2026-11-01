@@ -65,7 +65,7 @@ router.isOn = (id) => isOn(dataDir, id);
 // 设置页关掉的能力不挂给 agent（新开的对话生效）
 agents.toolsFor = () =>
   [
-    handoffTool({ listBaos: () => agents.listAgents(), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
+    handoffTool({ listBaos: () => agents.listAgents(), describe: (b) => agents.describe(b), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
     ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
   ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
 

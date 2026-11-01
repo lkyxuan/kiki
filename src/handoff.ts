@@ -18,6 +18,7 @@ export const BRIEF_SECTIONS = ["目标", "已经定下的结论和决定", "相�
 
 export function handoffTool(opts: {
   listBaos: () => string[];
+  describe?: (bao: string) => string; // 这个宝负责什么，一句话（给宝目录用）
   rules?: () => string; // 用户的分派规则，拼进工具说明
   onHandoff: (req: HandoffRequest) => Promise<string>; // 返回给模型看的结果（新对话的位置）
 }): ToolDefinition {
@@ -46,6 +47,11 @@ export function handoffTool(opts: {
       `交接说明按【${BRIEF_SECTIONS.join("】【")}】写，让新对话的 agent 读完就能接着干，不需要再看旧聊天。`,
       "交给最贴近的宝；都不贴近就新建一个按领域划分的宝（比如 生活宝、工作宝），不要为单件事建宝，也不要交给奇奇（奇奇只做分派）。",
       "调用后用一句话告诉用户分到了哪里（宝/对话名，新建了宝也说一声）；分错了用户会自己挪。",
+      // 宝目录：每个宝的名字和一句职责，打开对话时现读，让每个宝都知道别的宝管什么
+      `现有的宝：\n${opts
+        .listBaos()
+        .map((b) => `- ${b}${opts.describe?.(b) ? `：${opts.describe(b)}` : ""}`)
+        .join("\n")}\n各宝下面有哪些对话、聊到哪，用 kiki_peek 查。`,
       ...(opts.rules ? [`用户定的分派规则：\n${opts.rules().trim()}`] : []),
     ],
     parameters: params,
