@@ -1,6 +1,7 @@
 // 路由器：只做分诊和转发，不亲自干活。
 // 第一层（接到哪段对话）：自动判断，见 route.ts；也可以用 @宝名、/new、/use、/to 手动指定。
 // 第二层（聊还是后台干）：路由顺带给建议，/bg 强制后台。
+import { briefMessage, type HandoffRequest } from "./handoff.js";
 import type { Registry, SessionRecord } from "./registry.js";
 import { MemoryTaskStore, STATUS_LABEL, type Task, Tasks, type TaskStore } from "./tasks.js";
 import { buildRouteInput, type Decision, type Option, optionLabel, parseDecision, ROUTE_SYSTEM, type RouteCandidate } from "./route.js";
@@ -307,6 +308,32 @@ export class Router {
     }
     if (list.length === 0) return reply("还没有后台任务。");
     return reply(list.map((t) => `[${STATUS_LABEL[t.status]}] ${t.title} · ${t.agent} · ${t.id}`).join("\n"));
+  }
+
+  /** 交接：对话里的 agent 调 kiki_handoff 时走这里。新对话的第一条消息就是交接说明。
+   *  不等新对话回答（工具调用还卡在原对话里，等了会拖住原对话）。 */
+  async handoff(req: HandoffRequest): Promise<string> {
+    if (!this.agents.exists(req.bao)) throw new Error(`没有宝「${req.bao}」，可选：${this.agents.listAgents().join("、")}`);
+    const base = req.name.replace(/[\/\n]/g, " ").trim().slice(0, 30) || stamp();
+    const from = req.fromPath ? this.registry.byPath(req.fromPath) : undefined;
+    const msg = briefMessage(from ? label(from) : undefined, req.brief, req.mode);
+
+    if (req.mode === "background") {
+      // 后台：按交接说明开一段干净的新对话去做（不分叉原对话，只带说明里的上下文），做完回报到原对话
+      this.tasks.start({ agent: req.bao, title: base, prompt: msg, chatId: "handoff" }, (t: Task) => {
+        if (!from || (t.status !== "done" && t.status !== "failed")) return;
+        const where = t.session ? this.registry.byPath(t.session) : undefined;
+        const head = t.status === "done" ? `✅ 交接出去的「${t.title}」做完了` : `❌ 交接出去的「${t.title}」失败了`;
+        void this.agents.note(from.agent, from.path, `${head}${where ? `（${label(where)}）` : ""}：\n\n${t.result ?? ""}`);
+      });
+      return `已交给后台任务「${base}」（${req.bao}），做完会回报到这段对话。`;
+    }
+
+    let name = base;
+    for (let i = 2; this.registry.get(req.bao, name); i++) name = `${base}${i}`;
+    const rec = await this.newSession(req.bao, name);
+    this.agents.send(rec.agent, rec.path, msg).catch((e) => console.warn("[handoff] 新对话没接住交接说明：", (e as Error).message));
+    return `已交接到 ${label(rec)}，新对话已收到交接说明。用户在左边栏点「${name}」就能过去。`;
   }
 
   private async forkSession(agent: string, fromPath: string, name: string): Promise<SessionRecord> {
