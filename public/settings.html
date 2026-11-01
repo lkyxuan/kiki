@@ -500,8 +500,11 @@ async function loadUpdate() {
 $("#check").onclick = async () => { $("#upd").textContent = "检查中…"; await api("/api/update/check", {}).catch(() => {}); loadUpdate(); };
 $("#apply").onclick = async () => {
   $("#apply").hidden = true;
-  try { const u = await api("/api/update/apply", {}); window.__updating = u.current; loadUpdate(); }
-  catch (e) { say("#upd", e.message, "err"); loadUpdate(); }
+  // 接口要等下载、自检都做完才返回，所以先开始轮询进度，别干等着
+  const req = api("/api/update/apply", {});
+  updTimer = setTimeout(loadUpdate, 500);
+  try { const u = await req; window.__updating = u.current; loadUpdate(); }
+  catch (e) { clearTimeout(updTimer); say("#upd", e.message, "err"); }
 };
 
 load().catch((e) => document.body.insertAdjacentHTML("afterbegin", `<p class="msg err" style="padding:16px">${esc(e.message)}</p>`));
