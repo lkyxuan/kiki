@@ -41,11 +41,13 @@
   .item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
   /* 奇奇主按钮：和对话条目不一样，居中、大图标 */
   .kiki { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 18px 10px 14px; border-radius: 14px; font-weight: 650; font-size: 16px; }
-  .kiki img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; transition: transform .15s; }
+  .kiki .ava { display: block; width: 72px; height: 72px; border-radius: 50%; overflow: hidden; transition: transform .15s; }
+  .kiki .ava img, .kiki .ava svg { display: block; width: 100%; height: 100%; }
   .kiki:hover { background: var(--hover); }
-  .kiki:hover img { transform: scale(1.04); }
+  .kiki:hover .ava { transform: scale(1.04); }
   .kiki.on { background: var(--active); }
-  .kiki.on img { box-shadow: 0 0 0 3px var(--side), 0 0 0 5px var(--accent); }
+  .kiki.on .ava { box-shadow: 0 0 0 3px var(--side), 0 0 0 5px var(--accent); }
+  .qiqi-ava .iris { transition: transform .35s ease-out; } /* 奇奇转眼珠，见 public/qiqi-eyes.js */
   .kiki .dot { position: absolute; top: 18px; right: calc(50% - 40px); width: 10px; height: 10px; border: 2px solid var(--side); }
   .label { font-size: 12px; color: var(--muted); padding: 16px 10px 6px; letter-spacing: .04em; }
   .bao { margin-bottom: 4px; }
@@ -140,7 +142,7 @@
 </head>
 <body>
 <aside>
-  <button class="kiki" data-path="main" aria-label="奇奇"><img src="/qiqi.png" alt=""><span class="name">奇奇</span></button>
+  <button class="kiki" data-path="main" aria-label="奇奇"><span class="ava"><img src="/qiqi.png" alt=""></span><span class="name">奇奇</span></button>
   <div id="qiqi"></div>
   <div class="label" id="baos-label">我的宝</div>
   <div id="agents"></div>
@@ -199,6 +201,7 @@ function find(path) {
 }
 
 function renderSide() {
+  if (typeof thinkEyes === "function") thinkEyes();
   const k = $(".kiki");
   k.classList.toggle("on", current === "main");
   k.querySelector(".dot")?.remove();
@@ -323,7 +326,7 @@ async function send() {
   autosize();
   $(".hint")?.remove();
   const r = await fetch("/api/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: current, text }) });
-  if (r.ok && current === "main") setPending(true); // 奇奇要先路由再回答，给个等待提示
+  if (r.ok && current === "main") { setPending(true); mainBusy = true; thinkEyes(); } // 奇奇要先路由再回答，给个等待提示
   if (!r.ok) addMsg("assistant", `出错了：${(await r.json()).error}`);
 }
 
@@ -410,6 +413,7 @@ $("#input").addEventListener("keydown", (e) => {
 const es = new EventSource("/api/events");
 es.addEventListener("message", (e) => {
   const m = JSON.parse(e.data);
+  if (m.path === "main" && m.role === "assistant" && mainBusy) { mainBusy = false; thinkEyes(); }
   if (m.path === current && m.role === "assistant") $(".pending")?.remove();
   if (m.path !== current) { if (m.role === "assistant") { unread.add(m.path); renderSide(); } return; }
   if (m.role === "assistant" && streaming) { streaming.innerHTML = render(m.text); streaming = null; return; }
@@ -467,6 +471,14 @@ es.addEventListener("open", () => { loadAsks(); return fetch("/api/update").then
   }).catch(() => {}); });
 
 loadTree().then(() => open("main"));
+
+// 奇奇的头像换成会动的版本；加载失败就留着静态图
+let eyes = null, mainBusy = false;
+import("/qiqi-eyes.js").then((m) => { eyes = m.mountQiqi($(".kiki .ava")); thinkEyes(); }).catch(() => {});
+// 有对话在干活（包括奇奇自己在分派）时，奇奇抬头看星星
+function thinkEyes() {
+  eyes?.think(mainBusy || tree.agents.some((a) => a.sessions.some((s) => s.busy)));
+}
 </script>
 </body>
 </html>

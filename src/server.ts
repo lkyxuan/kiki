@@ -21,6 +21,9 @@ const STATIC: Record<string, string> = {
   "/icon-180.png": "image/png",
   "/settings.html": "text/html; charset=utf-8", // 设置页
   "/qiqi.png": "image/png", // 奇奇的头像
+  "/qiqi-base.png": "image/png", // 会动的头像：眼睛涂黑的底图
+  "/qiqi-closed.png": "image/png", // 会动的头像：闭眼那一层
+  "/qiqi-eyes.js": "text/javascript; charset=utf-8",
 };
 
 export function startServer(opts: {
