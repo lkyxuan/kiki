@@ -142,3 +142,21 @@ test("重启：上次没做完的标成中断，可以重跑", async () => {
   assert.equal(again.status, "done");
   assert.equal(readdirSync(dir).length, 2);
 });
+
+test("reportTo：不分叉，只回报到指定对话；重跑也带着", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "kiki-tasks-"));
+  const froms: (string | undefined)[] = [];
+  const { backend, notes } = fakeBackend();
+  const spawn = backend.spawn;
+  backend.spawn = (a, title, from) => (froms.push(from), spawn(a, title, from));
+  const tasks = new Tasks(new FileTaskStore(dir), backend);
+  const t = tasks.start({ agent: "dev", title: "交接", prompt: "p", reportTo: "/r.jsonl" });
+  await tick();
+  assert.deepEqual(froms, [undefined]);
+  assert.match(notes[0], /^\/r\.jsonl ✅/);
+  const reloaded = new Tasks(new FileTaskStore(dir), backend);
+  assert.equal(reloaded.get(t.id)?.reportTo, "/r.jsonl");
+  reloaded.retry(t.id);
+  await tick();
+  assert.match(notes[1], /^\/r\.jsonl ✅/);
+});
