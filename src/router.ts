@@ -4,7 +4,7 @@
 import { briefMessage, type HandoffRequest } from "./handoff.js";
 import type { Registry, SessionRecord } from "./registry.js";
 import { MemoryTaskStore, STATUS_LABEL, type Task, Tasks, type TaskStore } from "./tasks.js";
-import { buildRouteInput, type Decision, type Option, optionLabel, parseDecision, ROUTE_SYSTEM, type RouteCandidate } from "./route.js";
+import { buildRouteInput, buildRouteSystem, type Decision, parseDecision, type RouteCandidate } from "./route.js";
 
 /** 路由器对 pi 那一层的全部要求，测试时可以换成假的。 */
 export interface AgentBackend {
@@ -44,6 +44,8 @@ const HELP = `我是 Kiki。直接说话，我会判断该接进哪段对话，�
 
 export class Router {
   readonly tasks: Tasks;
+  /** 分派规则（用户可改的 Markdown），每次路由现读，改完不用重启。main.ts 里接到 ~/kiki-data/分派规则.md。 */
+  rules: () => string = () => "判断完就直接做，做完告诉用户。";
 
   constructor(
     private agents: AgentBackend,
@@ -129,40 +131,18 @@ export class Router {
     }
   }
 
-  private pending = new Map<string, { text: string; options: Option[] }>(); // 拿不准时等用户选
   private last = new Map<string, string>(); // 每个聊天上一句路由过的话，给 /to 改投用
 
   private async chat(chatId: string, text: string, reply: Reply, release: () => void = () => {}) {
-    // 1. 上一句拿不准，用户回了个数字
-    const pend = this.pending.get(chatId);
-    if (pend && /^[1-9]$/.test(text)) {
-      const o = pend.options[Number(text) - 1];
-      if (o) {
-        this.pending.delete(chatId);
-        const d: Decision = "target" in o
-          ? { action: "continue", target: o.target, mode: "chat" }
-          : { action: "new", agent: o.agent, name: o.name, mode: "chat" };
-        return this.deliver(chatId, pend.text, d, reply, release);
-      }
-    }
-    this.pending.delete(chatId);
-
-    // 2. @宝名 开头：只在这个宝下面选
+    // @宝名 开头：只在这个宝下面选
     let onlyAgent: string | undefined;
     const at = text.match(/^@(\S+)\s+([\s\S]+)$/);
     if (at && this.agents.exists(at[1])) {
       onlyAgent = at[1];
       text = at[2].trim();
     }
-
-    // 3. 问模型
+    // 不出选择题：模型自己挑最合适的地方，分错了用 /to 改投
     const d = await this.decide(chatId, text, onlyAgent);
-    if (d.action === "ask") {
-      this.pending.set(chatId, { text, options: d.options });
-      const opts = d.options.map((o, i) => `${i + 1}. ${optionLabel(o)}`).join("\n");
-      release();
-      return reply(`🤔 这句该放哪我拿不准${d.reason ? `（${d.reason}）` : ""}，回个数字：\n${opts}`);
-    }
     return this.deliver(chatId, text, d, reply, release);
   }
 
@@ -188,7 +168,7 @@ export class Router {
     const targets = candidates.flatMap((c) => c.sessions.map((s) => s.label));
     try {
       const raw = await this.agents.complete(
-        ROUTE_SYSTEM,
+        buildRouteSystem(this.rules()),
         buildRouteInput({ text, candidates, current: cur ? label(cur) : undefined, onlyAgent }),
       );
       const d = parseDecision(raw, { agents: onlyAgent ? [onlyAgent] : agents, targets: onlyAgent ? targets.filter((t) => t.startsWith(`${onlyAgent}/`)) : targets });
@@ -201,7 +181,7 @@ export class Router {
   }
 
   /** 按决定把这句话送进对话，回执 + 回答一起回给用户。 */
-  private async deliver(chatId: string, text: string, d: Exclude<Decision, { action: "ask" }>, reply: Reply, release: () => void = () => {}) {
+  private async deliver(chatId: string, text: string, d: Decision, reply: Reply, release: () => void = () => {}) {
     this.last.set(chatId, text);
     if (d.mode === "background") {
       // 接着某段对话派的活：分叉那段对话去后台做（带着前面的讨论），结果也回报到那段对话；

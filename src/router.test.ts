@@ -88,13 +88,11 @@ test("模型给了不存在的对话：不乱建，退回当前对话", async ()
   assert.match(out.at(-1)!, /^→ dev\/路由器 · 接着聊/);
 });
 
-test("拿不准：列出选项，回数字后投递", async () => {
+test("模型给了选项也不反问用户：直接取第一个", async () => {
   const { out, say, ctl, reg } = setup();
   await say("/new dev 路由器");
-  ctl.routeAnswer = '{"action":"ask","options":[{"target":"dev/路由器"},{"agent":"life","name":"买电脑"}],"reason":"都沾边"}';
+  ctl.routeAnswer = '{"action":"ask","options":[{"agent":"life","name":"买电脑"},{"target":"dev/路由器"}],"reason":"都沾边"}';
   await say("Mac mini 要不要升级内存");
-  assert.match(out.at(-1)!, /拿不准（都沾边）.*\n1\. 接进 dev\/路由器\n2\. 在 life 下新开「买电脑」/);
-  await say("2");
   assert.match(out.at(-1)!, /^→ life\/买电脑 · 新开\n\n\[.*\] Mac mini 要不要升级内存$/);
   assert.equal(reg.current("app")?.name, "买电脑");
 });
@@ -209,6 +207,7 @@ test("parseDecision 过滤非法输出", () => {
     action: "continue",
     target: "dev/a",
     mode: "chat",
+    taskTitle: undefined,
     reason: undefined,
   });
   const d = parseDecision('{"action":"new","agent":"dev","name":"a/b\\nc","mode":"background","taskTitle":"t"}', valid);

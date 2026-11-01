@@ -17,6 +17,7 @@ export const BRIEF_SECTIONS = ["目标", "已经定下的结论和决定", "相�
 
 export function handoffTool(opts: {
   listBaos: () => string[];
+  rules?: () => string; // 用户的分派规则，拼进工具说明
   onHandoff: (req: HandoffRequest) => Promise<string>; // 返回给模型看的结果（新对话的位置）
 }): ToolDefinition {
   const params = Type.Object({
@@ -39,10 +40,10 @@ export function handoffTool(opts: {
       `可选的宝：${opts.listBaos().join("、")}。`,
     promptSnippet: "kiki_handoff：发现在聊的是一件新的事时，写好交接说明，分到一段新对话里去",
     promptGuidelines: [
-      "当讨论里冒出一件独立的新事（新任务、新项目、换了领域），而不是当前话题的子问题时，考虑用 kiki_handoff 分出去。",
-      "先在回复里问用户一句\"这像是一件新事，要分出去吗？\"，用户同意后再调用；用户明确要求分出去时直接调用。",
+      "当讨论里冒出一件独立的新事（新任务、新项目、换了领域），而不是当前话题的子问题时，直接调用 kiki_handoff 分出去，不要先问用户。",
       `交接说明按【${BRIEF_SECTIONS.join("】【")}】写，让新对话的 agent 读完就能接着干，不需要再看旧聊天。`,
-      "调用后告诉用户分到了哪里（宝/对话名）。",
+      "调用后用一句话告诉用户分到了哪里（宝/对话名）；分错了用户会自己挪。",
+      ...(opts.rules ? [`用户定的分派规则：\n${opts.rules().trim()}`] : []),
     ],
     parameters: params,
     async execute(_id, p: any, _signal, _onUpdate, ctx) {
