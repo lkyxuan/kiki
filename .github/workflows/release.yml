@@ -1,10 +1,13 @@
-# 发布：改 package.json 里的版本号，推一个同名 tag（比如 v0.2.0），这里就会
-# 检查 → 测试 → 打 arm64 和 x64 两个 Kiki.app → 建 GitHub Release。
+# 发布：改 package.json 里的版本号并合进 main（或者推一个同名 tag，或者在 Actions 页面手动运行），这里就会
+# 检查 → 测试 → 打 arm64 和 x64 两个 Kiki.app → 建 GitHub Release（tag 自动建）。这个版本已经发过就跳过。
 # 装好的 Kiki 会在 6 小时内发现新版本，空闲时自动装上。
 name: release
 on:
   push:
+    branches: [main]
+    paths: [package.json]
     tags: ["v*"]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -16,16 +19,26 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npm test
-      - name: 版本号要和 tag 一致
-        run: |
-          v=$(node -p 'require("./package.json").version')
-          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "package.json 是 $v，tag 是 $GITHUB_REF_NAME"; exit 1; }
-      - run: packaging/build.sh arm64
-      - run: packaging/build.sh x64
-      - name: 建 Release
+      - name: 这个版本发过没有
+        id: ver
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS --title "Kiki $GITHUB_REF_NAME" --generate-notes
+        run: |
+          v=$(node -p 'require("./package.json").version')
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+          if gh release view "v$v" >/dev/null 2>&1; then echo "v$v 已经发过，跳过"; echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.ver.outputs.skip != '1'
+        run: npm ci
+      - if: steps.ver.outputs.skip != '1'
+        run: npm run check && npm test
+      - name: 推 tag 发布时，版本号要和 tag 一致
+        if: steps.ver.outputs.skip != '1' && github.ref_type == 'tag'
+        run: '[ "${{ steps.ver.outputs.tag }}" = "$GITHUB_REF_NAME" ] || { echo "package.json 和 tag 对不上"; exit 1; }'
+      - if: steps.ver.outputs.skip != '1'
+        run: packaging/build.sh arm64 && packaging/build.sh x64
+      - name: 建 Release
+        if: steps.ver.outputs.skip != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: gh release create "$TAG" out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS --target "$GITHUB_SHA" --title "Kiki $TAG" --generate-notes
