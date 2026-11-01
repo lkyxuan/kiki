@@ -240,5 +240,5 @@ test("交接（后台）：按说明开干净的新对话去做，不分叉原�
   await new Promise((x) => setTimeout(x, 30));
   assert.deepEqual(ctl.forks, []);
   assert.match(ctl.sends.at(-1)!, /【目标】写个备份脚本\n\n请直接开始做/);
-  assert.match(ctl.notes.at(-1)!, new RegExp(`^${from} ✅ 交接出去的「写脚本」做完了`));
+  assert.match(ctl.notes.at(-1)!, new RegExp(`^${from} ✅ 后台任务「写脚本」完成`));
 });
