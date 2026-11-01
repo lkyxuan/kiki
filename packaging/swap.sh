@@ -30,6 +30,7 @@ rm -rf "$PREV"
 if ! mv "$APP" "$PREV"; then log "挪不动旧版本"; receipt failed; exit 1; fi
 if ! mv "$NEW" "$APP"; then mv "$PREV" "$APP"; log "放不进新版本"; receipt failed; exit 1; fi
 rmdir "$(dirname "$NEW")" 2>/dev/null
+touch "$APP"   # 让访达和程序坞刷新图标
 restart
 if healthy "$TO"; then receipt ok; exit 0; fi
 
