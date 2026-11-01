@@ -12,14 +12,6 @@ Kiki 装在 Mac mini 上一直开着，你在 MacBook、iPhone 上用浏览器�
 
 在 Mac mini 的“终端”里跑一行。
 
-仓库现在是私有的，需要先登录 GitHub CLI（`brew install gh && gh auth login`）：
-
-```bash
-gh api repos/lkyxuan/kiki/contents/packaging/install.sh -H "Accept: application/vnd.github.raw" | bash
-```
-
-仓库公开以后，任何人都可以：
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash
 ```
@@ -49,7 +41,7 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 4. 新版本 45 秒内没起来，就自动换回旧版本，网页提示“已回滚”，这个版本不再自动重试。
 5. 每次结果记在 `~/Library/Logs/Kiki/last-update.json` 和 `update.log`。上一个版本留在“应用程序”里的隐藏文件夹 `.Kiki-previous.app`，需要时可以手动换回去。
 
-私有仓库阶段，查更新需要 GitHub 权限：Kiki 会借用 `gh` 的登录；或者在 `.env` 里写一个只读的 `GITHUB_TOKEN`。仓库公开后就不需要了。
+查更新不需要登录 GitHub。如果在 `.env` 里写了 `GITHUB_TOKEN`，或者本机登录了 `gh`，Kiki 会顺带用上，免得撞到 GitHub 匿名访问的次数限制（每小时 60 次，Kiki 每 6 小时只查一次，一般用不着）。
 
 ### 怎么发布新版本（开发者）
 
