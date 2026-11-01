@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
 import { Agents } from "./agents.js";
+import { Approvals } from "./approval.js";
 import { handoffTool } from "./handoff.js";
 import { loadRules } from "./rules.js";
 import { kikiTools } from "./tools.js";
@@ -46,6 +47,9 @@ if (!existsSync(dataDir)) {
 for (const line of migrateToQiqi(dataDir, join(root, "data-template"))) console.log(`升级数据目录：${line}`);
 
 const agents = new Agents(dataDir, process.env.MODEL || "deepseek/deepseek-flash");
+// 审批：收不回来的动作先问一句（见 approval.ts）
+const approvals = new Approvals(dataDir);
+agents.extensions.push(approvals.extension());
 const registry = new Registry(join(dataDir, "registry.json"));
 // 后台任务：每个任务一个 Markdown 文件，在数据目录 tasks/ 下
 // 默认的宝：.env 里写的那个不存在了（比如以前的 life 已归档）就回到奇奇
@@ -72,7 +76,8 @@ const updater = new Updater({
   // 没有对话在跑才自动装，免得打断干活
   isIdle: () =>
     registry.list().every((s) => !agents.isBusy(s.path)) &&
-    router.tasks.list((t) => t.status === "queued" || t.status === "running").length === 0,
+    router.tasks.list((t) => t.status === "queued" || t.status === "running").length === 0 &&
+    approvals.list().length === 0, // 有卡片等你点头时也别重启，不然那一步就丢了
 });
 updater.start();
 
@@ -84,4 +89,5 @@ startServer({
   registry,
   router,
   updater,
+  approvals,
 });
