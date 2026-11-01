@@ -16,6 +16,7 @@ function setup() {
     routeDelays: [] as number[], // 每次路由调用的延迟（毫秒），按调用顺序取
     sends: [] as string[], // send 被调用的顺序
     forks: [] as string[], // fork 的来源
+    notes: [] as string[], // 回报到原对话的消息
   };
   const backend: AgentBackend = {
     listAgents: () => ["dev", "life"],
@@ -39,6 +40,7 @@ function setup() {
     },
     describe: (a) => (a === "dev" ? "写代码" : "日常生活"),
     recent: () => [],
+    note: async (a, path, text) => void ctl.notes.push(`${path} ${text}`),
   };
   const reg = new Registry(join(mkdtempSync(join(tmpdir(), "kiki-")), "registry.json"));
   const router = new Router(backend, reg, "life");
@@ -111,15 +113,18 @@ test("/to 把上一句改投到别处", async () => {
   assert.match(out.at(-1)!, /^→ dev\/杂事 · 新开\n\n\[.*\] 周末去爬山$/);
 });
 
-test("判成后台：开后台对话，先回执、做完回报，且不改当前对话", async () => {
-  const { out, say, reg, ctl } = setup();
+test("判成后台：交给后台任务，先回执、做完回报到收件箱和原对话，且不改当前对话", async () => {
+  const { out, say, reg, ctl, router } = setup();
   await say("/new dev 主线");
   ctl.routeAnswer = '{"action":"continue","target":"dev/主线","mode":"background","taskTitle":"整理README"}';
   await say("把 README 整理一遍");
   await new Promise((r) => setTimeout(r, 10));
-  assert.match(out.at(-2)!, /^→ dev\/bg-整理README · 后台/);
-  assert.match(out.at(-1)!, /✅ 后台任务 dev\/bg-整理README 完成/);
+  assert.match(out.at(-2)!, /^→ dev · 后台任务「整理README」\n\n好，已交给后台，做完我会回报到这里和 dev\/主线/);
+  assert.match(out.at(-1)!, /^✅ 后台任务「整理README」完成（dev\/bg-整理README）：\n\n.*把 README 整理一遍/s);
   assert.equal(reg.current("app")?.name, "主线");
+  const main = reg.get("dev", "主线")!;
+  assert.match(ctl.notes.at(-1)!, new RegExp(`^${main.path} ✅ 后台任务「整理README」完成`));
+  assert.equal(router.tasks.list()[0].status, "done");
 });
 
 test("接着某段对话判成后台：分叉那段对话，后台带着上下文", async () => {
@@ -130,7 +135,18 @@ test("接着某段对话判成后台：分叉那段对话，后台带着上下�
   await say("按刚才讨论的设计实现");
   await new Promise((r) => setTimeout(r, 10));
   assert.deepEqual(ctl.forks, [src]);
-  assert.match(out.at(-1)!, /✅ 后台任务 dev\/bg-实现 完成/);
+  assert.match(out.at(-1)!, /✅ 后台任务「实现」完成（dev\/bg-实现）/);
+});
+
+test("新话题判成后台：不多开空对话，直接开任务", async () => {
+  const { out, say, reg, ctl } = setup();
+  ctl.routeAnswer = '{"action":"new","agent":"dev","name":"周报","mode":"background","taskTitle":"写周报"}';
+  await say("帮我写本周周报");
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(reg.list().map((s) => s.name), ["bg-写周报"]);
+  assert.deepEqual(ctl.forks, []);
+  assert.match(out.at(-1)!, /✅ 后台任务「写周报」完成/);
+  assert.equal(ctl.notes.length, 0);
 });
 
 test("对话超过 20 段时，当前对话仍在候选里，接着聊不会被拒", async () => {
@@ -153,14 +169,22 @@ test("同一聊天连发两句：先发的先进对话，即使第一句路由�
   assert.deepEqual(ctl.sends, ["第一句", "第二句"]);
 });
 
-test("/bg 强制后台", async () => {
-  const { out, say, reg } = setup();
+test("/bg 强制后台（分叉当前对话），/tasks 列出，/retry 重跑", async () => {
+  const { out, say, reg, router } = setup();
   await say("/new dev 主线");
   await say("/bg 整理一下 README");
   await new Promise((r) => setTimeout(r, 10));
-  assert.match(out.at(-2)!, /已在后台开始/);
-  assert.match(out.at(-1)!, /✅ 后台任务 dev\/bg-.* 完成：\n\n.*整理一下 README/);
+  assert.match(out.at(-2)!, /已交给后台/);
+  assert.match(out.at(-1)!, /✅ 后台任务「整理一下 README」完成/);
   assert.ok(reg.list().find((s) => s.background));
+  await say("/tasks");
+  assert.match(out.at(-1)!, /^\[完成\] 整理一下 README · dev · /);
+  const id = router.tasks.list()[0].id;
+  await say(`/retry ${id}`);
+  assert.match(out.at(-1)!, /重新开始/);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(router.tasks.list().length, 2);
+  assert.ok(reg.get("dev", "bg-整理一下 README2"), "重跑开新的后台对话，不和旧的混");
 });
 
 test("/new /use /list 手动命令照常可用", async () => {

@@ -2,6 +2,7 @@
 // 第一层（接到哪段对话）：自动判断，见 route.ts；也可以用 @宝名、/new、/use、/to 手动指定。
 // 第二层（聊还是后台干）：路由顺带给建议，/bg 强制后台。
 import type { Registry, SessionRecord } from "./registry.js";
+import { MemoryTaskStore, STATUS_LABEL, type Task, Tasks, type TaskStore } from "./tasks.js";
 import { buildRouteInput, type Decision, type Option, optionLabel, parseDecision, ROUTE_SYSTEM, type RouteCandidate } from "./route.js";
 
 /** 路由器对 pi 那一层的全部要求，测试时可以换成假的。 */
@@ -19,6 +20,9 @@ export interface AgentBackend {
   describe(agent: string): string;
   /** 这段对话里用户最近说的几句（给路由看） */
   recent(path: string, n: number): string[];
+  /** 往对话末尾记一条消息，不触发回答（后台任务回报用） */
+  note(agent: string, path: string, text: string): Promise<void>;
+  abort?(path: string): Promise<void>;
 }
 
 type Reply = (text: string) => Promise<void>;
@@ -30,15 +34,41 @@ const HELP = `我是 Kiki。直接说话，我会判断该接进哪段对话，�
 /use <名字>          切到已有对话（重名时写 agent/名字）
 /list [agent]        看有哪些对话
 /bg <任务>           在后台新开一段对话去做，做完回报到这里
+/tasks [all]         看后台任务（默认只看没做完的和最近 10 个）
+/retry <任务id>      重跑失败或中断的任务
 /agents              看有哪些 agent
 /where               当前在哪段对话`;
 
 export class Router {
+  readonly tasks: Tasks;
+
   constructor(
     private agents: AgentBackend,
     private registry: Registry,
     private defaultAgent: string,
-  ) {}
+    store: TaskStore = new MemoryTaskStore(),
+    taskOpts: { concurrency?: number; timeoutMs?: number } = {},
+  ) {
+    this.tasks = new Tasks(
+      store,
+      {
+        // 有原对话就分叉它（后台看得到前面讨论的内容），没有就开一段新的
+        spawn: async (agent, title, from) => {
+          let name = `bg-${title}`;
+          for (let i = 2; this.registry.get(agent, name); i++) name = `bg-${title}${i}`;
+          const rec = from ? await this.forkSession(agent, from, name) : await this.newSession(agent, name, true);
+          return rec.path;
+        },
+        send: (agent, path, text) => this.agents.send(agent, path, text),
+        abort: this.agents.abort ? (path) => this.agents.abort!(path) : undefined,
+        note: async (path, text) => {
+          const rec = this.registry.byPath(path);
+          if (rec) await this.agents.note(rec.agent, path, text);
+        },
+      },
+      taskOpts,
+    );
+  }
 
   private locks = new Map<string, Promise<void>>(); // 同一个聊天的消息按顺序路由
 
@@ -83,6 +113,14 @@ export class Router {
         return this.cmdTo(chatId, args, reply);
       case "/bg":
         return this.cmdBg(chatId, t.slice(cmdRaw.length).trim(), reply);
+      case "/tasks":
+        return this.cmdTasks(args[0] === "all", reply);
+      case "/retry": {
+        const old = this.tasks.get(args[0] ?? "");
+        if (!old) return reply("用法：/retry <任务id>，id 用 /tasks 看。");
+        const t = this.tasks.retry(old.id, this.notifier(reply));
+        return reply(t ? `好，重新开始：「${t.title}」（任务 ${t.id}）` : "这个任务还在跑，不用重跑。");
+      }
       default:
         return reply(`不认识 ${cmd}。\n\n${HELP}`);
     }
@@ -161,6 +199,16 @@ export class Router {
 
   /** 按决定把这句话送进对话，回执 + 回答一起回给用户。 */
   private async deliver(chatId: string, text: string, d: Exclude<Decision, { action: "ask" }>, reply: Reply, release: () => void = () => {}) {
+    this.last.set(chatId, text);
+    if (d.mode === "background") {
+      // 接着某段对话派的活：分叉那段对话去后台做（带着前面的讨论），结果也回报到那段对话；
+      // 新话题直接开任务，不再多开一段空对话
+      const origin = d.action === "continue" ? this.registry.find(d.target)[0] : undefined;
+      const agent = origin?.agent ?? (d.action === "new" ? d.agent : this.defaultAgent);
+      const title = d.taskTitle ?? (d.action === "new" ? d.name : stamp());
+      release();
+      return this.runBackground(chatId, agent, text, title, origin, reply);
+    }
     let rec: SessionRecord;
     let how: string;
     if (d.action === "continue") {
@@ -171,13 +219,6 @@ export class Router {
       for (let i = 2; this.registry.get(d.agent, name); i++) name = `${d.name}${i}`; // 防重名
       rec = await this.newSession(d.agent, name);
       how = "新开";
-    }
-    this.last.set(chatId, text);
-    if (d.mode === "background") {
-      // 接着某段对话去后台干：分叉那段对话，后台才看得到前面讨论过的内容
-      const from = d.action === "continue" ? rec.path : undefined;
-      release();
-      return this.runBackground(chatId, rec.agent, text, d.taskTitle, reply, from);
     }
     this.registry.setCurrent(chatId, rec.path);
     const pending = this.agents.send(rec.agent, rec.path, text); // 已排进对话队列
@@ -232,28 +273,41 @@ export class Router {
     return reply(lines.join("\n"));
   }
 
-  /** 照 OpenClaw 的 spawn + announce：开一段新对话在后台跑，做完把结果推回发起的聊天。 */
+  /** /bg：强制后台。从当前对话派出，结果也回报到当前对话。 */
   private async cmdBg(chatId: string, task: string, reply: Reply) {
     if (!task) return reply("用法：/bg <任务>");
-    const agent = this.registry.current(chatId)?.agent ?? this.defaultAgent;
-    return this.runBackground(chatId, agent, task, undefined, reply);
+    const cur = this.registry.current(chatId);
+    const title = task.replace(/\s+/g, " ").slice(0, 16);
+    return this.runBackground(chatId, cur?.agent ?? this.defaultAgent, task, title, cur, reply);
   }
 
-  /** 后台执行的唯一入口（/bg 和自动路由判成 background 都走这里）。
-   *  照 OpenClaw 的 spawn + announce：开一段新对话在后台跑，做完把结果推回发起的聊天。
-   *  以后换成 tasks.start(...) 只改这里。 */
-  private async runBackground(chatId: string, agent: string, task: string, title: string | undefined, reply: Reply, fromPath?: string) {
-    let name = title ? `bg-${title}` : `bg-${stamp()}`;
-    for (let i = 2; this.registry.get(agent, name); i++) name = `${title ? `bg-${title}` : `bg-${stamp()}`}${i}`;
-    const rec = fromPath ? await this.forkSession(agent, fromPath, name) : await this.newSession(agent, name, true);
-    await reply(`→ ${label(rec)} · 后台\n\n好，已在后台开始，做完我会回报。想插话可以 /use ${label(rec)}。`);
-    // 不等它，路由器马上能接下一句
-    this.agents
-      .send(agent, rec.path, task)
-      .then((answer) => reply(`✅ 后台任务 ${label(rec)} 完成：\n\n${answer}`))
-      .catch((e) => reply(`❌ 后台任务 ${label(rec)} 失败：${(e as Error).message}`));
+  /** 后台执行的唯一入口（/bg 和自动路由判成 background 都走这里），具体见 tasks.ts。 */
+  private async runBackground(chatId: string, agent: string, task: string, title: string, origin: SessionRecord | undefined, reply: Reply) {
+    const t = this.tasks.start({ agent, title, prompt: task, origin: origin?.path, chatId }, this.notifier(reply));
+    const wait = t.status === "queued" ? "，前面还有任务在跑，排队中" : "";
+    await reply(`→ ${agent} · 后台任务「${title}」\n\n好，已交给后台${wait}，做完我会回报${origin ? `到这里和 ${label(origin)}` : ""}。/tasks 看进度。`);
   }
 
+  /** 任务做完/失败时回报到发起的聊天（收件箱）。 */
+  private notifier(reply: Reply) {
+    return (t: Task) => {
+      const where = t.session ? this.registry.byPath(t.session) : undefined;
+      const tag = where ? `（${label(where)}）` : "";
+      if (t.status === "done") void reply(`✅ 后台任务「${t.title}」完成${tag}：\n\n${t.result}`);
+      else if (t.status === "failed") void reply(`❌ 后台任务「${t.title}」失败${tag}：${t.result}\n想重跑：/retry ${t.id}`);
+    };
+  }
+
+  private async cmdTasks(all: boolean, reply: Reply) {
+    let list = this.tasks.list();
+    if (!all) {
+      const open = list.filter((t) => t.status === "queued" || t.status === "running");
+      const recent = list.filter((t) => !open.includes(t)).slice(-10);
+      list = [...open, ...recent];
+    }
+    if (list.length === 0) return reply("还没有后台任务。");
+    return reply(list.map((t) => `[${STATUS_LABEL[t.status]}] ${t.title} · ${t.agent} · ${t.id}`).join("\n"));
+  }
 
   private async forkSession(agent: string, fromPath: string, name: string): Promise<SessionRecord> {
     const path = await this.agents.fork(agent, fromPath, name);

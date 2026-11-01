@@ -38,6 +38,11 @@ export function startServer(opts: {
   };
   agents.on("delta", (d) => push("delta", d));
   agents.on("busy", (d) => push("busy", d));
+  agents.on("message", (d) => push("message", d)); // 后台任务回报到原对话
+  router.tasks.on("update", (t) => {
+    push("task", t);
+    push("tree", tree());
+  });
   opts.updater?.on("state", (s) => push("update", s));
 
   const mainSay = (role: ChatLine["role"], text: string) => {
@@ -51,6 +56,7 @@ export function startServer(opts: {
       : [];
 
   const tree = () => ({
+    tasks: router.tasks.list().slice(-50),
     current: registry.current(CHAT_ID)?.path,
     agents: agents.listAgents().map((name) => ({
       name,
@@ -168,6 +174,14 @@ export function startServer(opts: {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(readFileSync(join(opts.publicDir, "index.html")));
   });
+
+  // 上次退出时没做完的后台任务：标成中断，在收件箱里说一声
+  const lost = router.tasks.recover();
+  if (lost.length)
+    mainSay(
+      "assistant",
+      `上次 Kiki 关掉时有 ${lost.length} 个后台任务没做完：\n${lost.map((t) => `- 「${t.title}」 /retry ${t.id}`).join("\n")}`,
+    );
 
   server.listen(opts.port, "127.0.0.1", () => {
     console.log(`Kiki 已启动：http://localhost:${opts.port}  （数据目录 ${opts.dataDir}）`);
