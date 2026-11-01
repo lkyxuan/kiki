@@ -5,7 +5,7 @@ Kiki 装在 Mac mini 上一直开着，你在 MacBook、iPhone 上用浏览器�
 ## 它是什么样的
 
 - **Kiki.app** 里自带运行环境（Node）和 Kiki 内核，Mac 上不用另装任何东西，也不会往系统里装全局命令。
-- 双击 Kiki.app：把 Kiki 登记成后台服务（登录后自动启动，崩了自动拉起），然后打开网页 `http://localhost:4567`。关掉网页 Kiki 也照样在后台跑。
+- 双击 Kiki.app：打开 Kiki 自己的窗口（原生 macOS 窗口，有 Dock 图标和菜单），同时把 Kiki 登记成后台服务（登录后自动启动，崩了自动拉起）。关掉窗口或退出 App，Kiki 照样在后台跑，手机上照样能用。
 - 数据都在 `~/kiki-data`，装、重装、更新都不会动它。日志在 `~/Library/Logs/Kiki/`。
 
 ## 安装
@@ -26,8 +26,14 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 ### 第一次装好以后
 
-1. 填模型密钥：最省事是打开 Kiki 左下角的「设置」，填好后点「立即重启」。也可以手动编辑 `~/kiki-data/.env`，写 `DEEPSEEK_API_KEY=...`，然后 `chmod 600 ~/kiki-data/.env`。
-   想继续用 1Password：`.env` 里照旧写 `op://` 引用，Kiki 发现装了 `op` 就会用 `op run` 注入。但开机无人值守时 1Password 可能还锁着，这种情况要用 1Password 的服务账号（`OP_SERVICE_ACCOUNT_TOKEN`），否则 Kiki 起不来。
+1. 填模型密钥。可以在 Kiki 左下角的「设置」里填，填好点「立即重启」；也可以手动改 `~/kiki-data/.env`。Kiki 在后台运行、没人在电脑前点授权，所以密钥要放在它自己拿得到的地方。推荐 macOS 钥匙串（登录后就能取，不是明文文件）：
+   ```bash
+   # 从 1Password 拷一次进钥匙串（把 op:// 换成你自己的引用；也可以把 "$(op read …)" 换成密钥本身）
+   security add-generic-password -U -a "$USER" -s kiki-deepseek -w "$(op read 'op://保险库/条目/字段')"
+   ```
+   然后在 `~/kiki-data/.env` 里写 `DEEPSEEK_API_KEY=keychain:kiki-deepseek`。
+   也可以直接写明文 `DEEPSEEK_API_KEY=sk-...`（再 `chmod 600 ~/kiki-data/.env`）。
+   写 `op://` 引用也支持，但后台进程每次重启都要 1Password 授权，没人点就拿不到密钥（Kiki 会照样启动，只是模型调不通），所以不推荐。
 2. 改完 `.env` 重启 Kiki：`launchctl kickstart -k gui/$(id -u)/com.lkyxuan.kiki`
 3. Mac mini 要“开机自动登录”（系统设置 → 用户与群组），Kiki 是跟着登录启动的。
 
@@ -46,6 +52,12 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 ### 怎么发布新版本（开发者）
 
 把 `package.json` 里的版本号改大（比如 `npm version patch --no-git-tag-version`），合进 main。GitHub Actions 会检查、测试、打 arm64 和 x64 两个包，建好 Release。各台机器上的 Kiki 会在 6 小时内自己装上。
+
+## 在别的电脑上用 Kiki 的 App（前后端分离）
+
+App 第一次打开会问：**在这台电脑上运行**，还是**连接远程地址**。比如 Kiki 跑在 Mac mini 上，MacBook 上也装一个 Kiki.app，选“连接远程地址”，填 Mac mini 的 Tailscale 地址（见下一节），这台 MacBook 就只当界面，不跑后台、不存数据。以后想换，菜单「Kiki → 连接到…」（⌘,）。
+
+界面是从后端加载的，所以后端（Mac mini）更新以后，各台电脑上看到的界面也跟着是新的。
 
 ## 远程使用（安全地）
 
@@ -84,4 +96,3 @@ rm -rf /Applications/Kiki.app /Applications/.Kiki-previous.app
 ## 以后可以做的
 
 - 苹果开发者签名和公证（每年 99 美元）：之后可以直接从网页下载 .dmg 双击安装，不用终端。
-- 原生窗口外壳（现在用浏览器/“添加到程序坞”代替）。

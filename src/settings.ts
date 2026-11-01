@@ -18,17 +18,20 @@ export const KEYS = {
 } as const;
 type Key = keyof typeof KEYS;
 
-export type Source = "file" | "op" | "external" | "unset";
+export type Source = "file" | "ref" | "external" | "unset";
+
+/** 密钥引用：Kiki.app 启动时由 kiki-server 换成真值（keychain:<名字> 从钥匙串取，op://… 从 1Password 取）。 */
+export const isRef = (v: string | undefined) => !!v && (v.startsWith("op://") || v.startsWith("keychain:"));
 
 /**
- * 一个键的值从哪来：.env 文件、.env 里的 1Password 引用、外部注入，还是没设。
+ * 一个键的值从哪来：.env 文件、.env 里的密钥引用（钥匙串或 1Password）、外部注入，还是没设。
  * 是不是外部注入要拿"启动时"的 .env 比（startVal），不能拿现在的文件比：
  * 不然在设置页改过、还没重启的值，会被误认成外部注入。
  */
 export function sourceOf(fileVal: string | undefined, envVal: string | undefined, startVal = fileVal): Source {
-  const fromStartFile = envVal === startVal || (startVal !== undefined && startVal.startsWith("op://"));
+  const fromStartFile = envVal === startVal || isRef(startVal);
   if (envVal !== undefined && envVal !== "" && !fromStartFile) return "external";
-  if (fileVal !== undefined && fileVal.startsWith("op://")) return "op";
+  if (isRef(fileVal)) return "ref";
   if (fileVal !== undefined && fileVal !== "") return "file";
   return "unset";
 }
@@ -109,11 +112,13 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
   let changed = false; // 改过需要重启的设置
 
   /** 实际要用的密钥：.env 里写的是 op:// 引用、进程里又没解析好时，现场用 op read 解析。 */
-  /** 测试用的密钥：外部注入的用进程里的；否则用 .env 里现在存的（改过还没重启也算），op:// 引用现场用 op read 解析。 */
+  /** 测试用的密钥：外部注入的用进程里的；否则用 .env 里现在存的（改过还没重启也算），密钥引用现场解析（钥匙串用 security，1Password 用 op read）。 */
   async function resolvedKey(): Promise<string | undefined> {
     const k = "DEEPSEEK_API_KEY";
     const val = source(k) === "external" ? process.env[k] : fileVals()[k];
-    if (val?.startsWith("op://")) return (await run("op", ["read", val], 15000)).trim();
+    if (val?.startsWith("op://")) return (await run("op", ["read", val], 20000)).trim();
+    if (val?.startsWith("keychain:"))
+      return (await run("security", ["find-generic-password", "-s", val.slice("keychain:".length), "-w"])).trim();
     return val || undefined;
   }
 
@@ -141,7 +146,7 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
         const shown = src === "external" ? ev : fv;
         env[k] = {
           source: src,
-          value: shown === undefined ? "" : KEYS[k].secret && src !== "op" ? (shown ? mask(shown) : "") : shown,
+          value: shown === undefined ? "" : KEYS[k].secret && src !== "ref" ? (shown ? mask(shown) : "") : shown,
         };
       }
       return json({
@@ -207,7 +212,7 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
       try {
         key = await resolvedKey();
       } catch (e) {
-        return json({ ok: false, error: `用 op 读密钥失败：${(e as Error).message.split("\n")[0]}` });
+        return json({ ok: false, error: `读取密钥引用失败：${(e as Error).message.split("\n")[0]}` });
       }
       if (!key) return json({ ok: false, error: "还没填 DeepSeek 密钥" });
       try {

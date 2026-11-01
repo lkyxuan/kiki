@@ -22,7 +22,9 @@ test("setEnvLine 带空格的值加引号，parseEnv 读得回来", () => {
 
 test("sourceOf 分清 .env、op 引用、外部注入", () => {
   assert.equal(sourceOf("sk-1", "sk-1"), "file");
-  assert.equal(sourceOf("op://v/i/f", "sk-resolved"), "op");
+  assert.equal(sourceOf("op://v/i/f", "sk-resolved"), "ref");
+  assert.equal(sourceOf("keychain:kiki-deepseek", "sk-resolved"), "ref");
+  assert.equal(sourceOf("keychain:kiki-deepseek", ""), "ref");
   assert.equal(sourceOf(undefined, "sk-from-shell"), "external");
   assert.equal(sourceOf("sk-1", "sk-2"), "external");
   assert.equal(sourceOf(undefined, undefined), "unset");

@@ -90,7 +90,7 @@
       </div>
       <div class="field">
         <label for="DEEPSEEK_API_KEY">DeepSeek API 密钥</label>
-        <input type="text" id="DEEPSEEK_API_KEY" autocomplete="off" spellcheck="false" placeholder="sk-… 或 op://保险库/条目/字段">
+        <input type="text" id="DEEPSEEK_API_KEY" autocomplete="off" spellcheck="false" placeholder="sk-…、keychain:名字 或 op://…">
         <span class="src" data-src="DEEPSEEK_API_KEY"></span>
       </div>
     </div>
@@ -99,7 +99,7 @@
       <button class="btn" id="test">测试连接</button>
       <span class="msg" id="model-msg"></span>
     </div>
-    <p class="msg">密钥可以直接填，也可以填 1Password 引用（op://…）。Kiki.app 启动时会用 op run 读取引用。</p>
+    <p class="msg">推荐把密钥存进 macOS 钥匙串，这里填 <span class="mono">keychain:名字</span>，做法见 docs/mac-app.md。也能直接填密钥，或填 1Password 引用（op://…，但后台重启时常常拿不到授权）。</p>
   </section>
 
   <section>
@@ -163,7 +163,7 @@ function say(id, text, kind = "") { const el = $(id); el.textContent = text; el.
 
 const SRC = {
   file: "存在 .env 里",
-  op: "1Password 引用，Kiki.app 启动时用 op run 读取",
+  ref: "密钥引用，Kiki.app 启动时去钥匙串或 1Password 取",
   external: "启动时由外部注入（比如 op run 或终端），这里改不了",
   unset: "还没设",
 };
@@ -174,8 +174,8 @@ async function load() {
   for (const k of ["MODEL", "DEEPSEEK_API_KEY", "DEFAULT_AGENT"]) {
     const e = S.env[k];
     const input = $("#" + k);
-    input.value = k === "DEEPSEEK_API_KEY" && e.source !== "op" ? "" : e.value;
-    if (k === "DEEPSEEK_API_KEY" && e.source !== "op" && e.value) input.placeholder = `${e.value}（留空表示不改）`;
+    input.value = k === "DEEPSEEK_API_KEY" && e.source !== "ref" ? "" : e.value;
+    if (k === "DEEPSEEK_API_KEY" && e.source !== "ref" && e.value) input.placeholder = `${e.value}（留空表示不改）`;
     input.disabled = e.source === "external";
     const src = document.querySelector(`[data-src="${k}"]`);
     src.textContent = SRC[e.source];
