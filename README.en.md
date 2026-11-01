@@ -64,11 +64,11 @@ flowchart LR
     M -->|start a named conversation| S3
     M -.->|/bg background task| S2
 
-    subgraph DEV[Bot: dev]
+    subgraph DEV[Default bot: 奇奇]
         S1[Conversation: Kiki dev]
         S2[Conversation: background task]
     end
-    subgraph LIFE[Bot: life]
+    subgraph LIFE[Your own bot: work]
         S3[Conversation: trip planning]
         S4[Conversation: reading notes]
     end
@@ -120,7 +120,7 @@ npm start
 
 Open **<http://localhost:4567>** and start chatting.
 
-On first launch Kiki creates a data directory at `~/kiki-data` with two example bots, `dev` and `life`. Start by editing its `AGENTS.md` with what you want every bot to know about you.
+On first launch Kiki creates a data directory at `~/kiki-data` with one default bot, 奇奇 (Qiqi); new bots branch off from it later. Start by editing its `AGENTS.md` with what you want every bot to know about you.
 
 > The Kiki Engine is installed with `npm install`; no separate install is needed. It is also bundled into `.app` when packaged as a Mac App, and engine upgrades ship with Kiki releases after testing.
 
@@ -131,7 +131,7 @@ On first launch Kiki creates a data directory at `~/kiki-data` with two example 
 | `DEEPSEEK_API_KEY` | — | Model API key |
 | `MODEL` | `deepseek/deepseek-flash` | Model, as `provider/model` |
 | `DATA_DIR` | `~/kiki-data` | Data directory |
-| `DEFAULT_AGENT` | `life` | Bot that receives messages when no conversation is selected |
+| `DEFAULT_AGENT` | `奇奇` | Bot that receives messages when no conversation is selected |
 | `PORT` | `4567` | Web UI port |
 
 ## 💡 Usage
@@ -165,10 +165,10 @@ Refresh the page and the new bot appears. No restart needed.
 ├── registry.json          # Conversation registry: named conversations and their bots
 ├── main.jsonl             # Main bot inbox history
 └── agents/
-    ├── dev/
-    │   ├── AGENTS.md      # dev's responsibilities
-    │   └── sessions/      # dev's conversations (JSONL)
-    └── life/
+    ├── 奇奇/              # the default bot
+    │   ├── AGENTS.md      # its responsibilities
+    │   └── sessions/      # its conversations (JSONL)
+    └── work/              # a bot you created
         └── ...
 ```
 

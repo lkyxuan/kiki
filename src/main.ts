@@ -9,6 +9,7 @@ import { handoffTool } from "./handoff.js";
 import { loadRules } from "./rules.js";
 import { kikiTools } from "./tools.js";
 import { type FeatureId, isOn } from "./features.js";
+import { DEFAULT_BAO, migrateToQiqi } from "./migrate.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { startServer } from "./server.js";
@@ -37,15 +38,19 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = resolve((process.env.DATA_DIR || "~/kiki-data").replace(/^~/, homedir()));
 loadEnv(join(dataDir, ".env"));
 if (!existsSync(dataDir)) {
-  // 第一次启动：拷一份模板（关于我 + dev/life 两个 agent）
+  // 第一次启动：拷一份模板（关于我 + 默认的宝“奇奇” + 分派规则）
   cpSync(join(root, "data-template"), dataDir, { recursive: true });
   console.log(`已在 ${dataDir} 建好数据目录，记得改 AGENTS.md（关于我）。`);
 }
+// 老数据目录升级：只留奇奇一个默认宝，旧的 dev、life 挪进 archive/（不删）
+for (const line of migrateToQiqi(dataDir, join(root, "data-template"))) console.log(`升级数据目录：${line}`);
 
 const agents = new Agents(dataDir, process.env.MODEL || "deepseek/deepseek-flash");
 const registry = new Registry(join(dataDir, "registry.json"));
 // 后台任务：每个任务一个 Markdown 文件，在数据目录 tasks/ 下
-const router = new Router(agents, registry, process.env.DEFAULT_AGENT || "life", new FileTaskStore(join(dataDir, "tasks")), {
+// 默认的宝：.env 里写的那个不存在了（比如以前的 life 已归档）就回到奇奇
+const defaultBao = process.env.DEFAULT_AGENT && agents.exists(process.env.DEFAULT_AGENT) ? process.env.DEFAULT_AGENT : DEFAULT_BAO;
+const router = new Router(agents, registry, defaultBao, new FileTaskStore(join(dataDir, "tasks")), {
   concurrency: Number(process.env.TASK_CONCURRENCY || 2),
   timeoutMs: Number(process.env.TASK_TIMEOUT_MIN || 30) * 60_000,
 });
