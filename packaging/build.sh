@@ -11,7 +11,7 @@ VERSION=$(node -p 'require("./package.json").version')
 OUT="$ROOT/out"
 APP="$OUT/build-$ARCH/Kiki.app"
 RES="$APP/Contents/Resources"
-echo "打包 Kiki $VERSION（mac-$ARCH，Node $NODE_VERSION）"
+echo "打包 Kiki ${VERSION}（mac-${ARCH}，Node ${NODE_VERSION}）"
 
 rm -rf "$OUT/build-$ARCH"
 mkdir -p "$APP/Contents/MacOS" "$RES/app" "$RES/node/bin"
@@ -61,4 +61,4 @@ else
 fi
 (cd "$OUT" && { command -v sha256sum >/dev/null && sha256sum "$ZIP" || shasum -a 256 "$ZIP"; }) > "$OUT/$ZIP.sha256"
 cat "$OUT"/Kiki-mac-*.zip.sha256 > "$OUT/SHA256SUMS"
-echo "完成：$OUT/$ZIP（$(du -h "$OUT/$ZIP" | cut -f1)）"
+echo "完成：$OUT/${ZIP}（$(du -h "$OUT/$ZIP" | cut -f1)）"
