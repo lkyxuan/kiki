@@ -17,6 +17,7 @@ function setup() {
     sends: [] as string[], // send 被调用的顺序
     forks: [] as string[], // fork 的来源
     notes: [] as string[], // 回报到原对话的消息
+    announced: [] as string[], // 通知界面的完整回答
   };
   const backend: AgentBackend = {
     listAgents: () => ["dev", "life"],
@@ -41,6 +42,7 @@ function setup() {
     describe: (a) => (a === "dev" ? "写代码" : "日常生活"),
     recent: () => [],
     note: async (a, path, text) => void ctl.notes.push(`${path} ${text}`),
+    announce: (path, text) => void ctl.announced.push(`${path} ${text}`),
   };
   const reg = new Registry(join(mkdtempSync(join(tmpdir(), "kiki-")), "registry.json"));
   const router = new Router(backend, reg, "life");
@@ -221,6 +223,7 @@ test("交接（聊）：新开对话，第一条消息是交接说明，重名�
   assert.match(r, /已交接到 life\/买电脑/);
   await new Promise((x) => setTimeout(x, 5));
   assert.match(ctl.sends.at(-1)!, /从「dev\/主线」交接过来.*\n\n【目标】选一台 Mac\n\n先读完/s);
+  assert.match(ctl.announced.at(-1)!, /交接过来/, "新对话的回答要通知界面收尾");
   await router.handoff({ fromPath: from, bao: "life", name: "买电脑", brief: "x", mode: "chat" });
   assert.ok(reg.get("life", "买电脑2"));
   assert.equal(reg.current("app")!.path, from, "交接不改当前对话");

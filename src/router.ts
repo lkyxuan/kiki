@@ -23,6 +23,8 @@ export interface AgentBackend {
   recent(path: string, n: number): string[];
   /** 往对话末尾记一条消息，不触发回答（后台任务回报用） */
   note(agent: string, path: string, text: string): Promise<void>;
+  /** 通知界面这段对话有了一条完整回答（可选） */
+  announce?(path: string, text: string): void;
   abort?(path: string): Promise<void>;
 }
 
@@ -328,7 +330,10 @@ export class Router {
     let name = base;
     for (let i = 2; this.registry.get(req.bao, name); i++) name = `${base}${i}`;
     const rec = await this.newSession(req.bao, name);
-    this.agents.send(rec.agent, rec.path, msg).catch((e) => console.warn("[handoff] 新对话没接住交接说明：", (e as Error).message));
+    this.agents
+      .send(rec.agent, rec.path, msg)
+      .then((r) => this.agents.announce?.(rec.path, r))
+      .catch((e) => this.agents.announce?.(rec.path, `出错了：${(e as Error).message}`));
     return `已交接到 ${label(rec)}，新对话已收到交接说明。用户在左边栏点「${name}」就能过去。`;
   }
 
