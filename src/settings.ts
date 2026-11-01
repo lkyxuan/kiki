@@ -7,6 +7,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
+import { Extensions, validSource } from "./extensions.js";
+import { listFeatures, setFeature } from "./features.js";
 import { VERSION } from "./update.js";
 
 /** 设置页能改的键。别的键只能手动改 .env。 */
@@ -109,6 +111,7 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
     existsSync(agentsDir) ? readdirSync(agentsDir).filter((n) => statSync(join(agentsDir, n)).isDirectory()) : [];
   // 当前这个进程是不是由 Kiki.app 的 launchd 服务跑起来的：是的话能自己重启
   const canRestart = () => !!process.env.KIKI_APP;
+  const exts = new Extensions(join(opts.dataDir, "engine"));
   let changed = false; // 改过需要重启的设置
 
   /** 实际要用的密钥：.env 里写的是 op:// 引用、进程里又没解析好时，现场用 op read 解析。 */
@@ -236,6 +239,41 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
         run("launchctl", ["kickstart", "-k", `gui/${uid}/com.lkyxuan.kiki`]).catch(() => process.exit(0));
       }, 300);
       return;
+    }
+
+    // 扩展：pi 扩展（engine/settings.json）+ Kiki 自带能力（features.json）
+    if (p === "/api/settings/extensions" && !post) {
+      let packages: ReturnType<Extensions["list"]> = [];
+      let error: string | undefined;
+      try {
+        packages = exts.list();
+      } catch (e) {
+        error = `读不了 engine/settings.json：${(e as Error).message}`;
+      }
+      return json({ packages, features: listFeatures(opts.dataDir), error });
+    }
+    if (p.startsWith("/api/settings/extensions/") && post) {
+      const { source, on } = await body();
+      if (!validSource(source)) return json({ error: "来源要写成 npm:包名、git:仓库地址 或 https://…" }, 400);
+      try {
+        const action = p.slice("/api/settings/extensions/".length);
+        if (action === "toggle") exts.setOn(source, !!on);
+        else if (action === "install") return json({ ok: true, output: await exts.install(source) });
+        else if (action === "remove") return json({ ok: true, output: await exts.remove(source) });
+        else return json({ error: "not found" }, 404);
+        return json({ ok: true });
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+    }
+    if (p === "/api/settings/features" && post) {
+      const { id, on } = await body();
+      try {
+        setFeature(opts.dataDir, id, !!on);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      return json({ ok: true });
     }
 
     json({ error: "not found" }, 404);
