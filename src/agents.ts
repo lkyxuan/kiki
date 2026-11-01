@@ -135,6 +135,11 @@ export class Agents extends EventEmitter {
     return run;
   }
 
+  /** 告诉网页某段对话有了一条完整的回答（不是经网页发出的消息，网页收不到结束信号，靠这个收尾）。 */
+  announce(path: string, text: string) {
+    this.emit("message", { path, role: "assistant", text });
+  }
+
   /** 往对话末尾记一条消息（显示出来、下次回答时模型也能看到），不触发回答。后台任务回报用。 */
   note(agent: string, path: string, text: string): Promise<void> {
     const prev = this.queues.get(path) ?? Promise.resolve();
