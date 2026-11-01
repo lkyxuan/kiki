@@ -1,7 +1,7 @@
 #!/bin/bash
 # 打包 Kiki.app：自带 Node + 编译好的 Kiki + 生产依赖（含锁定的 pi 1.4.0）+ 网页。
 # 在 Mac 上打包才有原生窗口（GitHub Actions 用 macOS 机器）；Linux 上也能打，但界面会用浏览器打开。
-# 用法：packaging/build.sh [arm64|x64]      产物：out/Kiki-mac-<arch>.zip 和 out/SHA256SUMS
+# 用法：packaging/build.sh [arm64|x64]      产物：out/Kiki-mac-<arch>.zip、（Mac 上）out/Kiki-mac-<arch>.dmg 和 out/SHA256SUMS
 set -euo pipefail
 ARCH="${1:-arm64}"
 NODE_VERSION="${NODE_VERSION:-22.23.4}"   # pi 要求 Node >= 22.19
@@ -60,5 +60,20 @@ else
   (cd "$OUT/build-$ARCH" && zip -qry "$OUT/$ZIP" Kiki.app)
 fi
 (cd "$OUT" && { command -v sha256sum >/dev/null && sha256sum "$ZIP" || shasum -a 256 "$ZIP"; }) > "$OUT/$ZIP.sha256"
-cat "$OUT"/Kiki-mac-*.zip.sha256 > "$OUT/SHA256SUMS"
+
+# 6. 在 Mac 上再做一个 .dmg：给第一次安装的人用，打开后把 Kiki 拖进「应用程序」。
+#    自动更新仍然下载 zip（更小，解压不需要挂载）。
+if command -v hdiutil >/dev/null; then
+  DMG="Kiki-mac-$ARCH.dmg"
+  STAGE="$OUT/dmg-$ARCH"
+  rm -rf "$STAGE" "$OUT/$DMG"
+  mkdir -p "$STAGE"
+  ditto "$APP" "$STAGE/Kiki.app"
+  ln -s /Applications "$STAGE/应用程序"
+  hdiutil create -quiet -volname "Kiki ${VERSION}" -srcfolder "$STAGE" -ov -format UDZO "$OUT/$DMG"
+  rm -rf "$STAGE"
+  (cd "$OUT" && shasum -a 256 "$DMG") > "$OUT/$DMG.sha256"
+  echo "完成：$OUT/${DMG}（$(du -h "$OUT/$DMG" | cut -f1)）"
+fi
+cat "$OUT"/Kiki-mac-*.sha256 > "$OUT/SHA256SUMS"
 echo "完成：$OUT/${ZIP}（$(du -h "$OUT/$ZIP" | cut -f1)）"
