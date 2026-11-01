@@ -7,8 +7,13 @@ import { join } from "node:path";
 import {
   type AgentSession,
   createAgentSession,
+  createCodemodeExtension,
+  createMcpExtension,
+  createToolSearchExtension,
+  DefaultResourceLoader,
   ModelRuntime,
   SessionManager,
+  SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 
 export interface ChatLine {
@@ -61,14 +66,29 @@ export class Agents extends EventEmitter {
 
   private async open(agent: string, sm: SessionManager): Promise<AgentSession> {
     const cwd = this.agentDir(agent);
+    const settingsManager = SettingsManager.create(cwd, this.engineDir);
+    // SDK 嵌入的会话默认不带 MCP，要自己加上（和 pi 命令行一样）：
+    // MCP 读 engine/mcp.json（设置页「MCP 服务器」改的就是它）；codemode 和 tool_search 平时不启用，
+    // 只有服务器设成 codemode / deferred 方式时 MCP 扩展才会打开它们。
+    const resourceLoader = new DefaultResourceLoader({
+      cwd,
+      agentDir: this.engineDir,
+      settingsManager,
+      extensionFactories: [createCodemodeExtension(), createToolSearchExtension(), createMcpExtension()],
+    });
+    await resourceLoader.reload();
     const { session } = await createAgentSession({
       cwd,
       agentDir: this.engineDir,
+      resourceLoader,
+      settingsManager,
       sessionManager: sm,
       model: await this.model(),
       thinkingLevel: "off",
       modelRuntime: await this.runtime,
     });
+    // 发 session_start：MCP 扩展在这时去连服务器（后台连，不挡着对话）
+    await session.bindExtensions({});
     return session;
   }
 
