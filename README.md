@@ -179,15 +179,18 @@ $EDITOR ~/kiki-data/agents/study/AGENTS.md   # 写清楚：负责什么、怎么
 
 ## 🧩 推荐扩展
 
-Kiki 内核兼容 pi 扩展生态。安装扩展需要先装 pi 命令行：
+Kiki 内核兼容 pi 扩展生态。扩展装在 Kiki 自己的内核目录（`~/kiki-data/engine`），和你电脑上另装的 pi 互不影响。在仓库目录里运行：
 
 ```bash
-npm install -g @earendil-works/pi-coding-agent@1.4.0
+npm run pi -- install npm:pi-web-access   # 装扩展
+npm run pi -- list                        # 看已装的扩展
 ```
+
+装完重启 Kiki 生效。
 
 | 扩展 | 作用 | 安装 |
 |---|---|---|
-| [pi-web-access](https://www.npmjs.com/package/pi-web-access) | 联网搜索、读取网页、PDF、GitHub 仓库 | `pi install npm:pi-web-access` |
+| [pi-web-access](https://www.npmjs.com/package/pi-web-access) | 联网搜索、读取网页、PDF、GitHub 仓库 | `npm run pi -- install npm:pi-web-access` |
 | [cc-safety-net](https://ccsafetynet.com/docs/installation/pi) | 拦截 `rm -rf` 等危险命令与密钥文件读取 | 见[官方说明](https://ccsafetynet.com/docs/installation/pi) |
 
 > [!WARNING]
