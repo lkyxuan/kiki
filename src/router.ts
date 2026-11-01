@@ -49,6 +49,8 @@ export class Router {
   private reserved = new Set<string>(); // 正在建的对话名（宝/名），交接时防重名
   /** 分派规则（用户可改的 Markdown），每次路由现读，改完不用重启。main.ts 里接到 ~/kiki-data/分派规则.md。 */
   rules: () => string = () => "判断完就直接做，做完告诉用户。";
+  /** 设置页的能力开关（features.ts），main.ts 接上；默认全开。 */
+  isOn: (id: "route" | "background") => boolean = () => true;
 
   constructor(
     private agents: AgentBackend,
@@ -159,6 +161,7 @@ export class Router {
         ? { action: "continue", target: `${agent}/默认`, mode: "chat" }
         : { action: "new", agent, name: "默认", mode: "chat" };
     };
+    if (!this.isOn("route")) return fallback(); // 自动路由关了：投进当前对话或默认的宝
     const agents = this.agents.listAgents();
     const candidates: RouteCandidate[] = agents.map((agent) => ({
       agent,
@@ -186,6 +189,7 @@ export class Router {
   /** 按决定把这句话送进对话，回执 + 回答一起回给用户。 */
   private async deliver(chatId: string, text: string, d: Decision, reply: Reply, release: () => void = () => {}) {
     this.last.set(chatId, text);
+    if (d.mode === "background" && !this.isOn("background")) d = { ...d, mode: "chat", taskTitle: undefined };
     if (d.mode === "background") {
       // 接着某段对话派的活：分叉那段对话去后台做（带着前面的讨论），结果也回报到那段对话；
       // 新话题直接开任务，不再多开一段空对话
@@ -300,6 +304,7 @@ export class Router {
   async handoff(req: HandoffRequest): Promise<string> {
     if (!this.agents.exists(req.bao)) throw new Error(`没有宝「${req.bao}」，可选：${this.agents.listAgents().join("、")}`);
     const base = req.name.replace(/[\/\n]/g, " ").trim().slice(0, 30) || stamp();
+    if (req.mode === "background" && !this.isOn("background")) req = { ...req, mode: "chat" }; // 后台任务关了就开成普通对话
     const from = req.fromPath ? this.registry.byPath(req.fromPath) : undefined;
     const msg = briefMessage(from ? label(from) : undefined, req.brief, req.mode);
 

@@ -280,3 +280,22 @@ test("交接：同时交接同名的事，各自拿到不同的名字", async ()
   assert.match(b, /life\/买电脑2，/);
   assert.deepEqual(reg.list("life").map((s) => s.name).sort(), ["买电脑", "买电脑2"]);
 });
+
+test("能力开关：关掉自动路由就投进当前对话；关掉后台就当聊", async () => {
+  const { router, out, say, ctl } = setup();
+  await say("/new dev 路由器");
+  const off = new Set<string>(["route"]);
+  router.isOn = (id) => !off.has(id);
+  ctl.routeAnswer = '{"action":"new","agent":"life","name":"买电脑","mode":"chat"}';
+  const before = ctl.routePrompts.length;
+  await say("随便说一句");
+  assert.equal(ctl.routePrompts.length, before);
+  assert.match(out.at(-1)!, /^→ dev\/路由器 · 接着聊/);
+  off.clear();
+  off.add("background");
+  ctl.routeAnswer = '{"action":"continue","target":"dev/路由器","mode":"background","taskTitle":"跑测试"}';
+  await say("去把测试跑一遍");
+  assert.match(out.at(-1)!, /^→ dev\/路由器 · 接着聊/);
+  const r = await router.handoff({ fromPath: undefined, bao: "life", name: "写脚本", brief: "x", mode: "background" });
+  assert.match(r, /已交接到 life\/写脚本/);
+});

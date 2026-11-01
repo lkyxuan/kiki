@@ -8,6 +8,7 @@ import { Agents } from "./agents.js";
 import { handoffTool } from "./handoff.js";
 import { loadRules } from "./rules.js";
 import { kikiTools } from "./tools.js";
+import { type FeatureId, isOn } from "./features.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { startServer } from "./server.js";
@@ -50,10 +51,14 @@ const router = new Router(agents, registry, process.env.DEFAULT_AGENT || "life",
 });
 // 对话里的 agent 可以把一件新事交接到新对话（自己写交接说明）
 router.rules = () => loadRules(dataDir);
-agents.toolsFor = () => [
-  handoffTool({ listBaos: () => agents.listAgents(), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
-  ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
-];
+const TOOL_FEATURE: Record<string, FeatureId> = { kiki_handoff: "handoff", kiki_peek: "peek", kiki_relay: "relay", kiki_remember: "remember" };
+router.isOn = (id) => isOn(dataDir, id);
+// 设置页关掉的能力不挂给 agent（新开的对话生效）
+agents.toolsFor = () =>
+  [
+    handoffTool({ listBaos: () => agents.listAgents(), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
+    ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
+  ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
 
 const port = Number(process.env.PORT || 4567);
 const updater = new Updater({
