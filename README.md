@@ -98,7 +98,7 @@ curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install
 
 > 首个正式版本发布前，可以按指南里的步骤从源码打包安装。
 
-装好后编辑 `~/kiki-data/.env` 填入模型 API Key 即可。完整的安装、更新、远程使用和卸载说明见 **[Mac App 指南](docs/mac-app.md)**。
+装好后编辑 `~/kiki-data/.env` 填入模型 API Key，再重启 Kiki 生效：`launchctl kickstart -k gui/$(id -u)/com.lkyxuan.kiki`。完整的安装、更新、远程使用和卸载说明见 **[Mac App 指南](docs/mac-app.md)**。
 
 ## 🚀 快速开始
 
