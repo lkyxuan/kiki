@@ -136,6 +136,8 @@ npm start
 | `DATA_DIR` | `~/kiki-data` | 数据目录 |
 | `DEFAULT_AGENT` | `life` | 未选择对话时，消息默认落到哪个 Bot |
 | `PORT` | `4567` | 网页端口 |
+| `TASK_CONCURRENCY` | `2` | 后台任务最多同时跑几个，其余排队 |
+| `TASK_TIMEOUT_MIN` | `30` | 单个后台任务超过多少分钟没做完就停下，标成失败 |
 
 ## 💡 使用指南
 
@@ -146,7 +148,9 @@ npm start
 | `/new <bot> <名字>` | 在指定 Bot 下新开一段具名对话并切换过去 |
 | `/use <名字>` | 切换到已有对话（重名时写 `bot/名字`） |
 | `/list [bot]` | 列出全部或某个 Bot 的对话 |
-| `/bg <任务>` | 在当前 Bot 下开一段后台对话执行任务，完成后自动回报 |
+| `/bg <任务>` | 把任务交给后台：分叉当前对话去做，完成后回报到主 Bot 和原对话 |
+| `/tasks [all]` | 查看后台任务（默认只看没做完的和最近 10 个） |
+| `/retry <任务id>` | 重跑失败或中断的任务 |
 | `/agents` | 查看所有 Bot |
 | `/where` | 查看当前所在的对话 |
 | `/help` | 帮助 |
@@ -167,6 +171,7 @@ $EDITOR ~/kiki-data/agents/study/AGENTS.md   # 写清楚：负责什么、怎么
 ├── AGENTS.md              # 关于我：所有 Bot 共享
 ├── registry.json          # 对话名册：有哪些具名对话、各属于哪个 Bot
 ├── main.jsonl             # 主 Bot 的收件记录
+├── tasks/                 # 后台任务：一个任务一个 .md（YAML 写状态，正文写任务和结果）
 └── agents/
     ├── dev/
     │   ├── AGENTS.md      # dev 的职责说明
