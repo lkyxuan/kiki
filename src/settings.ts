@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { Extensions, validSource } from "./extensions.js";
 import { listFeatures, setFeature } from "./features.js";
+import { Mcp } from "./mcp.js";
 import { VERSION } from "./update.js";
 
 /** 设置页能改的键。别的键只能手动改 .env。 */
@@ -112,6 +113,7 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
   // 当前这个进程是不是由 Kiki.app 的 launchd 服务跑起来的：是的话能自己重启
   const canRestart = () => !!process.env.KIKI_APP;
   const exts = new Extensions(join(opts.dataDir, "engine"));
+  const mcp = new Mcp(join(opts.dataDir, "engine"));
   let changed = false; // 改过需要重启的设置
 
   /** 实际要用的密钥：.env 里写的是 op:// 引用、进程里又没解析好时，现场用 op read 解析。 */
@@ -260,6 +262,27 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
         if (action === "toggle") exts.setOn(source, !!on);
         else if (action === "install") return json({ ok: true, output: await exts.install(source) });
         else if (action === "remove") return json({ ok: true, output: await exts.remove(source) });
+        else return json({ error: "not found" }, 404);
+        return json({ ok: true });
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+    }
+    // MCP 服务器：engine/mcp.json
+    if (p === "/api/settings/mcp" && !post) {
+      try {
+        return json({ servers: mcp.list(), file: mcp.file });
+      } catch (e) {
+        return json({ servers: [], file: mcp.file, error: `读不了 mcp.json：${(e as Error).message}` });
+      }
+    }
+    if (p.startsWith("/api/settings/mcp/") && post) {
+      const { name, spec, on } = await body();
+      try {
+        const action = p.slice("/api/settings/mcp/".length);
+        if (action === "add") return json({ ok: true, name: mcp.add(typeof name === "string" ? name.trim() : "", String(spec ?? "")) });
+        if (action === "toggle") mcp.setOn(String(name), !!on);
+        else if (action === "remove") mcp.remove(String(name));
         else return json({ error: "not found" }, 404);
         return json({ ok: true });
       } catch (e) {
