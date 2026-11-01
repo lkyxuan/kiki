@@ -9,11 +9,11 @@ import WebKit
 // 和网页一致的背景色，免得标题栏和页面之间有色差
 let pageBackground = NSColor(name: nil) { appearance in
     appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        ? NSColor(srgbRed: 0.106, green: 0.106, blue: 0.114, alpha: 1)
+        ? NSColor(srgbRed: 0.118, green: 0.118, blue: 0.122, alpha: 1)
         : NSColor.white
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
     var window: NSWindow!
     var webView: WKWebView!
     var base = URL(string: "http://localhost:4567")!  // 当前连的 Kiki
@@ -26,6 +26,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         set { UserDefaults.standard.set(newValue, forKey: "server") }
     }
     var isRemote: Bool { server != nil && server != "local" }
+
+    // 外观："system" / "light" / "dark"。网页（设置 → 外观）改了会发消息过来，标题栏跟着变
+    var theme: String {
+        get { UserDefaults.standard.string(forKey: "theme") ?? "system" }
+        set { UserDefaults.standard.set(newValue, forKey: "theme") }
+    }
+    var themeItems: [NSMenuItem] = []
+
+    func applyTheme() {
+        switch theme {
+        case "light": window?.appearance = NSAppearance(named: .aqua)
+        case "dark": window?.appearance = NSAppearance(named: .darkAqua)
+        default: window?.appearance = nil
+        }
+        for item in themeItems { item.state = (item.representedObject as? String) == theme ? .on : .off }
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "kikiTheme", let v = message.body as? String, ["system", "light", "dark"].contains(v) else { return }
+        theme = v
+        applyTheme()
+    }
+
+    // 菜单「显示 → 外观」：交给网页去改（网页记住选择，再发消息回来）
+    @objc func pickTheme(_ sender: NSMenuItem) {
+        guard let v = sender.representedObject as? String else { return }
+        theme = v
+        applyTheme()
+        webView.evaluateJavaScript("window.kikiTheme && kikiTheme.set('\(v)')", completionHandler: nil)
+    }
+
+    // 菜单「设置…」（⌘,）：在网页里打开设置弹窗
+    @objc func openSettings(_ sender: Any?) {
+        webView.evaluateJavaScript("window.kikiOpenSettings && kikiOpenSettings()", completionHandler: nil)
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
@@ -108,6 +143,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             source: "document.documentElement.classList.add('kiki-app')",
             injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(script)
+        config.userContentController.add(self, name: "kikiTheme")
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
 
         webView = WKWebView(frame: .zero, configuration: config)
@@ -127,6 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         window.minSize = NSSize(width: 720, height: 480)
         window.isReleasedWhenClosed = false
         window.contentView = webView
+        applyTheme()
         window.center()
         window.setFrameAutosaveName("KikiMain")
         window.makeKeyAndOrderFront(nil)
@@ -277,7 +314,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let app = NSMenu()
         app.addItem(withTitle: "关于 Kiki", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         app.addItem(.separator())
-        app.addItem(withTitle: "连接到…", action: #selector(changeServer(_:)), keyEquivalent: ",")
+        app.addItem(withTitle: "设置…", action: #selector(openSettings(_:)), keyEquivalent: ",")
+        let conn = app.addItem(withTitle: "连接到…", action: #selector(changeServer(_:)), keyEquivalent: "k")
+        conn.keyEquivalentModifierMask = [.command, .shift]
         app.addItem(.separator())
         app.addItem(withTitle: "打开数据文件夹", action: #selector(showData(_:)), keyEquivalent: "")
         app.addItem(withTitle: "打开日志文件夹", action: #selector(showLogs(_:)), keyEquivalent: "")
@@ -307,6 +346,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let view = NSMenu(title: "显示")
         view.addItem(withTitle: "重新载入", action: #selector(reload(_:)), keyEquivalent: "r")
         view.addItem(withTitle: "在浏览器中打开", action: #selector(openInBrowser(_:)), keyEquivalent: "")
+        view.addItem(.separator())
+        let lookItem = NSMenuItem(title: "外观", action: nil, keyEquivalent: "")
+        let look = NSMenu(title: "外观")
+        for (title, value) in [("跟随系统", "system"), ("浅色", "light"), ("深色", "dark")] {
+            let item = look.addItem(withTitle: title, action: #selector(pickTheme(_:)), keyEquivalent: "")
+            item.representedObject = value
+            themeItems.append(item)
+        }
+        lookItem.submenu = look
+        view.addItem(lookItem)
         view.addItem(.separator())
         let full = view.addItem(withTitle: "进入全屏", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
         full.keyEquivalentModifierMask = [.command, .control]
