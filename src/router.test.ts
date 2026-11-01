@@ -18,10 +18,16 @@ function setup() {
     forks: [] as string[], // fork 的来源
     notes: [] as string[], // 回报到原对话的消息
     announced: [] as string[], // 通知界面的完整回答
+    duties: [] as string[], // 新建的宝
   };
+  const baos = ["dev", "life"];
   const backend: AgentBackend = {
-    listAgents: () => ["dev", "life"],
-    exists: (a) => a === "dev" || a === "life",
+    listAgents: () => [...baos],
+    exists: (a) => baos.includes(a),
+    createBao: (a, duty) => {
+      baos.push(a);
+      ctl.duties.push(`${a}:${duty}`);
+    },
     create: async (a) => `/fake/${a}/${++n}.jsonl`,
     fork: async (a, from) => {
       ctl.forks.push(from);
@@ -298,4 +304,41 @@ test("能力开关：关掉自动路由就投进当前对话；关掉后台就�
   assert.match(out.at(-1)!, /^→ dev\/路由器 · 接着聊/);
   const r = await router.handoff({ fromPath: undefined, bao: "life", name: "写脚本", brief: "x", mode: "background" });
   assert.match(r, /已交接到 life\/写脚本/);
+});
+
+test("没有合适的宝：路由直接新建宝再新开对话", async () => {
+  const { out, say, ctl, reg } = setup();
+  ctl.routeAnswer = '{"action":"new","agent":"购物宝","newBao":"买东西：比价、选型","name":"选iPad","mode":"chat"}';
+  await say("给我妈挑台 iPad");
+  assert.deepEqual(ctl.duties, ["购物宝:买东西：比价、选型"]);
+  assert.match(out.at(-1)!, /^→ 购物宝\/选iPad · 新建宝并新开/);
+  assert.equal(reg.current("app")?.agent, "购物宝");
+});
+
+test("新宝名不合法或 @ 了宝：不新建，退回默认", async () => {
+  const { out, say, ctl } = setup();
+  ctl.routeAnswer = '{"action":"new","agent":"a/b","newBao":"x","name":"y","mode":"chat"}';
+  await say("随便");
+  assert.deepEqual(ctl.duties, []);
+  assert.match(out.at(-1)!, /^→ life\/默认/);
+  ctl.routeAnswer = '{"action":"new","agent":"购物宝","newBao":"x","name":"y","mode":"chat"}';
+  await say("@dev 随便");
+  assert.deepEqual(ctl.duties, []);
+});
+
+test("一句话能答完的：奇奇直接回答，不进任何对话", async () => {
+  const { out, say, ctl, reg } = setup();
+  ctl.routeAnswer = '{"action":"reply","text":"你好！","reason":"打招呼"}';
+  await say("你好");
+  assert.equal(out.at(-1), "奇奇 · 直接回答\n\n你好！");
+  assert.equal(ctl.sends.length, 0);
+  assert.equal(reg.current("app"), undefined);
+});
+
+test("交接到还不存在的宝：带 duty 就新建，不带就报错", async () => {
+  const { router, ctl } = setup();
+  await assert.rejects(router.handoff({ fromPath: undefined, bao: "生活宝", name: "买iPad", brief: "x", mode: "chat" }), /要新建就同时填 duty/);
+  const r = await router.handoff({ fromPath: undefined, bao: "生活宝", duty: "日常生活", name: "买iPad", brief: "x", mode: "chat" });
+  assert.match(r, /^新建了宝「生活宝」，已交接到 生活宝\/买iPad/);
+  assert.deepEqual(ctl.duties, ["生活宝:日常生活"]);
 });

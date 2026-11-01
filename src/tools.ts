@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { baoFile } from "./bao.js";
 
 export interface ToolHost {
   /** 所有对话一览，或某段对话最近的 n 条 */
@@ -18,7 +19,7 @@ const NOTES = "## 记下的事";
 export function remember(dataDir: string, baos: string[], scope: string, text: string): string {
   const me = scope === "我" || scope === "关于我";
   if (!me && !baos.includes(scope)) throw new Error(`没有宝「${scope}」，可选：我、${baos.join("、")}`);
-  const file = me ? join(dataDir, "AGENTS.md") : join(dataDir, "agents", scope, "AGENTS.md");
+  const file = me ? join(dataDir, "AGENTS.md") : baoFile(dataDir, scope);
   const line = text.replace(/\s*\n\s*/g, " ").trim();
   if (!line) throw new Error("内容是空的");
   const old = existsSync(file) ? readFileSync(file, "utf8") : "";
@@ -57,6 +58,7 @@ export function kikiTools(opts: { host: ToolHost; dataDir: string; listBaos: () 
     promptGuidelines: [
       "这边得出的结论、决定或要那边做的事，属于另一段已有对话时，直接用 kiki_relay 捎过去，不要先问用户；捎完一句话告诉用户捎给了谁。",
       "捎的话要自带上下文，让那边不看这边的聊天也能懂。",
+      "只在用户要求、或者这边的结论明确需要那边知道时才捎，不要顺手多捎。",
     ],
     parameters: Type.Object({
       target: Type.String({ description: "宝名/对话名，比如 dev/路由器" }),
@@ -79,6 +81,7 @@ export function kikiTools(opts: { host: ToolHost; dataDir: string; listBaos: () 
     promptGuidelines: [
       "用户说出长期有用的事（偏好、身份、习惯、项目的固定约定）时，直接用 kiki_remember 记下来，不要先问；记完一句话告诉用户记了什么。",
       "一次只记一条、一句话，不要记临时的、这次对话才用得上的事。",
+      "记之前看一眼「关于我」和宝的说明（已经在你的系统提示里），意思已经有了就不要重复记。",
     ],
     parameters: Type.Object({
       scope: Type.String({ description: "\"我\" 或宝名" }),
