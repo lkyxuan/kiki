@@ -88,7 +88,10 @@ export function startServer(opts: {
     // 更新：GET 看状态，POST /api/update/check 立刻查，POST /api/update/apply 立刻装
     if (url.pathname.startsWith("/api/update") && opts.updater) {
       const u = opts.updater;
-      if (url.pathname === "/api/update") return json(u.state);
+      if (url.pathname === "/api/update") {
+        u.readReceipt(); // 回执是新版本起来后才由 swap.sh 写的，现读才准
+        return json(u.state);
+      }
       if (req.method !== "POST") return json({ error: "要用 POST" }, 405);
       if (url.pathname === "/api/update/check") return json(await u.check());
       if (url.pathname === "/api/update/apply") {

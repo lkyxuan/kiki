@@ -85,7 +85,7 @@ export class Updater extends EventEmitter {
     this.readReceipt();
   }
 
-  private readReceipt() {
+  readReceipt() {
     try {
       this.state.last = JSON.parse(readFileSync(join(this.logDir, "last-update.json"), "utf8"));
     } catch {}
@@ -96,13 +96,13 @@ export class Updater extends EventEmitter {
     this.emit("state", this.state);
   }
 
-  /** 开机查一次，之后每 10 分钟看一眼：距上次查满 6 小时就再查；有新版且空闲就自动装。 */
+  /** 开机查一次，之后每 10 分钟看一眼：距上次查满 1 小时就再查；有新版且空闲就自动装。 */
   start() {
     if (process.env.KIKI_UPDATE_CHECK === "0") return;
     const tick = async () => {
       // 回滚后的回执是在旧版本重新起来之后才写的，所以每次都现读
       this.readReceipt();
-      if (Date.now() - this.lastCheck > 6 * HOUR) await this.check().catch(() => {});
+      if (Date.now() - this.lastCheck > HOUR) await this.check().catch(() => {});
       // 上次装这个版本失败回滚过，就不再自动重试，等你手动点
       const failedBefore = this.state.last?.result.startsWith("roll") && this.state.last.to === this.state.latest;
       if (this.state.status === "available" && this.state.auto && this.state.canApply && !failedBefore && this.opts.isIdle()) {

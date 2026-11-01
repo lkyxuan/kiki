@@ -41,17 +41,17 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 做法借鉴 Hermes 的 `hermes update`（它是 git pull + 自检 + 失败回滚 + 回执），Kiki 是打包好的 App，没有 git，所以改成从 GitHub Releases 下载：
 
-1. 启动后和之后每 6 小时查一次 GitHub 上的最新发布版。
+1. 启动后和之后每小时查一次 GitHub 上的最新发布版。
 2. 有新版本时，网页右上角会出现「新版本 vX · 更新」。默认在**没有对话在跑的时候自动装**；想手动装，在 `~/kiki-data/.env` 写 `KIKI_AUTO_UPDATE=0`。
 3. 装的过程：下载 → 核对校验和 → 解压到暂存区 → 用新版本自己跑一次自检 → 备份 `registry.json`、`AGENTS.md`、`.env`（到 `~/kiki-data/backups/`，留最近 5 份）→ 换上新 App → 重启。
 4. 新版本 45 秒内没起来，就自动换回旧版本，网页提示“已回滚”，这个版本不再自动重试。
 5. 每次结果记在 `~/Library/Logs/Kiki/last-update.json` 和 `update.log`。上一个版本留在“应用程序”里的隐藏文件夹 `.Kiki-previous.app`，需要时可以手动换回去。
 
-查更新不需要登录 GitHub。如果在 `.env` 里写了 `GITHUB_TOKEN`，或者本机登录了 `gh`，Kiki 会顺带用上，免得撞到 GitHub 匿名访问的次数限制（每小时 60 次，Kiki 每 6 小时只查一次，一般用不着）。
+查更新不需要登录 GitHub。如果在 `.env` 里写了 `GITHUB_TOKEN`，或者本机登录了 `gh`，Kiki 会顺带用上，免得撞到 GitHub 匿名访问的次数限制（每小时 60 次，Kiki 每小时只查一次，一般用不着）。
 
 ### 怎么发布新版本（开发者）
 
-把 `package.json` 里的版本号改大（比如 `npm version patch --no-git-tag-version`），合进 main。GitHub Actions 会检查、测试、打 arm64 和 x64 两个包，建好 Release。各台机器上的 Kiki 会在 6 小时内自己装上。
+把 `package.json` 里的版本号改大（比如 `npm version patch --no-git-tag-version`），合进 main。GitHub Actions 会检查、测试、打 arm64 和 x64 两个包，建好 Release。各台机器上的 Kiki 会在一小时内自己装上（等不及就在设置 → 更新里点「检查更新」）。
 
 ## 在别的电脑上用 Kiki 的 App（前后端分离）
 
