@@ -61,6 +61,19 @@
   .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .cols section { margin-bottom: 0; }
   @media (max-width: 600px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+  h3.sub { font-size: 14px; margin: 14px 0 4px; display: flex; gap: 8px; align-items: baseline; }
+  h3.sub small { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .toggle-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .toggle-row .t { flex: 1; min-width: 0; }
+  .toggle-row .t b { font-weight: 500; display: block; }
+  .toggle-row .t span { font-size: 13px; color: var(--muted); }
+  .switch { position: relative; width: 44px; height: 26px; flex: none; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; inset: 0; z-index: 1; }
+  .switch i { position: absolute; inset: 0; border-radius: 13px; background: var(--line); transition: background .15s; }
+  .switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s; }
+  .switch input:checked + i { background: var(--ok); }
+  .switch input:checked + i::after { transform: translateX(18px); }
+  .switch input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
   label.check { display: flex; align-items: center; gap: 8px; min-height: 32px; }
   label.check input { width: 18px; height: 18px; }
 </style>
@@ -129,6 +142,21 @@
       <button class="btn" id="new-bao-go">新建一个宝</button>
       <span class="msg" id="new-msg"></span>
     </div>
+  </section>
+
+  <section>
+    <h2>扩展 <small>改完新开的对话就生效，已经开着的对话要重启 Kiki</small></h2>
+    <h3 class="sub">奇奇自带能力</h3>
+    <div id="features" class="msg">读取中…</div>
+    <h3 class="sub">pi 扩展 <small>装在 engine 目录，和你电脑上另装的 pi 互不影响</small></h3>
+    <div id="packages" class="msg">读取中…</div>
+    <div class="row">
+      <label for="new-pkg" class="msg">安装</label>
+      <input type="text" id="new-pkg" placeholder="npm:pi-web-access" style="max-width: 280px" spellcheck="false" autocomplete="off">
+      <button class="btn" id="new-pkg-go">安装</button>
+      <span class="msg" id="pkg-msg"></span>
+    </div>
+    <p class="msg">扩展能在你电脑上跑代码，只装你信得过的。安装需要电脑上有 npm（比如用 Homebrew 装的 Node）。</p>
   </section>
 
   <div class="cols">
@@ -299,6 +327,51 @@ $("#apply").onclick = async () => { try { await api("/api/update/apply", {}); lo
 load().catch((e) => document.body.insertAdjacentHTML("afterbegin", `<p class="msg err" style="padding:16px">${esc(e.message)}</p>`));
 loadRemote();
 loadUpdate();
+
+async function loadExtensions() {
+  let r;
+  try { r = await api("/api/settings/extensions"); } catch (e) { $("#features").textContent = e.message; return; }
+  const sw = (on, label) => `<label class="switch"><input type="checkbox" ${on ? "checked" : ""} aria-label="${esc(label)}"><i></i></label>`;
+  $("#features").className = "";
+  $("#features").innerHTML = r.features.map((f) => `
+    <div class="toggle-row" data-id="${esc(f.id)}"><div class="t"><b>${esc(f.name)}</b><span>${esc(f.desc)}</span></div>${sw(f.on, f.name)}</div>`).join("");
+  for (const row of document.querySelectorAll("#features .toggle-row")) {
+    const input = row.querySelector("input");
+    input.onchange = async () => {
+      try { await api("/api/settings/features", { id: row.dataset.id, on: input.checked }); }
+      catch (e) { input.checked = !input.checked; say("#pkg-msg", e.message, "err"); }
+    };
+  }
+  const box = $("#packages");
+  if (r.error) { box.textContent = r.error; box.className = "msg err"; return; }
+  box.className = "";
+  box.innerHTML = r.packages.length ? r.packages.map((p) => `
+    <div class="toggle-row" data-src="${esc(p.source)}"><div class="t"><b>${esc(p.name)}</b><span class="mono">${esc(p.source)}</span></div>
+      <button class="btn rm">卸载</button>${sw(p.on, p.name)}</div>`).join("")
+    : `<p class="msg">还没装扩展。推荐 <span class="mono">npm:pi-web-access</span>（联网搜索、读网页）。</p>`;
+  for (const row of document.querySelectorAll("#packages .toggle-row")) {
+    const source = row.dataset.src, input = row.querySelector("input");
+    input.onchange = async () => {
+      try { await api("/api/settings/extensions/toggle", { source, on: input.checked }); }
+      catch (e) { input.checked = !input.checked; say("#pkg-msg", e.message, "err"); }
+    };
+    row.querySelector(".rm").onclick = async () => {
+      if (!confirm(`卸载 ${source}？`)) return;
+      say("#pkg-msg", "卸载中…");
+      try { await api("/api/settings/extensions/remove", { source }); say("#pkg-msg", "已卸载", "ok"); loadExtensions(); }
+      catch (e) { say("#pkg-msg", e.message, "err"); }
+    };
+  }
+}
+$("#new-pkg-go").onclick = async () => {
+  const source = $("#new-pkg").value.trim();
+  say("#pkg-msg", "安装中，可能要一两分钟…");
+  $("#new-pkg-go").disabled = true;
+  try { await api("/api/settings/extensions/install", { source }); $("#new-pkg").value = ""; say("#pkg-msg", "装好了，新开对话或重启 Kiki 后能用", "ok"); loadExtensions(); }
+  catch (e) { say("#pkg-msg", e.message, "err"); }
+  finally { $("#new-pkg-go").disabled = false; }
+};
+loadExtensions();
 </script>
 </body>
 </html>
