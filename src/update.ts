@@ -82,6 +82,10 @@ export class Updater extends EventEmitter {
       canApply: !!this.appPath && process.platform === "darwin",
       auto: process.env.KIKI_AUTO_UPDATE !== "0",
     };
+    this.readReceipt();
+  }
+
+  private readReceipt() {
     try {
       this.state.last = JSON.parse(readFileSync(join(this.logDir, "last-update.json"), "utf8"));
     } catch {}
@@ -96,6 +100,8 @@ export class Updater extends EventEmitter {
   start() {
     if (process.env.KIKI_UPDATE_CHECK === "0") return;
     const tick = async () => {
+      // 回滚后的回执是在旧版本重新起来之后才写的，所以每次都现读
+      this.readReceipt();
       if (Date.now() - this.lastCheck > 6 * HOUR) await this.check().catch(() => {});
       // 上次装这个版本失败回滚过，就不再自动重试，等你手动点
       const failedBefore = this.state.last?.result.startsWith("roll") && this.state.last.to === this.state.latest;
@@ -214,7 +220,14 @@ export class Updater extends EventEmitter {
       // 3. 备份状态文件（只是小文件；对话记录不会被更新动到）
       this.backup();
 
-      // 4. 交给旧版本里的替换脚本：换 App → 重启 → 健康检查 → 不行就回滚。它会把当前进程重启掉。
+      // 4. 等手上的对话都跑完再切（下载和自检期间可能有新对话开始）。
+      //    检查空闲和启动替换脚本之间是同步的，中间插不进新消息。
+      while (!this.opts.isIdle()) {
+        this.set({ message: `${to} 已准备好，等对话跑完就切换` });
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+
+      // 5. 交给旧版本里的替换脚本：换 App → 重启 → 健康检查 → 不行就回滚。它会把当前进程重启掉。
       const script = join(work, "swap.sh");
       copyFileSync(join(app, "Contents", "Resources", "swap.sh"), script);
       mkdirSync(this.logDir, { recursive: true });
