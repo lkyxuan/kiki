@@ -9,6 +9,7 @@ import type { Agents, ChatLine } from "./agents.js";
 import { rejectReason } from "./guard.js";
 import type { Registry } from "./registry.js";
 import type { Router } from "./router.js";
+import { settingsApi } from "./settings.js";
 import { type Updater, VERSION } from "./update.js";
 
 const MAIN = "main"; // 主 bot 在网页里的 path
@@ -17,6 +18,7 @@ const STATIC: Record<string, string> = {
   "/manifest.webmanifest": "application/manifest+json",
   "/icon.svg": "image/svg+xml",
   "/icon-180.png": "image/png",
+  "/settings.html": "text/html; charset=utf-8", // 设置页
 };
 
 export function startServer(opts: {
@@ -31,6 +33,7 @@ export function startServer(opts: {
   const { agents, registry, router } = opts;
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
   const clients = new Set<ServerResponse>();
+  const settings = settingsApi({ dataDir: opts.dataDir, port: opts.port });
 
   const push = (event: string, data: unknown) => {
     const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -76,6 +79,7 @@ export function startServer(opts: {
     };
 
     if (url.pathname === "/api/tree") return json(tree());
+    if (url.pathname.startsWith("/api/settings")) return settings(req, res, url); // 设置页，见 settings.ts
 
     // 健康检查：自动更新换完版本后靠它确认新版本起来了
     if (url.pathname === "/api/health") return json({ ok: true, version: VERSION });

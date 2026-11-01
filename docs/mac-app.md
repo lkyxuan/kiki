@@ -26,7 +26,7 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 ### 第一次装好以后
 
-1. 填模型密钥。Kiki 在后台运行、没人在电脑前点授权，所以密钥要放在它自己拿得到的地方。推荐 macOS 钥匙串（登录后就能取，不是明文文件）：
+1. 填模型密钥。可以在 Kiki 左下角的「设置」里填，填好点「立即重启」；也可以手动改 `~/kiki-data/.env`。Kiki 在后台运行、没人在电脑前点授权，所以密钥要放在它自己拿得到的地方。推荐 macOS 钥匙串（登录后就能取，不是明文文件）：
    ```bash
    # 从 1Password 拷一次进钥匙串（把 op:// 换成你自己的引用；也可以把 "$(op read …)" 换成密钥本身）
    security add-generic-password -U -a "$USER" -s kiki-deepseek -w "$(op read 'op://保险库/条目/字段')"
