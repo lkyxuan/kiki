@@ -1,6 +1,6 @@
 {
   "name": "kiki",
-  "version": "0.2.14",
+  "version": "0.2.15",
   "private": true,
   "description": "Kiki（奇奇）：基于 pi 的个人助理路由器",
   "type": "module",

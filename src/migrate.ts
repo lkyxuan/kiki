@@ -58,3 +58,14 @@ export function migrateToQiqi(dataDir: string, templateDir: string, now = new Da
   writeFileSync(join(dataDir, MARK), now.toISOString() + "\n");
   return done;
 }
+
+/** 奇奇说明的旧版（0.2.7 到 0.2.14 的模板）：那时奇奇什么事都接，还让用户自己建宝。 */
+export const OLD_QIQI = "# 奇奇：默认的宝\n\n## 我负责什么\n什么事都可以先交给我：日常安排、记录、提醒、查资料、写东西、写代码。\n没有更合适的宝时，事情都落到我这里。\n\n## 我怎么干活\n- 回答简短，结论在前。\n- 需要记下来的东西，写进这个文件夹下的 notes/ 里（一个主题一个 .md）。\n- 某一类事情多起来（比如一个长期项目、一个固定领域），建议用户新建一个专门的宝，把它分出去。\n\n## 我交回什么\n直接给答案或结果，必要时附一句理由；改过的文件列出来。\n";
+
+/** 用户没改过奇奇的说明，就换成新版（奇奇只做分派，没有合适的宝自己建）；改过的不动。 */
+export function upgradeQiqiNote(dataDir: string, templateDir: string): string[] {
+  const f = join(dataDir, "agents", DEFAULT_BAO, "AGENTS.md");
+  if (!existsSync(f) || readFileSync(f, "utf8") !== OLD_QIQI) return [];
+  writeFileSync(f, readFileSync(join(templateDir, "agents", DEFAULT_BAO, "AGENTS.md"), "utf8"));
+  return ["奇奇的说明换成新版：只做分派，没有合适的宝就自己建"];
+}
