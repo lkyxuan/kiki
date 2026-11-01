@@ -1,0 +1,31 @@
+# 发布：改 package.json 里的版本号，推一个同名 tag（比如 v0.2.0），这里就会
+# 检查 → 测试 → 打 arm64 和 x64 两个 Kiki.app → 建 GitHub Release。
+# 装好的 Kiki 会在 6 小时内发现新版本，空闲时自动装上。
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest   # 打包不需要 Mac，Linux 便宜
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: 版本号要和 tag 一致
+        run: |
+          v=$(node -p 'require("./package.json").version')
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "package.json 是 $v，tag 是 $GITHUB_REF_NAME"; exit 1; }
+      - run: packaging/build.sh arm64
+      - run: packaging/build.sh x64
+      - name: 建 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS --title "Kiki $GITHUB_REF_NAME" --generate-notes

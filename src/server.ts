@@ -1,4 +1,4 @@
-// 本机聊天网页：只监听 127.0.0.1，别的机器连不上。
+// 本机聊天网页：只监听 127.0.0.1，别的机器连不上（远程用 Tailscale Serve 转进来，见 docs/mac-app.md）。
 // 网页是 public/index.html；数据走下面几个接口，实时更新走 SSE。
 //
 // 通道边界：任何"通道"（这个网页、以后的微信插件……）都只需要调 router.handle(chatId, text, reply)。
@@ -6,11 +6,18 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { Agents, ChatLine } from "./agents.js";
+import { rejectReason } from "./guard.js";
 import type { Registry } from "./registry.js";
 import type { Router } from "./router.js";
+import { type Updater, VERSION } from "./update.js";
 
 const MAIN = "main"; // 主 bot 在网页里的 path
 const CHAT_ID = "app"; // 主 bot 在路由器眼里的聊天 id
+const STATIC: Record<string, string> = {
+  "/manifest.webmanifest": "application/manifest+json",
+  "/icon.svg": "image/svg+xml",
+  "/icon-180.png": "image/png",
+};
 
 export function startServer(opts: {
   port: number;
@@ -19,6 +26,7 @@ export function startServer(opts: {
   agents: Agents;
   registry: Registry;
   router: Router;
+  updater?: Updater;
 }) {
   const { agents, registry, router } = opts;
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
@@ -30,6 +38,7 @@ export function startServer(opts: {
   };
   agents.on("delta", (d) => push("delta", d));
   agents.on("busy", (d) => push("busy", d));
+  opts.updater?.on("state", (s) => push("update", s));
 
   const mainSay = (role: ChatLine["role"], text: string) => {
     appendFileSync(mainLog, JSON.stringify({ role, text, ts: new Date().toISOString() }) + "\n");
@@ -61,6 +70,24 @@ export function startServer(opts: {
     };
 
     if (url.pathname === "/api/tree") return json(tree());
+
+    // 健康检查：自动更新换完版本后靠它确认新版本起来了
+    if (url.pathname === "/api/health") return json({ ok: true, version: VERSION });
+
+    // 更新：GET 看状态，POST /api/update/check 立刻查，POST /api/update/apply 立刻装
+    if (url.pathname.startsWith("/api/update") && opts.updater) {
+      const u = opts.updater;
+      if (url.pathname === "/api/update") return json(u.state);
+      if (req.method !== "POST") return json({ error: "要用 POST" }, 405);
+      if (url.pathname === "/api/update/check") return json(await u.check());
+      if (url.pathname === "/api/update/apply") {
+        try {
+          return json(await u.apply());
+        } catch (e) {
+          return json({ error: (e as Error).message }, 400);
+        }
+      }
+    }
 
     if (url.pathname === "/api/history") {
       const path = url.searchParams.get("path") ?? MAIN;
@@ -117,6 +144,12 @@ export function startServer(opts: {
   }
 
   const server = createServer((req, res) => {
+    const denied = rejectReason(req);
+    if (denied) {
+      res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+      res.end(`Kiki 拒绝了这个请求：${denied}`);
+      return;
+    }
     const url = new URL(req.url ?? "/", "http://localhost");
     if (url.pathname.startsWith("/api/")) {
       api(req, res, url).catch((e) => {
@@ -125,7 +158,13 @@ export function startServer(opts: {
       });
       return;
     }
-    // 只有一个页面
+    // 装成 App 用的图标和 manifest；其余路径都给那一个页面
+    const asset = STATIC[url.pathname];
+    if (asset) {
+      res.writeHead(200, { "content-type": asset });
+      res.end(readFileSync(join(opts.publicDir, url.pathname.slice(1))));
+      return;
+    }
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(readFileSync(join(opts.publicDir, "index.html")));
   });
