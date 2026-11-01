@@ -23,7 +23,8 @@ export interface Task {
   agent: string; // 在哪个宝里做
   prompt: string; // 交给后台对话的原话
   session?: string; // 执行这个任务的后台对话（pi JSONL 路径）
-  origin?: string; // 从哪段对话派出来的，做完回报到那里
+  origin?: string; // 从哪段对话派出来的：分叉它去做，做完回报到那里
+  reportTo?: string; // 只回报、不分叉：做完回报到这段对话（优先于 origin），比如交接
   chatId?: string; // 从哪个聊天派出来的（收件箱）
   created: string;
   started?: string;
@@ -85,7 +86,7 @@ export class MemoryTaskStore implements TaskStore {
 }
 
 const RESULT_MARK = "<!-- kiki:result -->";
-const FIELDS = ["id", "title", "status", "agent", "session", "origin", "chatId", "created", "started", "finished"] as const;
+const FIELDS = ["id", "title", "status", "agent", "session", "origin", "reportTo", "chatId", "created", "started", "finished"] as const;
 
 export function formatTask(t: Task): string {
   const head = FIELDS.filter((k) => t[k] !== undefined).map((k) => `${k}: ${JSON.stringify(t[k])}`);
@@ -141,6 +142,7 @@ export interface StartInput {
   title: string;
   prompt: string;
   origin?: string;
+  reportTo?: string;
   chatId?: string;
 }
 
@@ -195,7 +197,7 @@ export class Tasks extends EventEmitter {
   retry(id: string, notify?: (t: Task) => void): Task | undefined {
     const old = this.all.get(id);
     if (!old || old.status === "queued" || old.status === "running") return undefined;
-    return this.start({ agent: old.agent, title: old.title, prompt: old.prompt, origin: old.origin, chatId: old.chatId }, notify);
+    return this.start({ agent: old.agent, title: old.title, prompt: old.prompt, origin: old.origin, reportTo: old.reportTo, chatId: old.chatId }, notify);
   }
 
   private pump() {
@@ -249,10 +251,11 @@ export class Tasks extends EventEmitter {
 
   /** 做完（或失败）后，在发起的对话末尾记一条，让那边的 agent 下次回答时也知道。 */
   private async announce(t: Task) {
-    if (!t.origin) return;
+    const to = t.reportTo ?? t.origin;
+    if (!to) return;
     const head = t.status === "done" ? `✅ 后台任务「${t.title}」完成` : `❌ 后台任务「${t.title}」${STATUS_LABEL[t.status]}`;
     try {
-      await this.backend.note(t.origin, `${head}（任务 ${t.id}）：\n\n${t.result ?? ""}`);
+      await this.backend.note(to, `${head}（任务 ${t.id}）：\n\n${t.result ?? ""}`);
     } catch (e) {
       console.warn(`[tasks] 回报到原对话失败：${(e as Error).message}`);
     }
