@@ -1,26 +1,33 @@
 // pi 这一层：开对话、续对话、往对话里发一句话并拿回答。
 // 每个 agent 是 DATA_DIR/agents/<名字>/ 一个文件夹，里面的 AGENTS.md 就是它的说明；
 // DATA_DIR/AGENTS.md（关于我）在上级目录，pi 会自动一起读进来。
-import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { EventEmitter } from "node:events";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   type AgentSession,
-  AuthStorage,
   createAgentSession,
-  ModelRegistry,
+  ModelRuntime,
   SessionManager,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 
-export class Agents {
-  private auth = AuthStorage.create();
-  private models = ModelRegistry.create(this.auth);
+export interface ChatLine {
+  role: "user" | "assistant";
+  text: string;
+}
+
+/** 事件：delta {path, text} 流式文字；busy {path, busy} 开始/结束干活。网页靠它实时刷新。 */
+export class Agents extends EventEmitter {
+  private runtime: Promise<ModelRuntime> = ModelRuntime.create(); // 读 ~/.pi/agent 里的密钥和模型配置
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
 
   constructor(
     private dataDir: string,
-    private modelSpec: string, // "provider/model"，比如 deepseek/deepseek-v4-flash
-  ) {}
+    private modelSpec: string, // "provider/model"，比如 deepseek/deepseek-flash
+  ) {
+    super();
+  }
 
   agentDir(agent: string) {
     return join(this.dataDir, "agents", agent);
@@ -36,9 +43,9 @@ export class Agents {
     return existsSync(this.agentDir(agent));
   }
 
-  private model() {
+  private async model() {
     const [provider, ...rest] = this.modelSpec.split("/");
-    const m = this.models.find(provider, rest.join("/"));
+    const m = (await this.runtime).getModel(provider, rest.join("/"));
     if (!m) throw new Error(`找不到模型 ${this.modelSpec}`);
     return m;
   }
@@ -48,12 +55,20 @@ export class Agents {
     const { session } = await createAgentSession({
       cwd,
       sessionManager: sm,
-      model: this.model(),
+      model: await this.model(),
       thinkingLevel: "off",
-      authStorage: this.auth,
-      modelRegistry: this.models,
+      modelRuntime: await this.runtime,
     });
     return session;
+  }
+
+  private watch(path: string, s: AgentSession) {
+    s.subscribe((ev: any) => {
+      if (ev.type === "message_update" && ev.assistantMessageEvent?.type === "text_delta") {
+        this.emit("delta", { path, text: ev.assistantMessageEvent.delta });
+      } else if (ev.type === "agent_start") this.emit("busy", { path, busy: true });
+      else if (ev.type === "agent_end") this.emit("busy", { path, busy: false });
+    });
   }
 
   /** 新建一段具名对话，返回它的 JSONL 路径（文件在第一次有回答时才真正写盘）。 */
@@ -65,6 +80,7 @@ export class Agents {
     const path = session.sessionFile;
     if (!path) throw new Error("pi 没有给出对话文件路径");
     this.live.set(path, session);
+    this.watch(path, session);
     return path;
   }
 
@@ -73,6 +89,7 @@ export class Agents {
     if (!s) {
       s = await this.open(agent, SessionManager.open(path));
       this.live.set(path, s);
+      this.watch(path, s);
     }
     return s;
   }
@@ -91,6 +108,32 @@ export class Agents {
 
   isBusy(path: string) {
     return this.live.get(path)?.isStreaming ?? false;
+  }
+
+  /** 一段对话里的聊天记录（只取文字，不含工具调用）。 */
+  history(path: string): ChatLine[] {
+    const live = this.live.get(path);
+    let msgs: any[];
+    if (live) msgs = live.messages as any[];
+    else if (existsSync(path))
+      msgs = readFileSync(path, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map((l) => JSON.parse(l))
+        .filter((e) => e.type === "message")
+        .map((e) => e.message);
+    else return [];
+    const out: ChatLine[] = [];
+    for (const m of msgs) {
+      if (m.role !== "user" && m.role !== "assistant") continue;
+      const text =
+        typeof m.content === "string"
+          ? m.content
+          : (m.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
+      if (text.trim()) out.push({ role: m.role, text: text.trim() });
+      else if (m.role === "assistant" && m.stopReason === "error") out.push({ role: "assistant", text: `出错了：${m.errorMessage ?? "未知错误"}` });
+    }
+    return out;
   }
 }
 

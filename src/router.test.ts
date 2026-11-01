@@ -26,7 +26,7 @@ function setup() {
 test("没选对话时进默认对话", async () => {
   const { out, say, reg } = setup();
   await say("你好");
-  assert.match(out[0], /^\[life:.*\] 你好$/);
+  assert.match(out[0], /^【life\/默认】\n\[life:.*\] 你好$/);
   assert.equal(reg.current("tg:1")?.name, "默认");
 });
 
@@ -35,7 +35,7 @@ test("/new 建对话并切过去，/use 切回，/list 标出当前", async () =
   await say("/new dev 路由器");
   assert.equal(reg.current("tg:1")?.name, "路由器");
   await say("写个函数");
-  assert.match(out.at(-1)!, /^\[dev:/);
+  assert.match(out.at(-1)!, /^【dev\/路由器】\n\[dev:/);
   await say("/new life 健身");
   await say("/use 路由器");
   assert.equal(reg.current("tg:1")?.agent, "dev");

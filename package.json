@@ -9,13 +9,15 @@
     "check": "tsc --noEmit",
     "test": "tsx --test src/*.test.ts"
   },
-  "dependencies": {
-    "@mariozechner/pi-coding-agent": "^0.73.1"
-  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
   },
-  "engines": { "node": ">=20.6" }
+  "engines": {
+    "node": ">=22.19"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "1.4.0"
+  }
 }

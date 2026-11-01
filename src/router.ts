@@ -33,7 +33,7 @@ export class Router {
     if (!t.startsWith("/")) return this.chat(chatId, t, reply);
 
     const [cmdRaw, ...args] = t.split(/\s+/);
-    const cmd = cmdRaw.replace(/@\w+$/, ""); // Telegram 群里会带 @机器人名
+    const cmd = cmdRaw;
     switch (cmd) {
       case "/start":
       case "/help":
@@ -59,10 +59,10 @@ export class Router {
 
   private async chat(chatId: string, text: string, reply: Reply) {
     let cur = this.registry.current(chatId);
-    if (!cur) cur = await this.ensure(this.defaultAgent, "默认");
+    if (!cur) cur = await this.newSession(this.defaultAgent, "默认");
     this.registry.setCurrent(chatId, cur.path);
     const answer = await this.agents.send(cur.agent, cur.path, text);
-    await reply(answer);
+    await reply(`【${label(cur)}】\n${answer}`);
   }
 
   private async cmdNew(chatId: string, args: string[], reply: Reply) {
@@ -71,7 +71,7 @@ export class Router {
     if (!this.agents.exists(agent)) return reply(`没有 agent「${agent}」。现有：${this.agents.listAgents().join("、")}`);
     const name = nameParts.join(" ") || stamp();
     if (this.registry.get(agent, name)) return reply(`${agent}/${name} 已经有了，用 /use ${agent}/${name} 切过去。`);
-    const rec = await this.ensure(agent, name);
+    const rec = await this.newSession(agent, name);
     this.registry.setCurrent(chatId, rec.path);
     return reply(`已新建并切到 ${label(rec)}`);
   }
@@ -101,7 +101,7 @@ export class Router {
     if (!task) return reply("用法：/bg <任务>");
     const agent = this.registry.current(chatId)?.agent ?? this.defaultAgent;
     const name = `bg-${stamp()}`;
-    const rec = await this.ensure(agent, name, true);
+    const rec = await this.newSession(agent, name, true);
     await reply(`好，已在后台开始：${label(rec)}。做完我会回报，想插话可以 /use ${agent}/${name}。`);
     // 不等它，路由器马上能接下一句
     this.agents
@@ -110,7 +110,7 @@ export class Router {
       .catch((e) => reply(`❌ 后台任务 ${label(rec)} 失败：${(e as Error).message}`));
   }
 
-  private async ensure(agent: string, name: string, background = false): Promise<SessionRecord> {
+  async newSession(agent: string, name: string, background = false): Promise<SessionRecord> {
     const existing = this.registry.get(agent, name);
     if (existing) return existing;
     const path = await this.agents.create(agent, name);
