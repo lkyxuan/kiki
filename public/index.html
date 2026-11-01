@@ -12,13 +12,15 @@
 <meta name="apple-mobile-web-app-title" content="Kiki">
 <style>
   :root {
-    --bg: #ffffff; --side: #f6f6f4; --line: #e6e5e1; --text: #1d1d1b; --muted: #8a8984;
-    --hover: #ecebe7; --active: #e2e1dc; --me: #eef0f5; --accent: #5b6cf0; --code: #f3f2ee;
+    --bg: #ffffff; --side: #f6f6f4; --line: #e6e5e1; --text: #1d1d1b; --muted: #6f6e69;
+    --hover: #ecebe7; --active: #e2e1dc; --me: #1d1d1b; --me-text: #ffffff; --accent: #5b6cf0; --code: #f3f2ee;
+    --card: #ffffff; --ok: #1f7a3a; --busy: #2f5fc4;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #1b1b1d; --side: #141416; --line: #2c2c30; --text: #ececec; --muted: #8b8b92;
-      --hover: #222226; --active: #2b2b31; --me: #2a2c36; --accent: #8b97ff; --code: #26262b;
+      --bg: #1b1b1d; --side: #141416; --line: #2c2c30; --text: #ececec; --muted: #9b9ba2;
+      --hover: #222226; --active: #2b2b31; --me: #ececec; --me-text: #1b1b1d; --accent: #8b97ff; --code: #26262b;
+      --card: #202023; --ok: #6fd18e; --busy: #8fb0ff;
     }
   }
   * { box-sizing: border-box; }
@@ -27,43 +29,59 @@
     background: var(--bg); color: var(--text); display: flex;
     font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
   }
-  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button, input { font: inherit; color: inherit; }
+  button { background: none; border: 0; cursor: pointer; }
+  svg.i { width: 16px; height: 16px; flex: none; }
 
-  /* 左边栏 */
-  aside { width: 260px; flex: none; background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: auto; padding: 14px 10px; }
-  .brand { font-weight: 650; font-size: 17px; padding: 2px 10px 12px; display: flex; align-items: center; gap: 8px; }
-  .brand img { width: 26px; height: 26px; }
-  img.avatar { background: none; }
-  .item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 7px 10px; border-radius: 8px; white-space: nowrap; overflow: hidden; }
+  /* 左栏：奇奇 + 我的宝 */
+  aside { width: 256px; flex: none; background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: auto; padding: 14px 10px; }
+  .item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; min-height: 36px; padding: 6px 10px; border-radius: 8px; white-space: nowrap; overflow: hidden; }
   .item:hover { background: var(--hover); }
-  .item.on { background: var(--active); }
+  .item.on { background: var(--active); font-weight: 500; }
   .item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-  .main-bot { font-weight: 600; margin-bottom: 14px; }
-  .avatar { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; }
-  .agent { margin-bottom: 10px; }
-  .agent-head { display: flex; align-items: center; padding: 4px 10px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-  .agent-head span { flex: 1; }
-  .agent-head button { color: var(--muted); font-size: 17px; line-height: 1; padding: 0 4px; border-radius: 4px; }
-  .agent-head button:hover { background: var(--hover); color: var(--text); }
-  .sess { padding-left: 18px; font-size: 14px; }
+  /* 奇奇主按钮：和对话条目不一样，居中、大图标 */
+  .kiki { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 18px 10px 14px; border-radius: 14px; font-weight: 650; font-size: 16px; }
+  .kiki img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; transition: transform .15s; }
+  .kiki:hover { background: var(--hover); }
+  .kiki:hover img { transform: scale(1.04); }
+  .kiki.on { background: var(--active); }
+  .kiki.on img { box-shadow: 0 0 0 3px var(--side), 0 0 0 5px var(--accent); }
+  .kiki .dot { position: absolute; top: 18px; right: calc(50% - 40px); width: 10px; height: 10px; border: 2px solid var(--side); }
+  .label { font-size: 12px; color: var(--muted); padding: 16px 10px 6px; letter-spacing: .04em; }
+  .bao { margin-bottom: 4px; }
+  .bao-head { display: flex; align-items: center; gap: 10px; padding: 6px 4px 6px 10px; font-size: 14px; font-weight: 500; }
+  .bao-head .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bao-head button { color: var(--muted); width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; }
+  .bao-head button:hover { background: var(--hover); color: var(--text); }
+  .avatar { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; color: #fff; }
+  .sess { padding-left: 42px; font-size: 14px; min-height: 32px; }
   .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
   .spin { width: 11px; height: 11px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: r .8s linear infinite; flex: none; }
   @keyframes r { to { transform: rotate(360deg); } }
-  .new-input { margin: 2px 0 4px 18px; width: calc(100% - 18px); padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); font: inherit; font-size: 14px; }
-  .empty { color: var(--muted); font-size: 13px; padding: 2px 10px 2px 28px; }
+  .new-input { margin: 2px 0 6px 42px; width: calc(100% - 42px); padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 14px; }
+  .new-bao-input { margin: 4px 0 6px; width: 100%; }
+  .empty { color: var(--muted); font-size: 13px; padding: 2px 10px 4px 42px; }
+  .add-bao { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .add-bao:hover { color: var(--text); }
+  .settings { margin-top: auto; color: var(--text); text-decoration: none; font-size: 14px; }
 
-  /* 右边聊天 */
+  /* 中间：对话 */
   main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  header { padding: 14px 24px; border-bottom: 1px solid var(--line); font-weight: 600; display: flex; gap: 10px; align-items: baseline; }
-  header small { color: var(--muted); font-weight: 400; }
-  /* 右上角更新提示 */
-  #upd { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  header { min-height: 52px; padding: 10px 16px 10px 24px; border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: center; }
+  #title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #title .crumb { color: var(--muted); font-weight: 400; }
+  #upd { margin-left: auto; font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  #upd:empty { display: none; }
   #upd button { color: #fff; background: var(--accent); border-radius: 6px; padding: 1px 8px; font-size: 12px; }
+  .icon-btn { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); flex: none; }
+  .icon-btn:hover { background: var(--hover); color: var(--text); }
+  #panel-toggle { margin-left: auto; }
+  #upd:not(:empty) + #panel-toggle { margin-left: 0; }
   #log { flex: 1; overflow: auto; padding: 24px; }
   .msgs { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
   .msg { white-space: normal; word-wrap: break-word; }
-  .msg.user { align-self: flex-end; background: var(--me); padding: 9px 14px; border-radius: 16px; max-width: 80%; white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: var(--me); color: var(--me-text); padding: 9px 14px; border-radius: 16px 16px 4px 16px; max-width: 80%; white-space: pre-wrap; }
   .msg.assistant p { margin: 0 0 .6em; } .msg.assistant p:last-child { margin: 0; }
   .msg pre { background: var(--code); padding: 10px 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
   .msg code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: 13px; }
@@ -71,11 +89,15 @@
   .msg a { color: var(--accent); }
   .pending { color: var(--muted); display: flex; gap: 8px; align-items: center; }
   .hint { color: var(--muted); text-align: center; margin-top: 18vh; }
-  .receipt { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; margin-bottom: 8px; cursor: pointer; }
-  .receipt:hover { color: var(--text); background: var(--hover); }
-  .receipt b { color: var(--text); font-weight: 600; }
-  .choices { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; align-items: flex-start; }
-  .choices button { border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; text-align: left; }
+  /* 奇奇的回执卡片：发到哪个宝的哪段对话 */
+  .receipt { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px 10px 14px; margin-bottom: 10px; max-width: 520px; }
+  .receipt .where { flex: 1; min-width: 0; }
+  .receipt .how { display: block; font-size: 12px; color: var(--muted); }
+  .receipt b { font-weight: 600; }
+  .receipt button { border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 13px; background: var(--bg); }
+  .receipt button:hover { background: var(--hover); }
+  .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .choices button { border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; text-align: left; font-size: 14px; }
   .choices button:hover { background: var(--hover); }
   .composer { padding: 12px 24px 20px; }
   .box { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; border: 1px solid var(--line); border-radius: 14px; padding: 8px 8px 8px 14px; background: var(--bg); }
@@ -83,33 +105,56 @@
   .send { background: var(--text); color: var(--bg); border-radius: 9px; padding: 0 14px; font-weight: 600; }
   .send:disabled { opacity: .35; cursor: default; }
 
+  /* 右栏：进行中、后台任务、这个宝 */
+  #panel { width: 300px; flex: none; border-left: 1px solid var(--line); background: var(--side); overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 18px; }
+  body.no-panel #panel { display: none; }
+  #panel h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+  #panel .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+  #panel .row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  #panel .row:first-child { border-top: 0; }
+  #panel button.row:hover .name { text-decoration: underline; }
+  #panel .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #panel .row small { color: var(--muted); font-size: 12px; }
+  #panel .none { color: var(--muted); font-size: 13px; }
+  #panel .about { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; max-height: 220px; overflow: hidden; }
+  #panel a { color: var(--accent); font-size: 13px; text-decoration: none; }
+
+  @media (max-width: 1100px) { #panel { display: none; } body.show-panel #panel { display: flex; position: fixed; right: 0; top: 0; bottom: 0; z-index: 5; box-shadow: -8px 0 24px rgba(0,0,0,.08); } }
   @media (max-width: 700px) { aside { width: 200px; } #log, .composer { padding-left: 16px; padding-right: 16px; } }
 </style>
 </head>
 <body>
 <aside>
-  <div class="brand"><img src="/icon.svg" alt="">Kiki</div>
-  <button class="item main-bot" data-path="main"><img class="avatar" src="/icon.svg" alt=""><span class="name">主 bot</span></button>
+  <button class="kiki" data-path="main" aria-label="奇奇"><img src="/qiqi.png" alt=""><span class="name">奇奇</span></button>
+  <div class="label">我的宝</div>
   <div id="agents"></div>
+  <button class="item add-bao" id="add-bao"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="name">新建一个宝</span></button>
+  <a class="item settings" href="/settings.html"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="name">设置</span></a>
 </aside>
 <main>
-  <header><span id="title">主 bot</span><small id="sub">随手扔一句、用命令管理对话、收后台回报</small><span id="upd"></span></header>
+  <header>
+    <span id="title">奇奇</span>
+    <span id="upd"></span>
+    <button class="icon-btn" id="panel-toggle" aria-label="显示或隐藏右栏" title="右栏"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
+  </header>
   <div id="log"><div class="msgs" id="msgs"></div></div>
   <div class="composer">
     <div class="box">
-      <textarea id="input" rows="1" placeholder="说点什么… Enter 发送，Shift+Enter 换行"></textarea>
+      <textarea id="input" rows="1" aria-label="消息" placeholder="说点什么… Enter 发送，Shift+Enter 换行"></textarea>
       <button class="send" id="send">发送</button>
     </div>
   </div>
 </main>
+<section id="panel" aria-label="右栏"></section>
 <script>
 const $ = (s) => document.querySelector(s);
 let tree = { agents: [] };
 let current = "main";
 let streaming = null; // 当前对话正在流式输出的那条消息元素
 const unread = new Set();
+const aboutCache = {}; // 宝名 -> AGENTS.md 开头几行
 
-const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // 极简 Markdown：代码块、行内代码、粗体、链接、段落
 function md(src) {
   const parts = src.split(/```(?:\w*)\n?([\s\S]*?)```/g);
@@ -124,19 +169,24 @@ function md(src) {
   }).join("");
 }
 
+// 每个宝一个固定颜色（按名字算），头像显示名字第一个字
+const COLORS = ["#3b6fd4", "#2f8a4e", "#b06a12", "#8a4fc2", "#c2465a", "#1f8a8a"];
+function color(name) { let h = 0; for (const c of name) h = (h * 31 + c.codePointAt(0)) >>> 0; return COLORS[h % COLORS.length]; }
+const avatar = (name) => `<span class="avatar" style="background:${color(name)}">${esc([...name][0].toUpperCase())}</span>`;
+const PLUS = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+
 function find(path) {
   for (const a of tree.agents) for (const s of a.sessions) if (s.path === path) return s;
 }
 
 function renderSide() {
-  document.querySelectorAll(".main-bot").forEach((b) => {
-    b.classList.toggle("on", current === "main");
-    b.querySelector(".dot")?.remove();
-    if (unread.has("main")) b.insertAdjacentHTML("beforeend", '<span class="dot"></span>');
-  });
+  const k = $(".kiki");
+  k.classList.toggle("on", current === "main");
+  k.querySelector(".dot")?.remove();
+  if (unread.has("main")) k.insertAdjacentHTML("beforeend", '<span class="dot"></span>');
   $("#agents").innerHTML = tree.agents.map((a) => `
-    <div class="agent">
-      <div class="agent-head"><span>${esc(a.name)}</span><button title="新对话" data-new="${esc(a.name)}">+</button></div>
+    <div class="bao">
+      <div class="bao-head">${avatar(a.name)}<span class="name">${esc(a.name)}</span><button title="在${esc(a.name)}里新开对话" aria-label="在${esc(a.name)}里新开对话" data-new="${esc(a.name)}">${PLUS}</button></div>
       ${a.sessions.length ? "" : '<div class="empty">还没有对话</div>'}
       ${a.sessions.map((s) => `
         <button class="item sess ${s.path === current ? "on" : ""}" data-path="${esc(s.path)}">
@@ -145,17 +195,45 @@ function renderSide() {
           ${s.busy ? '<span class="spin"></span>' : unread.has(s.path) ? '<span class="dot"></span>' : ""}
         </button>`).join("")}
     </div>`).join("");
+  renderPanel();
 }
 
-// 主 bot 的回执："→ dev/路由器 · 接着聊" 第一行渲染成可点的小标签；拿不准时的 "1. …" 渲染成按钮
+// 右栏：哪些对话在干活、后台任务、当前这个宝
+function renderPanel() {
+  const all = tree.agents.flatMap((a) => a.sessions);
+  const row = (s) => `<button class="row" data-path="${esc(s.path)}">${s.busy ? '<span class="spin"></span>' : avatar(s.agent)}<span class="name">${esc(s.name)}</span><small>${esc(s.agent)}</small></button>`;
+  const busy = all.filter((s) => s.busy);
+  const bg = all.filter((s) => s.background).sort((x, y) => String(y.created).localeCompare(String(x.created))).slice(0, 8);
+  let html = `<div><h3>进行中</h3><div class="card">${busy.length ? busy.map(row).join("") : '<div class="none">现在没有在干活的对话</div>'}</div></div>`;
+  html += `<div><h3>后台任务</h3><div class="card">${bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>'}</div></div>`;
+  const s = find(current);
+  if (s) {
+    const about = aboutCache[s.agent];
+    html += `<div><h3>${esc(s.agent)}</h3><div class="card"><div class="about">${about === undefined ? "读取中…" : esc(about || "还没写说明")}</div><a href="/settings.html">编辑说明</a></div></div>`;
+    if (about === undefined) loadAbout(s.agent);
+  } else {
+    html += `<div><h3>我的宝</h3><div class="card">${tree.agents.map((a) => `<div class="row">${avatar(a.name)}<span class="name">${esc(a.name)}</span><small>${a.sessions.length} 段对话</small></div>`).join("") || '<div class="none">还没有宝</div>'}</div></div>`;
+  }
+  $("#panel").innerHTML = html;
+}
+async function loadAbout(name) {
+  aboutCache[name] = "";
+  try {
+    const r = await fetch("/api/settings/agent?name=" + encodeURIComponent(name));
+    if (r.ok) aboutCache[name] = (await r.json()).text.split("\n").map((l) => l.replace(/^#+\s*/, "")).filter((l) => l.trim()).slice(0, 8).join("\n");
+  } catch {}
+  renderPanel();
+}
+
+// 奇奇的回执："→ dev/路由器 · 接着聊" 第一行渲染成卡片；拿不准时的 "1. …" 渲染成按钮
 function render(text) {
   const r = text.match(/^→ (\S+?)\/(.+?) · (\S+)\n\n([\s\S]*)$/);
-  if (r) return `<div class="receipt" data-goto="${esc(r[1] + "/" + r[2])}">→ <b>${esc(r[1])} / ${esc(r[2])}</b> · ${esc(r[3])}</div>` + md(r[4]);
+  if (r) return `<div class="receipt">${avatar(r[1])}<span class="where"><span class="how">${esc(r[3])}</span><b>${esc(r[1])} › ${esc(r[2])}</b></span><button data-goto="${esc(r[1] + "/" + r[2])}">打开对话</button></div>` + md(r[4]);
   if (text.startsWith("🤔")) {
     const [head, ...opts] = text.split("\n");
-    return md(head) + '<div class="choices">' + opts.map((o) => {
+    return md(head.replace(/^🤔\s*/, "")) + '<div class="choices">' + opts.map((o) => {
       const m = o.match(/^(\d+)\. (.+)$/);
-      return m ? `<button data-choose="${m[1]}">${esc(o)}</button>` : "";
+      return m ? `<button data-choose="${m[1]}">${esc(m[2])}</button>` : "";
     }).join("") + "</div>";
   }
   return md(text);
@@ -175,13 +253,13 @@ async function open(path) {
   unread.delete(path);
   streaming = null;
   const s = find(path);
-  $("#title").textContent = path === "main" ? "主 bot" : `${s.agent} / ${s.name}`;
-  $("#sub").textContent = path === "main" ? "随手扔一句、用命令管理对话、收后台回报" : (s.background ? "后台任务" : "");
+  $("#title").innerHTML = path === "main" ? "奇奇" : `<span class="crumb">${esc(s.agent)} › </span>${esc(s.name)}${s.background ? ' <span class="tag">后台</span>' : ""}`;
+  document.body.classList.remove("show-panel");
   renderSide();
   const hist = await (await fetch(`/api/history?path=${encodeURIComponent(path)}`)).json();
   $("#msgs").innerHTML = "";
   if (!hist.length) $("#msgs").innerHTML = path === "main"
-    ? '<div class="hint">我是 Kiki。直接说话，我来判断放进哪段对话；@宝名 可以指定，/help 看命令。</div>'
+    ? '<div class="hint">跟奇奇说就行，它会分给对应的宝。<br>@宝名 可以直接指定，/help 看命令。</div>'
     : '<div class="hint">新对话，说点什么吧。</div>';
   hist.forEach((m) => addMsg(m.role, m.text));
   if (s?.busy) setPending(true);
@@ -195,28 +273,44 @@ async function send() {
   autosize();
   $(".hint")?.remove();
   const r = await fetch("/api/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: current, text }) });
-  if (r.ok && current === "main") setPending(true); // 主 bot 要先路由再回答，给个等待提示
+  if (r.ok && current === "main") setPending(true); // 奇奇要先路由再回答，给个等待提示
   if (!r.ok) addMsg("assistant", `出错了：${(await r.json()).error}`);
 }
 
-async function newSession(agent, btn) {
-  const head = btn.closest(".agent");
-  if (head.querySelector(".new-input")) return;
+// 左栏里的小输入框：回车确定，Esc 或点别处取消
+function inlineInput(after, cls, placeholder, onEnter) {
+  if (after.parentElement.querySelector("." + cls)) return;
   const input = document.createElement("input");
-  input.className = "new-input";
-  input.placeholder = "对话名字，回车确定";
-  head.querySelector(".agent-head").after(input);
+  input.className = cls;
+  input.placeholder = placeholder;
+  after.after(input);
   input.focus();
   input.onkeydown = async (e) => {
     if (e.key === "Escape") return input.remove();
-    if (e.key !== "Enter" || !input.value.trim()) return;
-    const r = await fetch("/api/new", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agent, name: input.value.trim() }) });
-    const data = await r.json();
-    if (!r.ok) { input.value = ""; input.placeholder = data.error; return; }
-    await loadTree();
-    open(data.path);
+    if (e.key !== "Enter" || e.isComposing || !input.value.trim()) return;
+    const err = await onEnter(input.value.trim());
+    if (err) { input.value = ""; input.placeholder = err; } else input.remove();
   };
   input.onblur = () => setTimeout(() => input.remove(), 150);
+}
+
+function newSession(agent, btn) {
+  inlineInput(btn.closest(".bao-head"), "new-input", "对话名字，回车确定", async (name) => {
+    const r = await fetch("/api/new", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agent, name }) });
+    const data = await r.json();
+    if (!r.ok) return data.error;
+    await loadTree();
+    open(data.path);
+  });
+}
+
+function newBao() {
+  inlineInput($("#agents"), "new-input new-bao-input", "宝的名字，比如 work", async (name) => {
+    const r = await fetch("/api/settings/agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, create: true }) });
+    const data = await r.json();
+    if (!r.ok) return data.error;
+    await loadTree();
+  });
 }
 
 async function loadTree() {
@@ -229,6 +323,14 @@ function autosize() {
   t.style.height = "auto";
   t.style.height = Math.min(t.scrollHeight, 200) + "px";
 }
+
+// 右栏开关：宽屏默认开、记住选择；窄屏点了才滑出来
+function togglePanel() {
+  if (matchMedia("(max-width: 1100px)").matches) return document.body.classList.toggle("show-panel");
+  const off = document.body.classList.toggle("no-panel");
+  try { localStorage.setItem("kiki.panel", off ? "off" : "on"); } catch {}
+}
+try { if (localStorage.getItem("kiki.panel") === "off") document.body.classList.add("no-panel"); } catch {}
 
 document.body.addEventListener("click", (e) => {
   const nb = e.target.closest("[data-new]");
@@ -245,6 +347,8 @@ document.body.addEventListener("click", (e) => {
   const ch = e.target.closest("[data-choose]");
   if (ch) { $("#input").value = ch.dataset.choose; send(); }
 });
+$("#add-bao").onclick = newBao;
+$("#panel-toggle").onclick = togglePanel;
 $("#send").onclick = send;
 $("#input").addEventListener("input", autosize);
 $("#input").addEventListener("keydown", (e) => {
@@ -272,8 +376,7 @@ es.addEventListener("delta", (e) => {
 es.addEventListener("busy", (e) => {
   const d = JSON.parse(e.data);
   const s = find(d.path);
-  if (s) { s.busy = d.busy; renderSide(); }
-  else loadTree(); // 不认识的对话（比如刚交接出来的），刷新左边栏
+  if (s) { s.busy = d.busy; renderSide(); } else loadTree(); // 不认识的对话（比如刚交接出来的）就刷新左栏
   if (d.path === current) setPending(d.busy);
 });
 // 对话在干活、还没吐字时，显示"思考中"
@@ -287,17 +390,16 @@ function setPending(on) {
 }
 es.addEventListener("tree", (e) => { tree = JSON.parse(e.data); renderSide(); });
 
-// 更新提示：有新版本时右上角出一个按钮；正在装 / 出错时显示一行字
+// 更新提示：只在有新版本、正在装、出错或回滚时出现；平时不显示
 function renderUpdate(u) {
   const el = $("#upd");
   if (!u) return;
-  const last = u.last && u.last.to === u.current && u.last.result === "ok" ? `已更新到 v${u.current}` :
-    u.last && u.last.result === "rolled_back" && u.last.from === u.current ? `v${u.last.to} 没起来，已回滚` : "";
   if (u.status === "available")
     el.innerHTML = u.canApply ? `新版本 v${esc(u.latest)} <button id="upd-go">更新</button>` : `新版本 v${esc(u.latest)}（git pull 更新）`;
   else if (u.status === "downloading" || u.status === "installing") el.innerHTML = `<span class="spin"></span>${esc(u.message || "")}`;
   else if (u.status === "error") el.innerHTML = `<span title="${esc(u.message || "")}">更新出错</span>`;
-  else el.textContent = last || `v${u.current}`;
+  else if (u.last && u.last.result === "rolled_back" && u.last.from === u.current) el.textContent = `v${u.last.to} 没起来，已回滚`;
+  else el.textContent = "";
   const go = $("#upd-go");
   if (go) go.onclick = () => fetch("/api/update/apply", { method: "POST" });
 }

@@ -1,5 +1,7 @@
 <div align="center">
 
+**简体中文** · [English](README.en.md)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
   <img src="docs/assets/banner-light.svg" alt="Kiki 奇奇：跑在你自己 Mac 上的开源个人 AI 助理" width="100%">
@@ -7,15 +9,10 @@
 
 <p>
   <a href="https://github.com/lkyxuan/kiki/stargazers"><img src="https://img.shields.io/github/stars/lkyxuan/kiki?style=flat-square&logo=github&color=5b6cf0" alt="GitHub Stars"></a>
-  <a href="https://github.com/lkyxuan/kiki/network/members"><img src="https://img.shields.io/github/forks/lkyxuan/kiki?style=flat-square&logo=github&color=5b6cf0" alt="Forks"></a>
-  <a href="https://github.com/lkyxuan/kiki/issues"><img src="https://img.shields.io/github/issues/lkyxuan/kiki?style=flat-square&color=5b6cf0" alt="Issues"></a>
-  <a href="https://github.com/lkyxuan/kiki/commits/main"><img src="https://img.shields.io/github/last-commit/lkyxuan/kiki?style=flat-square&color=5b6cf0" alt="Last Commit"></a>
+  <a href="https://github.com/lkyxuan/kiki/releases"><img src="https://img.shields.io/github/v/release/lkyxuan/kiki?style=flat-square&color=5b6cf0" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-5b6cf0?style=flat-square" alt="License: MIT"></a>
-</p>
-<p>
   <img src="https://img.shields.io/badge/platform-macOS-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS">
-  <img src="https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22.19+">
-  <img src="https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/node-22.19%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22.19+">
   <img src="https://img.shields.io/badge/data-100%25%20local-5b6cf0?style=flat-square" alt="Local first">
 </p>
 
