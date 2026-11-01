@@ -1,19 +1,22 @@
 <div align="center">
 
-<img src="docs/assets/banner.svg" alt="Kiki 奇奇：跑在你自己 Mac 上的开源个人 AI 助理" width="100%">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+  <img src="docs/assets/banner-light.svg" alt="Kiki 奇奇：跑在你自己 Mac 上的开源个人 AI 助理" width="100%">
+</picture>
 
 <p>
-  <a href="https://github.com/lkyxuan/kiki/stargazers"><img src="https://img.shields.io/github/stars/lkyxuan/kiki?style=flat-square&logo=github&color=8b5cf6" alt="GitHub Stars"></a>
-  <a href="https://github.com/lkyxuan/kiki/network/members"><img src="https://img.shields.io/github/forks/lkyxuan/kiki?style=flat-square&logo=github&color=6366f1" alt="Forks"></a>
-  <a href="https://github.com/lkyxuan/kiki/issues"><img src="https://img.shields.io/github/issues/lkyxuan/kiki?style=flat-square&color=0ea5e9" alt="Issues"></a>
-  <a href="https://github.com/lkyxuan/kiki/commits/main"><img src="https://img.shields.io/github/last-commit/lkyxuan/kiki?style=flat-square&color=22c55e" alt="Last Commit"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License: MIT"></a>
+  <a href="https://github.com/lkyxuan/kiki/stargazers"><img src="https://img.shields.io/github/stars/lkyxuan/kiki?style=flat-square&logo=github&color=5b6cf0" alt="GitHub Stars"></a>
+  <a href="https://github.com/lkyxuan/kiki/network/members"><img src="https://img.shields.io/github/forks/lkyxuan/kiki?style=flat-square&logo=github&color=5b6cf0" alt="Forks"></a>
+  <a href="https://github.com/lkyxuan/kiki/issues"><img src="https://img.shields.io/github/issues/lkyxuan/kiki?style=flat-square&color=5b6cf0" alt="Issues"></a>
+  <a href="https://github.com/lkyxuan/kiki/commits/main"><img src="https://img.shields.io/github/last-commit/lkyxuan/kiki?style=flat-square&color=5b6cf0" alt="Last Commit"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-5b6cf0?style=flat-square" alt="License: MIT"></a>
 </p>
 <p>
   <img src="https://img.shields.io/badge/platform-macOS-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS">
   <img src="https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22.19+">
   <img src="https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
-  <img src="https://img.shields.io/badge/data-100%25%20local-14b8a6?style=flat-square" alt="Local first">
+  <img src="https://img.shields.io/badge/data-100%25%20local-5b6cf0?style=flat-square" alt="Local first">
 </p>
 
 **一个收件箱，多个专属 Bot，无限具名对话。你的数据永远留在你自己的机器上。**
