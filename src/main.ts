@@ -7,6 +7,7 @@ import { parseEnv } from "node:util";
 import { Agents } from "./agents.js";
 import { handoffTool } from "./handoff.js";
 import { loadRules } from "./rules.js";
+import { kikiTools } from "./tools.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { startServer } from "./server.js";
@@ -49,7 +50,10 @@ const router = new Router(agents, registry, process.env.DEFAULT_AGENT || "life",
 });
 // 对话里的 agent 可以把一件新事交接到新对话（自己写交接说明）
 router.rules = () => loadRules(dataDir);
-agents.toolsFor = () => [handoffTool({ listBaos: () => agents.listAgents(), rules: router.rules, onHandoff: (r) => router.handoff(r) })];
+agents.toolsFor = () => [
+  handoffTool({ listBaos: () => agents.listAgents(), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
+  ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
+];
 
 const port = Number(process.env.PORT || 4567);
 const updater = new Updater({

@@ -41,6 +41,7 @@ function setup() {
     },
     describe: (a) => (a === "dev" ? "写代码" : "日常生活"),
     recent: () => [],
+    history: (path) => [{ role: "user", text: `问 ${path}` }, { role: "assistant", text: "答" }],
     note: async (a, path, text) => void ctl.notes.push(`${path} ${text}`),
     announce: (path, text) => void ctl.announced.push(`${path} ${text}`),
   };
@@ -243,4 +244,28 @@ test("交接（后台）：按说明开干净的新对话去做，不分叉原�
   assert.deepEqual(ctl.forks, []);
   assert.match(ctl.sends.at(-1)!, /【目标】写个备份脚本\n\n请直接开始做/);
   assert.match(ctl.notes.at(-1)!, new RegExp(`^${from} ✅ 后台任务「写脚本」完成`));
+});
+
+test("kiki_peek：列出全部对话；看某段最近几条；找不到时列出现有的", async () => {
+  const { router, say } = setup();
+  await say("/new dev 路由器");
+  assert.match(router.peek(undefined, 10), /## dev（写代码）\n- dev\/路由器\n## life（日常生活）/);
+  assert.match(router.peek("dev/路由器", 10), /^dev\/路由器 最近 2 条（共 2 条）：\n\n用户：问 .*\n\n助理：答$/);
+  assert.match(router.peek("路由器", 1), /最近 1 条/);
+  assert.throws(() => router.peek("dev/没有", 5), /找不到对话「dev\/没有」。现有：dev\/路由器/);
+});
+
+test("kiki_relay：捎话给另一段对话，回答记回发起对话；不能捎给自己", async () => {
+  const { router, say, reg, ctl } = setup();
+  await say("/new dev 路由器");
+  const a = reg.current("app")!.path;
+  await say("/new life 买电脑");
+  const b = reg.current("app")!.path;
+  const r = await router.relay(b, "dev/路由器", "预算定了 8000");
+  assert.match(r, /已捎给 dev\/路由器/);
+  await new Promise((res) => setTimeout(res, 10));
+  assert.match(ctl.sends.at(-1)!, /^【从「life\/买电脑」捎来的话】\n预算定了 8000/);
+  assert.ok(ctl.announced.some((x) => x.startsWith(a)));
+  assert.match(ctl.notes.at(-1)!, new RegExp(`^${b} 【dev/路由器 回复】`));
+  await assert.rejects(router.relay(b, "life/买电脑", "x"), /当前对话/);
 });

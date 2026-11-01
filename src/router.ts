@@ -21,6 +21,8 @@ export interface AgentBackend {
   describe(agent: string): string;
   /** 这段对话里用户最近说的几句（给路由看） */
   recent(path: string, n: number): string[];
+  /** 一段对话的聊天记录（给 kiki_peek 看） */
+  history?(path: string): { role: "user" | "assistant"; text: string }[];
   /** 往对话末尾记一条消息，不触发回答（后台任务回报用） */
   note(agent: string, path: string, text: string): Promise<void>;
   /** 通知界面这段对话有了一条完整回答（可选） */
@@ -315,6 +317,64 @@ export class Router {
       .then((r) => this.agents.announce?.(rec.path, r))
       .catch((e) => this.agents.announce?.(rec.path, `出错了：${(e as Error).message}`));
     return `已交接到 ${label(rec)}，新对话已收到交接说明。用户在左边栏点「${name}」就能过去。`;
+  }
+
+  /** 找一段对话：宝名/对话名。 */
+  private resolve(target: string): SessionRecord {
+    const t = target.trim().replace(/^\//, "");
+    const i = t.indexOf("/");
+    const rec = i > 0 ? this.registry.get(t.slice(0, i), t.slice(i + 1)) : undefined;
+    if (rec) return rec;
+    const hits = this.registry.find(t);
+    if (hits.length === 1) return hits[0];
+    const all = this.registry.list().map(label);
+    throw new Error(`找不到对话「${target}」。现有：${all.slice(-30).join("、") || "（没有）"}`);
+  }
+
+  /** kiki_peek：不给 target 列出全部对话；给了就返回那段最近 n 条。 */
+  peek(target: string | undefined, n: number): string {
+    if (!target) {
+      const lines: string[] = [];
+      for (const a of this.agents.listAgents()) {
+        const desc = this.agents.describe(a);
+        lines.push(`## ${a}${desc ? `（${desc}）` : ""}`);
+        const ss = this.registry.list(a);
+        if (!ss.length) lines.push("（还没有对话）");
+        for (const s of ss.slice(-20)) {
+          const tags = [this.agents.isBusy(s.path) ? "正在跑" : "", s.background ? "后台" : ""].filter(Boolean).join("、");
+          const last = this.agents.recent(s.path, 1)[0];
+          lines.push(`- ${label(s)}${tags ? `【${tags}】` : ""}${last ? `：最近「${last}」` : ""}`);
+        }
+      }
+      return lines.join("\n");
+    }
+    const rec = this.resolve(target);
+    const h = this.agents.history?.(rec.path) ?? [];
+    if (!h.length) return `${label(rec)} 还没有消息。`;
+    const busy = this.agents.isBusy(rec.path) ? "（正在跑）" : "";
+    const body = h
+      .slice(-n)
+      .map((l) => `${l.role === "user" ? "用户" : "助理"}：${l.text.length > 800 ? `${l.text.slice(0, 800)}…` : l.text}`)
+      .join("\n\n");
+    return `${label(rec)}${busy} 最近 ${Math.min(n, h.length)} 条（共 ${h.length} 条）：\n\n${body}`;
+  }
+
+  /** kiki_relay：往另一段对话捎话，对方回答后记回发起对话。立刻返回回执。 */
+  async relay(fromPath: string | undefined, target: string, text: string): Promise<string> {
+    const to = this.resolve(target);
+    if (to.path === fromPath) throw new Error("这就是当前对话，不用捎");
+    const from = fromPath ? this.registry.byPath(fromPath) : undefined;
+    const msg = `【${from ? `从「${label(from)}」` : ""}捎来的话】\n${text.trim()}`;
+    this.agents
+      .send(to.agent, to.path, `${msg}\n\n（上面是另一段对话捎来的，处理完用几句话回复结论。）`)
+      .then(async (r) => {
+        this.agents.announce?.(to.path, r);
+        if (from) await this.agents.note(from.agent, from.path, `【${label(to)} 回复】\n${r}`);
+      })
+      .catch(async (e) => {
+        if (from) await this.agents.note(from.agent, from.path, `【${label(to)} 出错】${(e as Error).message}`).catch(() => {});
+      });
+    return `已捎给 ${label(to)}，那边回答后会记回这段对话。`;
   }
 
   private async forkSession(agent: string, fromPath: string, name: string): Promise<SessionRecord> {
