@@ -273,6 +273,7 @@ es.addEventListener("busy", (e) => {
   const d = JSON.parse(e.data);
   const s = find(d.path);
   if (s) { s.busy = d.busy; renderSide(); }
+  else loadTree(); // 不认识的对话（比如刚交接出来的），刷新左边栏
   if (d.path === current) setPending(d.busy);
 });
 // 对话在干活、还没吐字时，显示"思考中"

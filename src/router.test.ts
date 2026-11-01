@@ -212,3 +212,33 @@ test("parseDecision 过滤非法输出", () => {
   const d = parseDecision('{"action":"new","agent":"dev","name":"a/b\\nc","mode":"background","taskTitle":"t"}', valid);
   assert.deepEqual(d, { action: "new", agent: "dev", name: "a b c", mode: "background", taskTitle: "t", reason: undefined });
 });
+
+test("交接（聊）：新开对话，第一条消息是交接说明，重名加序号", async () => {
+  const { router, say, reg, ctl } = setup();
+  await say("/new dev 主线");
+  const from = reg.current("app")!.path;
+  const r = await router.handoff({ fromPath: from, bao: "life", name: "买电脑", brief: "【目标】选一台 Mac", mode: "chat" });
+  assert.match(r, /已交接到 life\/买电脑/);
+  await new Promise((x) => setTimeout(x, 5));
+  assert.match(ctl.sends.at(-1)!, /从「dev\/主线」交接过来.*\n\n【目标】选一台 Mac\n\n先读完/s);
+  await router.handoff({ fromPath: from, bao: "life", name: "买电脑", brief: "x", mode: "chat" });
+  assert.ok(reg.get("life", "买电脑2"));
+  assert.equal(reg.current("app")!.path, from, "交接不改当前对话");
+});
+
+test("交接给不存在的宝会报错", async () => {
+  const { router } = setup();
+  await assert.rejects(router.handoff({ fromPath: undefined, bao: "nope", name: "x", brief: "x", mode: "chat" }), /没有宝/);
+});
+
+test("交接（后台）：按说明开干净的新对话去做，不分叉原对话，做完回报到原对话", async () => {
+  const { router, say, reg, ctl } = setup();
+  await say("/new dev 主线");
+  const from = reg.current("app")!.path;
+  const r = await router.handoff({ fromPath: from, bao: "dev", name: "写脚本", brief: "【目标】写个备份脚本", mode: "background" });
+  assert.match(r, /后台任务「写脚本」/);
+  await new Promise((x) => setTimeout(x, 30));
+  assert.deepEqual(ctl.forks, []);
+  assert.match(ctl.sends.at(-1)!, /【目标】写个备份脚本\n\n请直接开始做/);
+  assert.match(ctl.notes.at(-1)!, new RegExp(`^${from} ✅ 交接出去的「写脚本」做完了`));
+});
