@@ -85,7 +85,7 @@ export function mountQiqi(el) {
     addEventListener("pointermove", (e) => { mouse = [e.clientX, e.clientY]; movedAt = Date.now(); aim(); }, { passive: true });
   }
   return {
-    think(on) { if (on !== thinking) { thinking = on; aim(); } },
+    think(on) { if (on !== thinking) { thinking = on; if (!still) aim(); } }, // 减少动态效果时连“看星星”也不动
     blink,
   };
 }
