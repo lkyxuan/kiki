@@ -5,8 +5,8 @@
 // 改完要新开对话或重启 Kiki 才生效。
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { delimiter, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Entry = string | { source: string; [k: string]: unknown };
 const OFF = { extensions: [], skills: [], prompts: [], themes: [] };
@@ -68,7 +68,8 @@ export class Extensions {
 
   /** 用 Kiki 自带的 Node 跑 pi 命令行，配置目录指到 engine。PATH 里补上 Node 所在目录，pi 装 npm 包要用到 npm。 */
   private pi(args: string[]): Promise<string> {
-    const cli = join(dirname(createRequire(import.meta.url).resolve("@earendil-works/pi-coding-agent")), "bundle", "cli.js");
+    // pi 只导出 ESM（exports 里没有 require 条件），要用 import.meta.resolve
+    const cli = join(dirname(fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"))), "bundle", "cli.js");
     const env = {
       ...process.env,
       PI_CODING_AGENT_DIR: this.engineDir,
