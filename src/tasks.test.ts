@@ -33,8 +33,15 @@ test("任务文件：Markdown + YAML，写出去能原样读回来", () => {
   };
   const md = formatTask(t);
   assert.match(md, /^---\nid: "20261101-120000-abc"\ntitle: "写周报"\nstatus: "done"/);
-  assert.match(md, /\n## 任务\n\n帮我写周报\n第二行\n\n## 结果\n\n## 本周/);
+  assert.match(md, /\n## 任务\n\n帮我写周报\n第二行\n\n<!-- kiki:result -->\n## 结果\n\n## 本周/);
   assert.deepEqual(parseTask(md), t);
+});
+
+test("任务原文里有「## 结果」也不会被截断", () => {
+  const base = { id: "x", title: "模板", agent: "dev", created: "", prompt: "按这个格式写：\n\n## 结果\n\n- 要点" };
+  assert.deepEqual(parseTask(formatTask({ ...base, status: "queued" })), { ...base, status: "queued" });
+  const done = { ...base, status: "done" as const, result: "写好了" };
+  assert.deepEqual(parseTask(formatTask(done)), done);
 });
 
 test("手改时不加引号也认", () => {
@@ -74,6 +81,38 @@ test("同时最多跑 concurrency 个，其余排队", async () => {
   gates.forEach((g) => g());
   await tick();
   assert.ok(ts.every((t) => t.status === "done"));
+});
+
+test("开对话就卡住也算超时，之后不再开始干活，也不占着名额", async () => {
+  let release!: (p: string) => void;
+  const sent: string[] = [];
+  const { backend } = fakeBackend(async (text) => (sent.push(text), "ok"));
+  const spawn = backend.spawn;
+  let first = true;
+  backend.spawn = (a, title, from) => {
+    if (!first) return spawn(a, title, from);
+    first = false;
+    return new Promise((r) => (release = r)); // 第一个任务开对话卡住
+  };
+  const tasks = new Tasks(new FileTaskStore(mkdtempSync(join(tmpdir(), "kiki-tasks-"))), backend, { concurrency: 1, timeoutMs: 20 });
+  const a = tasks.start({ agent: "dev", title: "卡住", prompt: "pa" });
+  const b = tasks.start({ agent: "dev", title: "后面", prompt: "pb" });
+  await tick(50);
+  assert.equal(a.status, "failed");
+  assert.equal(b.status, "done");
+  release("/late.jsonl");
+  await tick();
+  assert.deepEqual(sent, ["pb"]);
+});
+
+test("原对话忙、回报排着队时，队列里的下一个任务照样开跑", async () => {
+  const { backend } = fakeBackend();
+  backend.note = () => new Promise(() => {}); // 原对话一直忙
+  const tasks = new Tasks(new FileTaskStore(mkdtempSync(join(tmpdir(), "kiki-tasks-"))), backend, { concurrency: 1 });
+  tasks.start({ agent: "dev", title: "a", prompt: "pa", origin: "/o.jsonl" });
+  const b = tasks.start({ agent: "dev", title: "b", prompt: "pb" });
+  await tick();
+  assert.equal(b.status, "done");
 });
 
 test("超时：停下对话，标成失败", async () => {

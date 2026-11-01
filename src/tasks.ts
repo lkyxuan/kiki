@@ -84,12 +84,13 @@ export class MemoryTaskStore implements TaskStore {
   }
 }
 
+const RESULT_MARK = "<!-- kiki:result -->";
 const FIELDS = ["id", "title", "status", "agent", "session", "origin", "chatId", "created", "started", "finished"] as const;
 
 export function formatTask(t: Task): string {
   const head = FIELDS.filter((k) => t[k] !== undefined).map((k) => `${k}: ${JSON.stringify(t[k])}`);
   let body = `---\n${head.join("\n")}\n---\n\n## 任务\n\n${t.prompt}\n`;
-  if (t.result !== undefined) body += `\n## 结果\n\n${t.result}\n`;
+  if (t.result !== undefined) body += `\n${RESULT_MARK}\n## 结果\n\n${t.result}\n`;
   return body;
 }
 
@@ -109,11 +110,12 @@ export function parseTask(text: string): Task | undefined {
     }
   }
   if (!t.id || !t.status || !t.agent) return undefined;
+  // 用标记行分开任务和结果，任务原文里就算有"## 结果"也不会被截断
   const body = m[2];
-  const r = body.indexOf("\n## 结果\n");
+  const r = body.indexOf(`\n${RESULT_MARK}\n`);
   const taskPart = r >= 0 ? body.slice(0, r) : body;
   t.prompt = taskPart.replace(/^\s*## 任务\s*\n/, "").trim();
-  if (r >= 0) t.result = body.slice(r + "\n## 结果\n".length).trim();
+  if (r >= 0) t.result = body.slice(r + RESULT_MARK.length + 2).replace(/^## 结果\s*\n/, "").trim();
   t.title ??= t.id;
   t.created ??= "";
   return t as Task;
@@ -208,28 +210,37 @@ export class Tasks extends EventEmitter {
   }
 
   private async run(t: Task) {
-    try {
+    let timedOut = false;
+    const work = (async () => {
       const path = await this.backend.spawn(t.agent, t.title, t.origin);
+      if (timedOut) return undefined; // 开对话就超时了（比如原对话一直忙），不再开始干活
       this.update(t, { session: path });
-      const answer = await this.withTimeout(this.backend.send(t.agent, path, t.prompt), path);
-      this.update(t, { status: "done", finished: now(), result: answer });
+      return this.backend.send(t.agent, path, t.prompt);
+    })();
+    try {
+      // 超时从派活算起，包括开对话（分叉原对话可能要排在原对话后面）
+      const answer = await this.withTimeout(work, () => {
+        timedOut = true;
+        if (t.session) void this.backend.abort?.(t.session);
+      });
+      this.update(t, { status: "done", finished: now(), result: answer as string });
     } catch (e) {
       this.update(t, { status: "failed", finished: now(), result: (e as Error).message });
     } finally {
       this.running--;
-      await this.announce(t);
       this.notifiers.delete(t.id);
-      this.pump();
+      this.pump(); // 先放下一个任务开跑，再回报原对话：原对话忙时回报要排队，别卡住整个队列
+      await this.announce(t);
     }
   }
 
-  private withTimeout<T>(p: Promise<T>, path: string): Promise<T> {
+  private withTimeout<T>(p: Promise<T>, onTimeout: () => void): Promise<T> {
     const ms = this.opts.timeoutMs;
     if (!ms) return p;
     let timer: NodeJS.Timeout;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
-        void this.backend.abort?.(path);
+        onTimeout();
         reject(new Error(`超过 ${Math.round(ms / 60000)} 分钟没做完，已停下`));
       }, ms);
     });
