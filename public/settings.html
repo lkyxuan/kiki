@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiki 设置</title>
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<style>
+  :root {
+    --bg: #ffffff; --side: #f6f6f4; --line: #e6e5e1; --text: #1d1d1b; --muted: #6f6e69;
+    --hover: #ecebe7; --card: #ffffff; --code: #f3f2ee; --accent: #5b6cf0;
+    --ok: #1f7a3a; --warn: #9a5b00; --err: #b3261e; --note: #fff6e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1b1d; --side: #141416; --line: #2c2c30; --text: #ececec; --muted: #9b9ba2;
+      --hover: #222226; --card: #202023; --code: #26262b; --accent: #8b97ff;
+      --ok: #6fd18e; --warn: #f0b860; --err: #ff8a80; --note: #2e2816;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--side); color: var(--text); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+  .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .top h1, .top a { flex: none; white-space: nowrap; }
+  .top h1 { margin: 0; font-size: 20px; }
+  .top small { color: var(--muted); flex: 1 1 100%; font-size: 12px; word-break: break-all; }
+  a.back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); text-decoration: none; background: var(--card); }
+  a.back:hover { background: var(--hover); }
+  .banner { display: none; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--note); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; }
+  .banner.on { display: flex; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
+  section h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+  section h2 small { font-weight: 400; color: var(--muted); font-size: 13px; }
+  section h2 .right { margin-left: auto; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 600px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field label { font-size: 13px; color: var(--muted); }
+  input[type=text], input[type=password], textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  input:disabled { opacity: .6; }
+  textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
+  .src { font-size: 12px; color: var(--muted); }
+  .src.external { color: var(--warn); }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .btn { min-height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; }
+  .btn:hover { background: var(--hover); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .msg { font-size: 13px; color: var(--muted); }
+  .msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; word-break: break-all; }
+  .bao { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .bao .avatar { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
+  .bao .name { font-weight: 500; flex: 1; }
+  .editor { padding: 4px 0 12px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
+  .dot.ok { background: var(--ok); }
+  .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .cols section { margin-bottom: 0; }
+  @media (max-width: 600px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+  label.check { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+  label.check input { width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="back" href="/">← 回到聊天</a>
+    <h1>设置</h1>
+    <small id="ver"></small>
+  </div>
+
+  <div class="banner" id="banner">
+    <span>改动要重启 Kiki 才生效。</span>
+    <button class="btn primary" id="restart">立即重启</button>
+    <span class="msg" id="restart-msg"></span>
+  </div>
+
+  <section>
+    <h2>模型与密钥</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="MODEL">默认模型</label>
+        <input type="text" id="MODEL" list="models" placeholder="deepseek/deepseek-flash">
+        <datalist id="models"><option value="deepseek/deepseek-flash"></option></datalist>
+        <span class="src" data-src="MODEL"></span>
+      </div>
+      <div class="field">
+        <label for="DEEPSEEK_API_KEY">DeepSeek API 密钥</label>
+        <input type="text" id="DEEPSEEK_API_KEY" autocomplete="off" spellcheck="false" placeholder="sk-… 或 op://保险库/条目/字段">
+        <span class="src" data-src="DEEPSEEK_API_KEY"></span>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="save-model">保存</button>
+      <button class="btn" id="test">测试连接</button>
+      <span class="msg" id="model-msg"></span>
+    </div>
+    <p class="msg">密钥可以直接填，也可以填 1Password 引用（op://…）。Kiki.app 启动时会用 op run 读取引用。</p>
+  </section>
+
+  <section>
+    <h2>关于我 <small>所有宝都会读这份</small><button class="btn right" id="about-toggle">编辑</button></h2>
+    <div class="mono msg" id="about-path"></div>
+    <div id="about-editor" hidden>
+      <textarea id="about-text" aria-label="关于我"></textarea>
+      <div class="row"><button class="btn primary" id="about-save">保存</button><span class="msg" id="about-msg"></span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>我的宝 <small>每个宝是一个文件夹，说明写在它的 AGENTS.md</small></h2>
+    <div class="field" style="margin-bottom: 12px">
+      <label for="DEFAULT_AGENT">拿不准时默认发给</label>
+      <div class="row" style="margin-top: 0">
+        <input type="text" id="DEFAULT_AGENT" placeholder="life（默认）" style="max-width: 220px">
+        <button class="btn" id="save-default">保存</button>
+        <span class="msg" id="default-msg"></span>
+      </div>
+      <span class="src" data-src="DEFAULT_AGENT"></span>
+    </div>
+    <div id="baos"></div>
+    <div class="row">
+      <label for="new-bao" class="msg">新建</label>
+      <input type="text" id="new-bao" placeholder="名字，比如 work" style="max-width: 220px">
+      <button class="btn" id="new-bao-go">新建一个宝</button>
+      <span class="msg" id="new-msg"></span>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>远程访问</h2>
+      <div id="remote" class="msg">查询中…</div>
+    </section>
+    <section>
+      <h2>更新</h2>
+      <div id="upd" class="msg">查询中…</div>
+      <label class="check"><input type="checkbox" id="auto"> 空闲时自动更新</label>
+      <div class="row" style="margin-top: 6px">
+        <button class="btn" id="check">检查更新</button>
+        <button class="btn primary" id="apply" hidden>现在更新</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let S = null;
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `出错了（${r.status}）`);
+  return j;
+}
+function say(id, text, kind = "") { const el = $(id); el.textContent = text; el.className = "msg " + kind; }
+
+const SRC = {
+  file: "存在 .env 里",
+  op: "1Password 引用，Kiki.app 启动时用 op run 读取",
+  external: "启动时由外部注入（比如 op run 或终端），这里改不了",
+  unset: "还没设",
+};
+
+async function load() {
+  S = await api("/api/settings");
+  $("#ver").textContent = `v${S.version} · 配置文件 ${S.envFile}`;
+  for (const k of ["MODEL", "DEEPSEEK_API_KEY", "DEFAULT_AGENT"]) {
+    const e = S.env[k];
+    const input = $("#" + k);
+    input.value = k === "DEEPSEEK_API_KEY" && e.source !== "op" ? "" : e.value;
+    if (k === "DEEPSEEK_API_KEY" && e.source !== "op" && e.value) input.placeholder = `${e.value}（留空表示不改）`;
+    input.disabled = e.source === "external";
+    const src = document.querySelector(`[data-src="${k}"]`);
+    src.textContent = SRC[e.source];
+    src.className = "src " + e.source;
+  }
+  $("#auto").checked = S.env.KIKI_AUTO_UPDATE.value !== "0";
+  $("#auto").disabled = S.env.KIKI_AUTO_UPDATE.source === "external";
+  $("#banner").classList.toggle("on", S.changed);
+  $("#restart").hidden = !S.canRestart;
+  if (!S.canRestart) say("#restart-msg", "开发模式下请在终端里重启（npm start）。");
+  renderBaos();
+}
+
+function renderBaos() {
+  $("#baos").innerHTML = S.agents.map((n) => `
+    <div class="bao-wrap" data-name="${esc(n)}">
+      <div class="bao"><span class="avatar">${esc(n.slice(0, 1).toUpperCase())}</span><span class="name">${esc(n)}</span>
+        <button class="btn edit">编辑说明</button></div>
+      <div class="editor" hidden><textarea aria-label="${esc(n)} 的说明"></textarea>
+        <div class="row"><button class="btn primary save">保存</button><span class="msg"></span></div></div>
+    </div>`).join("") || `<p class="msg">还没有宝。</p>`;
+  for (const w of document.querySelectorAll(".bao-wrap")) {
+    const name = w.dataset.name, ed = w.querySelector(".editor"), ta = w.querySelector("textarea"), m = w.querySelector(".editor .msg");
+    w.querySelector(".edit").onclick = async () => {
+      if (!ed.hidden) { ed.hidden = true; return; }
+      try { ta.value = (await api("/api/settings/agent?name=" + encodeURIComponent(name))).text; ed.hidden = false; ta.focus(); }
+      catch (e) { alertMsg(m, e); ed.hidden = false; }
+    };
+    w.querySelector(".save").onclick = async () => {
+      try { await api("/api/settings/agent", { name, text: ta.value }); m.textContent = "已保存，下一段新对话开始生效"; m.className = "msg ok"; }
+      catch (e) { alertMsg(m, e); }
+    };
+  }
+}
+function alertMsg(el, e) { el.textContent = e.message; el.className = "msg err"; }
+
+async function setEnv(key, value) { const r = await api("/api/settings/env", { key, value }); $("#banner").classList.add("on"); return r; }
+
+$("#save-model").onclick = async () => {
+  try {
+    await setEnv("MODEL", $("#MODEL").value);
+    const key = $("#DEEPSEEK_API_KEY").value.trim();
+    if (key && !$("#DEEPSEEK_API_KEY").disabled) await setEnv("DEEPSEEK_API_KEY", key);
+    say("#model-msg", "已保存，重启后生效", "ok");
+    await load();
+  } catch (e) { say("#model-msg", e.message, "err"); }
+};
+$("#test").onclick = async () => {
+  say("#model-msg", "测试中…");
+  try { const r = await api("/api/settings/test", {}); r.ok ? say("#model-msg", "连接正常", "ok") : say("#model-msg", r.error, "err"); }
+  catch (e) { say("#model-msg", e.message, "err"); }
+};
+$("#save-default").onclick = async () => {
+  try { await setEnv("DEFAULT_AGENT", $("#DEFAULT_AGENT").value); say("#default-msg", "已保存，重启后生效", "ok"); await load(); }
+  catch (e) { say("#default-msg", e.message, "err"); }
+};
+$("#auto").onchange = async () => {
+  try { await setEnv("KIKI_AUTO_UPDATE", $("#auto").checked ? "" : "0"); }
+  catch (e) { say("#upd", e.message, "err"); }
+};
+
+$("#about-toggle").onclick = async () => {
+  const ed = $("#about-editor");
+  if (!ed.hidden) { ed.hidden = true; $("#about-toggle").textContent = "编辑"; return; }
+  try {
+    const r = await api("/api/settings/about");
+    $("#about-path").textContent = r.path; $("#about-text").value = r.text;
+    ed.hidden = false; $("#about-toggle").textContent = "收起"; $("#about-text").focus();
+  } catch (e) { say("#about-msg", e.message, "err"); }
+};
+$("#about-save").onclick = async () => {
+  try { await api("/api/settings/about", { text: $("#about-text").value }); say("#about-msg", "已保存，下一段新对话开始生效", "ok"); }
+  catch (e) { say("#about-msg", e.message, "err"); }
+};
+
+$("#new-bao-go").onclick = async () => {
+  const name = $("#new-bao").value.trim();
+  try { await api("/api/settings/agent", { name, create: true }); $("#new-bao").value = ""; say("#new-msg", `建好了 ${name}，回聊天页就能看到`, "ok"); await load(); }
+  catch (e) { say("#new-msg", e.message, "err"); }
+};
+
+$("#restart").onclick = async () => {
+  try {
+    await api("/api/settings/restart", {});
+    say("#restart-msg", "重启中…");
+    const t0 = Date.now();
+    const poll = async () => {
+      try { await api("/api/health"); if (Date.now() - t0 > 1500) return location.reload(); } catch {}
+      if (Date.now() - t0 < 60000) setTimeout(poll, 1000); else say("#restart-msg", "一分钟还没起来，看看日志 ~/Library/Logs/Kiki/", "err");
+    };
+    setTimeout(poll, 1500);
+  } catch (e) { say("#restart-msg", e.message, "err"); }
+};
+
+async function loadRemote() {
+  const r = await api("/api/settings/remote").catch(() => null);
+  const el = $("#remote");
+  if (!r || !r.installed) { el.innerHTML = "没检测到 Tailscale。装好并登录后，运行 <span class=\"mono\">tailscale serve --bg 4567</span> 就能在手机上用。"; return; }
+  if (!r.online) { el.innerHTML = `<span class="dot"></span>Tailscale 没连上`; return; }
+  el.innerHTML = `<div><span class="dot ok"></span>Tailscale 已连接</div>` +
+    (r.serving && r.url ? `<div class="mono"><a href="${esc(r.url)}">${esc(r.url)}</a></div><div>手机上打开这个地址，添加到主屏幕。</div>`
+      : `<div>还没开放给手机，运行 <span class="mono">tailscale serve --bg 4567</span></div>`);
+}
+
+async function loadUpdate() {
+  const u = await api("/api/update").catch(() => null);
+  const el = $("#upd");
+  if (!u) { el.textContent = "更新功能不可用"; return; }
+  let t = `当前 v${esc(u.current)}`;
+  if (u.status === "available") t += `，有新版本 v${esc(u.latest)}`;
+  else if (u.status === "error") t += `，${esc(u.message || "检查出错")}`;
+  else if (["checking", "downloading", "installing"].includes(u.status)) t += "，处理中…";
+  else if (u.checkedAt) t += "，已是最新";
+  if (!u.canApply) t += "<br>开发模式下用 git pull 更新";
+  el.innerHTML = t;
+  $("#apply").hidden = !(u.status === "available" && u.canApply);
+}
+$("#check").onclick = async () => { $("#upd").textContent = "检查中…"; await api("/api/update/check", {}).catch(() => {}); loadUpdate(); };
+$("#apply").onclick = async () => { try { await api("/api/update/apply", {}); loadUpdate(); } catch (e) { say("#upd", e.message, "err"); } };
+
+load().catch((e) => document.body.insertAdjacentHTML("afterbegin", `<p class="msg err" style="padding:16px">${esc(e.message)}</p>`));
+loadRemote();
+loadUpdate();
+</script>
+</body>
+</html>

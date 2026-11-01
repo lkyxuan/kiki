@@ -26,7 +26,7 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 ### 第一次装好以后
 
-1. 填模型密钥：编辑 `~/kiki-data/.env`，写 `DEEPSEEK_API_KEY=...`，然后 `chmod 600 ~/kiki-data/.env`。
+1. 填模型密钥：最省事是打开 Kiki 左下角的「设置」，填好后点「立即重启」。也可以手动编辑 `~/kiki-data/.env`，写 `DEEPSEEK_API_KEY=...`，然后 `chmod 600 ~/kiki-data/.env`。
    想继续用 1Password：`.env` 里照旧写 `op://` 引用，Kiki 发现装了 `op` 就会用 `op run` 注入。但开机无人值守时 1Password 可能还锁着，这种情况要用 1Password 的服务账号（`OP_SERVICE_ACCOUNT_TOKEN`），否则 Kiki 起不来。
 2. 改完 `.env` 重启 Kiki：`launchctl kickstart -k gui/$(id -u)/com.lkyxuan.kiki`
 3. Mac mini 要“开机自动登录”（系统设置 → 用户与群组），Kiki 是跟着登录启动的。
