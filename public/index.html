@@ -102,6 +102,18 @@
   .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .choices button { border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; text-align: left; font-size: 14px; }
   .choices button:hover { background: var(--hover); }
+  /* 等你点头：收不回来的动作做之前先问一句，卡片在输入框上方 */
+  #asks { padding: 0 24px; }
+  #asks:empty { display: none; }
+  .ask { max-width: 760px; margin: 0 auto 8px; border: 1px solid var(--accent); background: var(--card); border-radius: 12px; padding: 10px 12px 10px 14px; }
+  .ask .what { font-size: 13px; color: var(--muted); }
+  .ask .what b { color: var(--text); font-weight: 600; }
+  .ask pre { margin: 6px 0 8px; background: var(--code); padding: 8px 10px; border-radius: 8px; overflow: auto; font-size: 13px; max-height: 160px; white-space: pre-wrap; word-break: break-all; }
+  .ask .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ask .btns button { border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; font-size: 13px; background: var(--bg); }
+  .ask .btns button:hover { background: var(--hover); }
+  .ask .btns button.yes { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ask .btns a { margin-left: auto; align-self: center; font-size: 13px; color: var(--accent); cursor: pointer; }
   .composer { padding: 12px 24px 20px; }
   .box { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; border: 1px solid var(--line); border-radius: 14px; padding: 8px 8px 8px 14px; background: var(--bg); }
   textarea { flex: 1; border: 0; outline: 0; resize: none; background: none; color: var(--text); font: inherit; max-height: 200px; padding: 4px 0; }
@@ -123,7 +135,7 @@
   #panel a { color: var(--accent); font-size: 13px; text-decoration: none; }
 
   @media (max-width: 1100px) { #panel { display: none; } body.show-panel #panel { display: flex; position: fixed; right: 0; top: 0; bottom: 0; z-index: 5; box-shadow: -8px 0 24px rgba(0,0,0,.08); } }
-  @media (max-width: 700px) { aside { width: 200px; } #log, .composer { padding-left: 16px; padding-right: 16px; } }
+  @media (max-width: 700px) { aside { width: 200px; } #log, .composer, #asks { padding-left: 16px; padding-right: 16px; } }
 </style>
 </head>
 <body>
@@ -142,6 +154,7 @@
     <button class="icon-btn" id="panel-toggle" aria-label="显示或隐藏右栏" title="右栏"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
   </header>
   <div id="log"><div class="msgs" id="msgs"></div></div>
+  <div id="asks" aria-live="polite"></div>
   <div class="composer">
     <div class="box">
       <textarea id="input" rows="1" aria-label="消息" placeholder="说点什么… Enter 发送，Shift+Enter 换行"></textarea>
@@ -158,6 +171,7 @@ let streaming = null; // 当前对话正在流式输出的那条消息元素
 const unread = new Set();
 const DEFAULT_BAO = "奇奇"; // 默认的宝，和 src/migrate.ts 一致
 const aboutCache = {}; // 宝名 -> AGENTS.md 开头几行
+let asks = []; // 等你点头的卡片
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // 极简 Markdown：代码块、行内代码、粗体、链接、段落
@@ -215,7 +229,9 @@ function renderPanel() {
   const row = (s) => `<button class="row" data-path="${esc(s.path)}">${s.busy ? '<span class="spin"></span>' : avatar(s.agent)}<span class="name">${esc(s.name)}</span><small>${esc(s.agent)}</small></button>`;
   const busy = all.filter((s) => s.busy);
   const bg = all.filter((s) => s.background).sort((x, y) => String(y.created).localeCompare(String(x.created))).slice(0, 8);
-  let html = `<div><h3>进行中</h3><div class="card">${busy.length ? busy.map(row).join("") : '<div class="none">现在没有在干活的对话</div>'}</div></div>`;
+  let html = "";
+  if (asks.length) html += `<div><h3>等你点头</h3><div class="card">${asks.map((a) => { const s = find(a.path); return `<button class="row" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small>${esc(s ? s.name : a.agent)}</small></button>`; }).join("")}</div></div>`;
+  html += `<div><h3>进行中</h3><div class="card">${busy.length ? busy.map(row).join("") : '<div class="none">现在没有在干活的对话</div>'}</div></div>`;
   html += `<div><h3>后台任务</h3><div class="card">${bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>'}</div></div>`;
   const s = find(current);
   if (s) {
@@ -226,6 +242,29 @@ function renderPanel() {
     html += `<div><h3>我的宝</h3><div class="card">${tree.agents.map((a) => `<div class="row">${avatar(a.name)}<span class="name">${esc(a.name)}</span><small>${a.sessions.length} 段对话</small></div>`).join("") || '<div class="none">还没有宝</div>'}</div></div>`;
   }
   $("#panel").innerHTML = html;
+  renderAsks();
+}
+// 卡片：奇奇（收件箱）里显示全部，某段对话里只显示它自己的
+function renderAsks() {
+  const mine = current === "main" ? asks : asks.filter((a) => a.path === current);
+  $("#asks").innerHTML = mine.map((a) => {
+    const s = find(a.path);
+    const where = s ? `${esc(a.agent)} › ${esc(s.name)}` : esc(a.agent);
+    return `<div class="ask"><div class="what"><b>${esc(a.categoryName)}</b> · ${where} 想做这一步，同意吗？</div>
+      <pre>${esc(a.detail)}</pre>
+      <div class="btns"><button class="yes" data-decide="yes" data-id="${a.id}">同意</button><button data-decide="no" data-id="${a.id}">不同意</button><button data-decide="always" data-id="${a.id}" title="${esc(a.label)}">以后这类都同意</button>${current === "main" && s ? `<a data-path="${esc(a.path)}">打开对话</a>` : ""}</div></div>`;
+  }).join("");
+  // 奇奇按钮上的小点：有卡片在等
+  const k = $(".kiki");
+  if (asks.length && !k.querySelector(".dot")) k.insertAdjacentHTML("beforeend", '<span class="dot"></span>');
+}
+async function decide(id, decision) {
+  const r = await fetch("/api/approvals/decide", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, decision }) });
+  if (!r.ok) { asks = asks.filter((a) => a.id !== id); renderSide(); }
+}
+async function loadAsks() {
+  try { const r = await fetch("/api/approvals"); if (r.ok) asks = await r.json(); } catch {}
+  renderSide();
 }
 async function loadAbout(name) {
   aboutCache[name] = "";
@@ -344,6 +383,8 @@ function togglePanel() {
 try { if (localStorage.getItem("kiki.panel") === "off") document.body.classList.add("no-panel"); } catch {}
 
 document.body.addEventListener("click", (e) => {
+  const dc = e.target.closest("[data-decide]");
+  if (dc) return decide(dc.dataset.id, dc.dataset.decide);
   const nb = e.target.closest("[data-new]");
   if (nb) return newSession(nb.dataset.new, nb);
   const it = e.target.closest("[data-path]");
@@ -400,6 +441,7 @@ function setPending(on) {
   }
 }
 es.addEventListener("tree", (e) => { tree = JSON.parse(e.data); renderSide(); });
+es.addEventListener("approvals", (e) => { asks = JSON.parse(e.data); renderSide(); });
 
 // 更新提示：只在有新版本、正在装、出错或回滚时出现；平时不显示
 function renderUpdate(u) {
@@ -417,13 +459,12 @@ function renderUpdate(u) {
 es.addEventListener("update", (e) => renderUpdate(JSON.parse(e.data)));
 // 每次（重新）连上都刷新一下；Kiki 更新重启后版本号变了，就整页重载，用上新网页
 let seenVersion = null;
-es.addEventListener("open", () =>
-  fetch("/api/update").then((r) => r.ok && r.json()).then((u) => {
+es.addEventListener("open", () => { loadAsks(); return fetch("/api/update").then((r) => r.ok && r.json()).then((u) => {
     if (!u) return;
     if (seenVersion && seenVersion !== u.current) return location.reload();
     seenVersion = u.current;
     renderUpdate(u);
-  }).catch(() => {}));
+  }).catch(() => {}); });
 
 loadTree().then(() => open("main"));
 </script>
