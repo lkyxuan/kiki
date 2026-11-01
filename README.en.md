@@ -242,9 +242,50 @@ Issues and pull requests are welcome.
 
 ## 🙏 Acknowledgements
 
-- [pi](https://pi.dev): the open-source agent framework the Kiki Engine is built on
-- OpenClaw: inspiration for the session tool design
+Kiki stands on the shoulders of many great projects. Thanks to the personal and coding agents below, whose open-source code, product ideas and public writing inspired Kiki.
+
+**What Kiki builds on directly**
+
+- [pi](https://pi.dev) ([pi-mono](https://github.com/badlogic/pi-mono)): the open-source agent framework the Kiki Engine is built on
+- [DeepSeek](https://www.deepseek.com): the default model Kiki uses
+- [cua](https://github.com/trycua/cua): open-source infrastructure for Computer-Use Agents, behind the cua-driver toggle
+
+**Personal agents and agent gateways**
+
+- [OpenClaw](https://github.com/openclaw/openclaw): a local-first personal AI assistant; inspiration for the session tool design
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent): Nous Research's self-improving personal agent, where Kiki's journey started
 - Grok Bot: inspiration for the interaction model
+- [Letta](https://github.com/letta-ai/letta) (formerly MemGPT): stateful agents with long-term memory
+- [Open Interpreter](https://github.com/openinterpreter/open-interpreter): lets LLMs run code and operate your computer locally
+- [AutoGPT](https://github.com/Significant-Gravitas/AutoGPT): an early pioneer of autonomous agents
+- [Manus](https://manus.im): a general-purpose autonomous agent
+- [browser-use](https://github.com/browser-use/browser-use): lets agents drive a web browser
+
+**Coding agents**
+
+- [Claude Code](https://github.com/anthropics/claude-code): Anthropic's agentic coding tool for the terminal
+- [Codex](https://github.com/openai/codex): OpenAI's open-source coding agent for the terminal
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli): Google's open-source terminal agent
+- [Qwen Code](https://github.com/QwenLM/qwen-code): Qwen's terminal coding agent
+- [Kimi CLI](https://github.com/MoonshotAI/kimi-cli): Moonshot AI's terminal agent
+- [opencode](https://github.com/sst/opencode): an open-source, model-agnostic terminal coding agent
+- [Crush](https://github.com/charmbracelet/crush): Charm's terminal coding agent
+- [Aider](https://github.com/Aider-AI/aider): git-native AI pair programming in the terminal
+- [Goose](https://github.com/block/goose): Block's open-source, extensible local agent
+- [OpenHands](https://github.com/All-Hands-AI/OpenHands): an open platform for AI software engineers
+- [SWE-agent](https://github.com/SWE-agent/SWE-agent): a research agent that fixes GitHub issues automatically
+- [Cline](https://github.com/cline/cline): an autonomous coding agent in VS Code with step-by-step approval
+- [Roo Code](https://github.com/RooCodeInc/Roo-Code): an in-editor agent with multiple role modes
+- [Kilo Code](https://github.com/Kilo-Org/kilocode): an open-source in-editor coding agent
+- [Continue](https://github.com/continuedev/continue): an open-source IDE coding assistant
+- [Cursor](https://cursor.com), [Windsurf](https://windsurf.com), [Zed](https://zed.dev), [Amp](https://ampcode.com), [Devin](https://devin.ai), [GitHub Copilot](https://github.com/features/copilot): products that brought agents into everyday development
+
+**Open standards**
+
+- [Model Context Protocol](https://modelcontextprotocol.io): an open protocol for connecting agents to tools and data
+- [AGENTS.md](https://agents.md): a convention for project instructions aimed at agents, which every 宝's AGENTS.md follows
+
+All project names and trademarks belong to their respective owners. They are listed here only as thanks and do not imply any partnership or endorsement.
 
 ## 📄 License
 
