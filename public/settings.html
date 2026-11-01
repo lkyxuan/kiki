@@ -273,6 +273,14 @@
         <button class="btn" id="check">检查更新</button>
         <button class="btn primary" id="apply" hidden>现在更新</button>
       </div>
+      <details id="upd-details" style="margin-top: 10px">
+        <summary class="msg" style="cursor: pointer">详情</summary>
+        <div class="msg" id="upd-info" style="margin-top: 6px"></div>
+        <div class="msg" style="margin-top: 8px">这一版改了什么</div>
+        <pre id="upd-notes" class="mono" style="white-space: pre-wrap; max-height: 200px; overflow: auto; margin: 4px 0; font-size: 12px"></pre>
+        <div class="msg" style="margin-top: 8px">更新日志 <span class="mono">~/Library/Logs/Kiki/update.log</span></div>
+        <pre id="upd-log" class="mono" style="white-space: pre-wrap; max-height: 260px; overflow: auto; margin: 4px 0; font-size: 12px"></pre>
+      </details>
     </div>
   </section>
 </div>
@@ -492,11 +500,31 @@ async function loadUpdate() {
     $("#upd-prog progress").value = overall;
     $("#upd-step").textContent = `第 ${st.n}/${st.of} 步：${st.label}${st.percent !== undefined && st.n === 1 ? ` · ${st.percent}%` : ""}`;
   }
+  renderUpdDetails(u);
   if (busy) {
     if (u.status !== "checking") window.__updating = u.current;
     updTimer = setTimeout(loadUpdate, 2000); // 下载、安装中：每 2 秒刷新进度
   }
 }
+// 详情：版本、更新说明、上一次结果、每一步的日志（和 Hermes 一样把过程摊开）
+async function renderUpdDetails(u) {
+  const rows = [`当前版本：v${esc(u.current)}`];
+  if (u.latest && u.latest !== u.current) rows.push(`最新版本：v${esc(u.latest)}${u.url ? ` · <a href="${esc(u.url)}" target="_blank" rel="noopener">发布页</a>` : ""}`);
+  if (u.checkedAt) rows.push(`上次检查：${new Date(u.checkedAt).toLocaleString()}`);
+  if (u.last) {
+    const r = { ok: "成功", rolled_back: "失败，已回滚", failed: "失败" }[u.last.result] || u.last.result;
+    rows.push(`上次更新：v${esc(u.last.from)} → v${esc(u.last.to)}，${esc(r)}（${new Date(u.last.at).toLocaleString()}）`);
+  }
+  rows.push(`自动更新：${u.auto ? "开（每小时检查，空闲时自动装）" : "关"}`);
+  $("#upd-info").innerHTML = rows.join("<br>");
+  $("#upd-notes").textContent = u.notes || "（没有说明）";
+  if (!$("#upd-details").open) return;
+  const l = await api("/api/update/log").catch(() => null);
+  const box = $("#upd-log");
+  box.textContent = l && l.lines.length ? l.lines.join("\n") : "（还没有记录）";
+  box.scrollTop = box.scrollHeight;
+}
+$("#upd-details").addEventListener("toggle", () => { if ($("#upd-details").open) loadUpdate(); });
 $("#check").onclick = async () => { $("#upd").textContent = "检查中…"; await api("/api/update/check", {}).catch(() => {}); loadUpdate(); };
 $("#apply").onclick = async () => {
   $("#apply").hidden = true;
