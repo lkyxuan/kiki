@@ -127,13 +127,27 @@ export class Updater extends EventEmitter {
 
   private async gh(url: string, accept = "application/vnd.github+json") {
     const token = await this.token();
-    const res = await fetch(url, {
+    const init = {
       headers: {
         accept,
         "user-agent": `kiki/${VERSION}`,
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
-    });
+    };
+    // 网络偶尔抖一下（"fetch failed"）就重试两次；还不行就把底层原因写进日志并报出来
+    let res!: Response;
+    for (let i = 0; ; i++) {
+      try {
+        res = await fetch(url, init);
+        break;
+      } catch (e) {
+        const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+        const why = cause?.code || cause?.message || "";
+        console.error(`[update] 连 GitHub 失败（第 ${i + 1} 次）：${(e as Error).message}${why ? ` (${why})` : ""}`);
+        if (i >= 2) throw new Error(`连不上 GitHub${why ? `（${why}）` : ""}`);
+        await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+      }
+    }
     if (!res.ok) {
       if (res.status === 404)
         throw new Error(token ? "还没有发布过版本" : "找不到发布版本（私有仓库需要 GITHUB_TOKEN 或登录 gh）");
