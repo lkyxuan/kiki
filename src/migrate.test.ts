@@ -37,3 +37,15 @@ test("新数据目录（模板里已经有奇奇）：什么都不用挪", () =>
   mkdirSync(join(d, "agents", DEFAULT_BAO), { recursive: true });
   assert.deepEqual(migrateToQiqi(d, tpl), []);
 });
+
+test("奇奇的说明：没改过的旧版换成新版，改过的不动", async () => {
+  const { upgradeQiqiNote, OLD_QIQI: old } = await import("./migrate.js");
+  const d = mkdtempSync(join(tmpdir(), "kiki-"));
+  mkdirSync(join(d, "agents", "奇奇"), { recursive: true });
+  const f = join(d, "agents", "奇奇", "AGENTS.md");
+  writeFileSync(f, old);
+  assert.equal(upgradeQiqiNote(d, tpl).length, 1);
+  assert.match(readFileSync(f, "utf8"), /我自己不接具体的事/);
+  writeFileSync(f, old + "\n我自己加的一行\n");
+  assert.deepEqual(upgradeQiqiNote(d, tpl), []);
+});
