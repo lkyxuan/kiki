@@ -59,18 +59,18 @@ Kiki 内核负责建对话、续对话、调用模型和工具，轻量、可扩
 ```mermaid
 flowchart LR
     U([你]) -->|一句话| W[本机聊天网页<br/>localhost:4567]
-    W --> M{{主 Bot<br/>收件箱 · 路由}}
+    W --> M{{奇奇<br/>收件箱 · 路由}}
     M -->|接进已有对话| S1
     M -->|新开具名对话| S3
     M -.->|/bg 后台任务| S2
 
-    subgraph DEV[专属 Bot：dev]
-        S1[对话：Kiki 开发]
+    subgraph DEV[默认的宝：奇奇]
+        S1[对话：周报]
         S2[对话：后台任务]
     end
-    subgraph LIFE[专属 Bot：life]
-        S3[对话：旅行计划]
-        S4[对话：读书笔记]
+    subgraph LIFE[从奇奇分出去的宝：工作宝]
+        S3[对话：Kiki 开发]
+        S4[对话：竞品调研]
     end
 
     DEV & LIFE --> PI[(Kiki 内核)]
@@ -120,7 +120,7 @@ npm start
 
 打开 **<http://localhost:4567>** 即可开始对话。
 
-第一次启动会自动在 `~/kiki-data` 生成数据目录（含 `dev`、`life` 两个示例 Bot），建议先编辑其中的 `AGENTS.md`，写下你希望每个 Bot 都知道的关于你的事。
+第一次启动会自动在 `~/kiki-data` 生成数据目录（含一个默认的宝“奇奇”，别的宝以后从它分出去），建议先编辑其中的 `AGENTS.md`，写下你希望每个 Bot 都知道的关于你的事。
 
 > Kiki 内核随 `npm install` 一起装好，不需要单独安装。打包成 Mac App 时也会一起封进 `.app`，内核升级经测试后随 Kiki 版本发布。
 
@@ -131,7 +131,7 @@ npm start
 | `DEEPSEEK_API_KEY` | — | 模型 API Key |
 | `MODEL` | `deepseek/deepseek-flash` | 模型，格式 `provider/model` |
 | `DATA_DIR` | `~/kiki-data` | 数据目录 |
-| `DEFAULT_AGENT` | `life` | 未选择对话时，消息默认落到哪个 Bot |
+| `DEFAULT_AGENT` | `奇奇` | 未选择对话时，消息默认落到哪个 Bot |
 | `PORT` | `4567` | 网页端口 |
 | `TASK_CONCURRENCY` | `2` | 后台任务最多同时跑几个，其余排队 |
 | `TASK_TIMEOUT_MIN` | `30` | 单个后台任务超过多少分钟没做完就停下，标成失败 |
@@ -170,10 +170,10 @@ $EDITOR ~/kiki-data/agents/study/AGENTS.md   # 写清楚：负责什么、怎么
 ├── main.jsonl             # 主 Bot 的收件记录
 ├── tasks/                 # 后台任务：一个任务一个 .md（YAML 写状态，正文写任务和结果）
 └── agents/
-    ├── dev/
-    │   ├── AGENTS.md      # dev 的职责说明
-    │   └── sessions/      # dev 的对话记录（JSONL）
-    └── life/
+    ├── 奇奇/              # 默认的宝
+    │   ├── AGENTS.md      # 它的职责说明
+    │   └── sessions/      # 它的对话记录（JSONL）
+    └── 工作宝/            # 你自己新建的宝
         └── ...
 ```
 

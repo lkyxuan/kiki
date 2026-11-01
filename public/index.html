@@ -50,6 +50,9 @@
   .label { font-size: 12px; color: var(--muted); padding: 16px 10px 6px; letter-spacing: .04em; }
   .bao { margin-bottom: 4px; }
   .bao-head { display: flex; align-items: center; gap: 10px; padding: 6px 4px 6px 10px; font-size: 14px; font-weight: 500; }
+  .sub-head { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: .04em; padding-top: 10px; }
+  #qiqi .sess { padding-left: 22px; }
+  #qiqi .empty { padding-left: 22px; }
   .bao-head .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bao-head button { color: var(--muted); width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; }
   .bao-head button:hover { background: var(--hover); color: var(--text); }
@@ -126,7 +129,8 @@
 <body>
 <aside>
   <button class="kiki" data-path="main" aria-label="奇奇"><img src="/qiqi.png" alt=""><span class="name">奇奇</span></button>
-  <div class="label">我的宝</div>
+  <div id="qiqi"></div>
+  <div class="label" id="baos-label">我的宝</div>
   <div id="agents"></div>
   <button class="item add-bao" id="add-bao"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="name">新建一个宝</span></button>
   <a class="item settings" href="/settings.html"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="name">设置</span></a>
@@ -152,6 +156,7 @@ let tree = { agents: [] };
 let current = "main";
 let streaming = null; // 当前对话正在流式输出的那条消息元素
 const unread = new Set();
+const DEFAULT_BAO = "奇奇"; // 默认的宝，和 src/migrate.ts 一致
 const aboutCache = {}; // 宝名 -> AGENTS.md 开头几行
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -184,16 +189,22 @@ function renderSide() {
   k.classList.toggle("on", current === "main");
   k.querySelector(".dot")?.remove();
   if (unread.has("main")) k.insertAdjacentHTML("beforeend", '<span class="dot"></span>');
-  $("#agents").innerHTML = tree.agents.map((a) => `
-    <div class="bao">
-      <div class="bao-head">${avatar(a.name)}<span class="name">${esc(a.name)}</span><button title="在${esc(a.name)}里新开对话" aria-label="在${esc(a.name)}里新开对话" data-new="${esc(a.name)}">${PLUS}</button></div>
-      ${a.sessions.length ? "" : '<div class="empty">还没有对话</div>'}
-      ${a.sessions.map((s) => `
+  const sessRows = (a) => (a.sessions.length ? "" : '<div class="empty">还没有对话</div>') + a.sessions.map((s) => `
         <button class="item sess ${s.path === current ? "on" : ""}" data-path="${esc(s.path)}">
           <span class="name">${esc(s.name)}</span>
           ${s.background ? '<span class="tag">后台</span>' : ""}
           ${s.busy ? '<span class="spin"></span>' : unread.has(s.path) ? '<span class="dot"></span>' : ""}
-        </button>`).join("")}
+        </button>`).join("");
+  const newBtn = (name) => `<button title="在${esc(name)}里新开对话" aria-label="在${esc(name)}里新开对话" data-new="${esc(name)}">${PLUS}</button>`;
+  // 奇奇是默认的宝：它的对话直接列在主按钮下面；别的宝都是从奇奇分出去的，列在“我的宝”
+  const qiqi = tree.agents.find((a) => a.name === DEFAULT_BAO);
+  $("#qiqi").innerHTML = qiqi ? `<div class="bao"><div class="bao-head sub-head"><span class="name">对话</span>${newBtn(qiqi.name)}</div>${sessRows(qiqi)}</div>` : "";
+  const others = tree.agents.filter((a) => a.name !== DEFAULT_BAO);
+  $("#baos-label").hidden = !others.length;
+  $("#agents").innerHTML = others.map((a) => `
+    <div class="bao">
+      <div class="bao-head">${avatar(a.name)}<span class="name">${esc(a.name)}</span>${newBtn(a.name)}</div>
+      ${sessRows(a)}
     </div>`).join("");
   renderPanel();
 }
@@ -225,7 +236,7 @@ async function loadAbout(name) {
   renderPanel();
 }
 
-// 奇奇的回执："→ dev/路由器 · 接着聊" 第一行渲染成卡片；拿不准时的 "1. …" 渲染成按钮
+// 奇奇的回执："→ 奇奇/周报 · 接着聊" 第一行渲染成卡片；拿不准时的 "1. …" 渲染成按钮
 function render(text) {
   const r = text.match(/^→ (\S+?)\/(.+?) · (\S+)\n\n([\s\S]*)$/);
   if (r) return `<div class="receipt">${avatar(r[1])}<span class="where"><span class="how">${esc(r[3])}</span><b>${esc(r[1])} › ${esc(r[2])}</b></span><button data-goto="${esc(r[1] + "/" + r[2])}">打开对话</button></div>` + md(r[4]);
