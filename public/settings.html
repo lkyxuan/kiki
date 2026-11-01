@@ -6,77 +6,95 @@
 <title>Kiki 设置</title>
 <link rel="icon" href="/icon.svg">
 <link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="stylesheet" href="/theme.css">
+<script src="/theme.js"></script>
+<script>if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add("embed");</script>
 <style>
-  :root {
-    --bg: #ffffff; --side: #f6f6f4; --line: #e6e5e1; --text: #1d1d1b; --muted: #6f6e69;
-    --hover: #ecebe7; --card: #ffffff; --code: #f3f2ee; --accent: #5b6cf0;
-    --ok: #1f7a3a; --warn: #9a5b00; --err: #b3261e; --note: #fff6e0;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1b1b1d; --side: #141416; --line: #2c2c30; --text: #ececec; --muted: #9b9ba2;
-      --hover: #222226; --card: #202023; --code: #26262b; --accent: #8b97ff;
-      --ok: #6fd18e; --warn: #f0b860; --err: #ff8a80; --note: #2e2816;
-    }
-  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--side); color: var(--text); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; }
+  body { margin: 0; background: var(--grouped); color: var(--text); font: 14px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
   button, input, select, textarea { font: inherit; color: inherit; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 20px 60px; }
+  .embed .wrap { padding-top: 20px; }
   .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
   .top h1, .top a { flex: none; white-space: nowrap; }
-  .top h1 { margin: 0; font-size: 20px; }
+  .top h1 { margin: 0; font-size: 22px; font-weight: 700; }
   .top small { color: var(--muted); flex: 1 1 100%; font-size: 12px; word-break: break-all; }
-  a.back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); text-decoration: none; background: var(--card); }
+  .embed .top { margin-bottom: 12px; }
+  .embed .top h1, .embed a.back { display: none; }
+  a.back { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 7px; color: var(--text); text-decoration: none; background: var(--card); box-shadow: var(--shadow-sm); }
   a.back:hover { background: var(--hover); }
+  a { color: var(--accent); }
   .banner { display: none; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--note); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 16px; }
   .banner.on { display: flex; }
-  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
-  section h2 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; gap: 10px; }
-  section h2 small { font-weight: 400; color: var(--muted); font-size: 13px; }
+  /* 每一组设置一张圆角卡片，像「系统设置」 */
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; box-shadow: var(--shadow-sm); }
+  section h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  section h2 small { font-weight: 400; color: var(--muted); font-size: 12.5px; }
   section h2 .right { margin-left: auto; }
   .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   @media (max-width: 600px) { .grid { grid-template-columns: minmax(0, 1fr); } }
   .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .field label { font-size: 13px; color: var(--muted); }
-  input[type=text], input[type=password], textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  input:disabled { opacity: .6; }
-  .toggle-row select { min-height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
-  textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
+  .field label { font-size: 12.5px; color: var(--muted); }
+  input[type=text], input[type=password], textarea { width: 100%; min-height: 32px; padding: 5px 10px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--raised); outline: 0; transition: border-color .15s, box-shadow .15s; }
+  input[type=text]:focus, input[type=password]:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  input::placeholder, textarea::placeholder { color: var(--faint); }
+  input:disabled { opacity: .55; }
+  textarea { min-height: 220px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; resize: vertical; padding: 8px 10px; }
+  .toggle-row select { min-height: 28px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--raised); box-shadow: var(--shadow-sm); font-size: 13px; }
   .src { font-size: 12px; color: var(--muted); }
   .src.external { color: var(--warn); }
   .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-  .btn { min-height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); cursor: pointer; }
+  /* 按钮：macOS 的普通按钮 / 强调按钮 */
+  .btn { min-height: 28px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--raised); box-shadow: var(--shadow-sm); font-size: 13px; font-weight: 500; white-space: nowrap; }
   .btn:hover { background: var(--hover); }
-  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
-  .btn:disabled { opacity: .4; cursor: default; }
-  .msg { font-size: 13px; color: var(--muted); }
+  .btn:active { background: var(--active); }
+  .btn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn:disabled { opacity: .4; }
+  .msg { font-size: 12.5px; color: var(--muted); }
   .msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; word-break: break-all; }
+  p.msg { margin: 12px 0 0; line-height: 1.6; }
+  .mono { font-family: var(--mono); font-size: 12px; word-break: break-all; }
   .bao { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
   .bao .avatar { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
   .bao .name { font-weight: 500; flex: 1; }
   .editor { padding: 4px 0 12px; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
-  .dot.ok { background: var(--ok); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--faint); }
+  .dot.ok { background: var(--switch); }
   .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .cols section { margin-bottom: 0; }
   @media (max-width: 600px) { .cols { grid-template-columns: minmax(0, 1fr); } }
-  h3.sub { font-size: 14px; margin: 14px 0 4px; display: flex; gap: 8px; align-items: baseline; }
+  h3.sub { font-size: 13px; font-weight: 600; margin: 16px 0 4px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
   h3.sub small { font-weight: 400; color: var(--muted); font-size: 12px; }
   .toggle-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
   .toggle-row .t { flex: 1; min-width: 0; }
   .toggle-row .t b { font-weight: 500; display: block; }
-  .toggle-row .t span { font-size: 13px; color: var(--muted); }
-  .switch { position: relative; width: 44px; height: 26px; flex: none; }
-  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; inset: 0; z-index: 1; }
-  .switch i { position: absolute; inset: 0; border-radius: 13px; background: var(--line); transition: background .15s; }
-  .switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s; }
-  .switch input:checked + i { background: var(--ok); }
-  .switch input:checked + i::after { transform: translateX(18px); }
-  .switch input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .toggle-row .t span { font-size: 12.5px; color: var(--muted); }
+  /* 开关：iOS / macOS 的绿色开关 */
+  .switch { position: relative; width: 38px; height: 22px; flex: none; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; inset: 0; z-index: 1; }
+  .switch i { position: absolute; inset: 0; border-radius: 11px; background: var(--fill); box-shadow: inset 0 0 0 .5px var(--line); transition: background .2s; }
+  .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25), 0 0 0 .5px rgba(0,0,0,.04); transition: transform .2s cubic-bezier(.2,.8,.2,1); }
+  .switch input:checked + i { background: var(--switch); }
+  .switch input:checked + i::after { transform: translateX(16px); }
+  .switch input:focus-visible + i { outline: 3px solid var(--accent-soft); outline-offset: 1px; }
   label.check { display: flex; align-items: center; gap: 8px; min-height: 32px; }
-  label.check input { width: 18px; height: 18px; }
+  label.check input { width: 16px; height: 16px; accent-color: var(--accent); }
+  /* 外观：三张小窗口缩略图，像 macOS「外观」设置 */
+  .looks { display: flex; gap: 18px; flex-wrap: wrap; }
+  .look { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); position: relative; }
+  .look input { position: absolute; opacity: 0; pointer-events: none; }
+  .look .pic { width: 96px; height: 62px; border-radius: 8px; overflow: hidden; display: flex; box-shadow: 0 0 0 1px var(--line-strong), var(--shadow-sm); transition: box-shadow .15s; }
+  .look input:checked ~ .pic { box-shadow: 0 0 0 1px var(--card), 0 0 0 4px var(--accent); }
+  .look input:checked ~ span { color: var(--text); font-weight: 500; }
+  .look input:focus-visible ~ .pic { outline: 3px solid var(--accent-soft); outline-offset: 4px; }
+  .pic .half { flex: 1; display: flex; padding: 7px 0 0 7px; }
+  .pic .lt { background: #f5f5f7; } .pic .dk { background: #262628; }
+  .pic .w { flex: 1; border-radius: 4px 0 0 0; display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+  .pic .lt .w { background: #fff; box-shadow: -1px -1px 0 rgba(0,0,0,.06); } .pic .dk .w { background: #1e1e1f; box-shadow: -1px -1px 0 rgba(255,255,255,.08); }
+  .pic .w i { display: block; height: 5px; border-radius: 3px; background: #5b6cf0; width: 60%; align-self: flex-end; }
+  .pic .w i + i { width: 75%; align-self: flex-start; }
+  .pic .lt .w i + i { background: #d8d8dc; } .pic .dk .w i + i { background: #48484c; }
 </style>
 </head>
 <body>
@@ -92,6 +110,15 @@
     <button class="btn primary" id="restart">立即重启</button>
     <span class="msg" id="restart-msg"></span>
   </div>
+
+  <section>
+    <h2>外观 <small>只影响这台设备</small></h2>
+    <div class="looks" role="radiogroup" aria-label="外观">
+      <label class="look"><input type="radio" name="theme" value="system"><div class="pic"><div class="half lt"><div class="w"><i></i><i></i></div></div><div class="half dk"><div class="w"><i></i><i></i></div></div></div><span>跟随系统</span></label>
+      <label class="look"><input type="radio" name="theme" value="light"><div class="pic"><div class="half lt"><div class="w"><i></i><i></i></div></div></div><span>浅色</span></label>
+      <label class="look"><input type="radio" name="theme" value="dark"><div class="pic"><div class="half dk"><div class="w"><i></i><i></i></div></div></div><span>深色</span></label>
+    </div>
+  </section>
 
   <section>
     <h2>模型与密钥</h2>
@@ -198,6 +225,17 @@
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 let S = null;
+
+// 外观
+function syncLook() { for (const r of document.querySelectorAll('input[name=theme]')) r.checked = r.value === kikiTheme.get(); }
+for (const r of document.querySelectorAll('input[name=theme]')) r.onchange = () => kikiTheme.set(r.value);
+window.addEventListener("storage", syncLook);
+syncLook();
+// 在聊天页的弹窗里：Esc 关掉弹窗
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || e.defaultPrevented) return;
+  try { if (window.parent !== window && parent.kikiCloseSettings) { e.preventDefault(); parent.kikiCloseSettings(); } } catch {}
+});
 
 async function api(path, body) {
   const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -322,7 +360,7 @@ async function loadRemote() {
   if (!r || !r.installed) { el.innerHTML = "没检测到 Tailscale。装好并登录后，运行 <span class=\"mono\">tailscale serve --bg 4567</span> 就能在手机上用。"; return; }
   if (!r.online) { el.innerHTML = `<span class="dot"></span>Tailscale 没连上`; return; }
   el.innerHTML = `<div><span class="dot ok"></span>Tailscale 已连接</div>` +
-    (r.serving && r.url ? `<div class="mono"><a href="${esc(r.url)}">${esc(r.url)}</a></div><div>手机上打开这个地址，添加到主屏幕。</div>`
+    (r.serving && r.url ? `<div class="mono"><a href="${esc(r.url)}" target="_blank">${esc(r.url)}</a></div><div>手机上打开这个地址，添加到主屏幕。</div>`
       : `<div>还没开放给手机，运行 <span class="mono">tailscale serve --bg 4567</span></div>`);
 }
 
