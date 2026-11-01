@@ -18,7 +18,9 @@ export interface ChatLine {
 
 /** 事件：delta {path, text} 流式文字；busy {path, busy} 开始/结束干活。网页靠它实时刷新。 */
 export class Agents extends EventEmitter {
-  private runtime: Promise<ModelRuntime> = ModelRuntime.create(); // 读 ~/.pi/agent 里的密钥和模型配置
+  private runtime: Promise<ModelRuntime>;
+  /** Kiki 自己的 pi 配置目录（设置、密钥、模型、扩展、技能），和用户自己装的 pi（~/.pi）完全分开。 */
+  readonly engineDir: string;
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
 
@@ -27,6 +29,13 @@ export class Agents extends EventEmitter {
     private modelSpec: string, // "provider/model"，比如 deepseek/deepseek-flash
   ) {
     super();
+    this.engineDir = join(dataDir, "engine");
+    mkdirSync(this.engineDir, { recursive: true });
+    process.env.PI_CODING_AGENT_DIR = this.engineDir; // 兜底：pi 内部任何地方取默认目录都落到这里
+    this.runtime = ModelRuntime.create({
+      authPath: join(this.engineDir, "auth.json"),
+      modelsPath: join(this.engineDir, "models.json"),
+    });
   }
 
   agentDir(agent: string) {
@@ -54,6 +63,7 @@ export class Agents extends EventEmitter {
     const cwd = this.agentDir(agent);
     const { session } = await createAgentSession({
       cwd,
+      agentDir: this.engineDir,
       sessionManager: sm,
       model: await this.model(),
       thinkingLevel: "off",
