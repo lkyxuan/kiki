@@ -177,7 +177,7 @@ export class Router {
     try {
       const raw = await this.agents.complete(
         buildRouteSystem(this.rules()),
-        buildRouteInput({ text, candidates, current: cur ? label(cur) : undefined, onlyAgent }),
+        buildRouteInput({ text, candidates, current: cur ? label(cur) : undefined, onlyAgent, now: nowText() }),
       );
       const d = parseDecision(raw, {
         agents: onlyAgent ? [onlyAgent] : agents,
@@ -433,6 +433,13 @@ export class Router {
     this.registry.add(rec);
     return rec;
   }
+}
+
+/** 本机时间和时区，比如 "2026/11/2 06:15 星期一（Asia/Shanghai）" */
+function nowText(d = new Date()) {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const t = d.toLocaleString("zh-CN", { hour12: false, year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", weekday: "long" });
+  return `${t}（${tz}）`;
 }
 
 const label = (s: SessionRecord) => `${s.agent}/${s.name}`;

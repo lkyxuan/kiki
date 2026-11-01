@@ -42,8 +42,10 @@ export function buildRouteInput(opts: {
   candidates: RouteCandidate[];
   current?: string;
   onlyAgent?: string; // 用户 @ 了某个宝，只能在它下面选
+  now?: string; // 现在的时间和时区，直接回答"几点了""今天几号"用
 }): string {
   const lines: string[] = [];
+  if (opts.now) lines.push(`现在：${opts.now}\n`);
   for (const c of opts.candidates) {
     if (opts.onlyAgent && c.agent !== opts.onlyAgent) continue;
     lines.push(`## 宝：${c.agent}${c.desc ? `（${c.desc}）` : ""}`);

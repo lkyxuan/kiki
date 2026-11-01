@@ -331,6 +331,7 @@ test("一句话能答完的：奇奇直接回答，不进任何对话", async ()
   ctl.routeAnswer = '{"action":"reply","text":"你好！","reason":"打招呼"}';
   await say("你好");
   assert.equal(out.at(-1), "奇奇 · 直接回答\n\n你好！");
+  assert.match(ctl.routePrompts.at(-1)!, /^现在：.*\d{4}.*（.+）\n/); // 带上时间，"几点了"才答得对
   assert.equal(ctl.sends.length, 0);
   assert.equal(reg.current("app"), undefined);
 });
