@@ -1,0 +1,13 @@
+{
+  "name": "Kiki",
+  "short_name": "Kiki",
+  "description": "奇奇：你的个人助理",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5b6cf0",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icon-180.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

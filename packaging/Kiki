@@ -1,0 +1,60 @@
+#!/bin/bash
+# 双击 Kiki.app 时跑的就是这个：
+#   1. 把后台服务登记给 launchd（开机/登录自动起、挂了自动拉起），已登记就跳过
+#   2. 等服务起来，打开网页
+# 真正干活的是 kiki-server（由 launchd 运行），这个脚本几秒就退出。
+APP="$(cd "$(dirname "$0")/../.." && pwd)"
+LABEL=com.lkyxuan.kiki
+DOMAIN="gui/$(id -u)"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+LOGDIR="$HOME/Library/Logs/Kiki"
+DATA_DIR="${DATA_DIR:-$HOME/kiki-data}"
+PORT=$(sed -n 's/^PORT=//p' "$DATA_DIR/.env" 2>/dev/null | tr -d '"'"'"' ' | tail -1)
+PORT="${PORT:-4567}"
+mkdir -p "$LOGDIR" "$HOME/Library/LaunchAgents"
+
+want=$(cat <<PL
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key><array><string>$APP/Contents/MacOS/kiki-server</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>AbandonProcessGroup</key><true/>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>StandardOutPath</key><string>$LOGDIR/server.log</string>
+  <key>StandardErrorPath</key><string>$LOGDIR/server.log</string>
+</dict>
+</plist>
+PL
+)
+
+# 登记服务；刚注销的服务要过一会儿才能再登记，所以多试几次
+register() {
+  for _ in $(seq 1 10); do
+    launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null && return 0
+    launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 && return 0
+    sleep 0.5
+  done
+}
+if [ "$(cat "$PLIST" 2>/dev/null)" != "$want" ]; then
+  # 第一次装，或者 App 换了位置：重新登记
+  launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null
+  printf '%s\n' "$want" > "$PLIST"
+  register
+elif ! launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then
+  register
+fi
+
+for _ in $(seq 1 40); do
+  curl -fsS --max-time 1 "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1 && break
+  sleep 0.5
+done
+open "http://localhost:$PORT"
