@@ -10,15 +10,30 @@ import { type AgentBackend, Router } from "./router.js";
 /** 假的 pi 层。routeAnswer 决定"路由模型"怎么答：字符串原样返回，null 表示模型出错。 */
 function setup() {
   let n = 0;
-  const ctl = { routeAnswer: null as string | null, routePrompts: [] as string[] };
+  const ctl = {
+    routeAnswer: null as string | null,
+    routePrompts: [] as string[],
+    routeDelays: [] as number[], // 每次路由调用的延迟（毫秒），按调用顺序取
+    sends: [] as string[], // send 被调用的顺序
+    forks: [] as string[], // fork 的来源
+  };
   const backend: AgentBackend = {
     listAgents: () => ["dev", "life"],
     exists: (a) => a === "dev" || a === "life",
     create: async (a) => `/fake/${a}/${++n}.jsonl`,
-    send: async (a, path, text) => `[${path}] ${text}`,
+    fork: async (a, from) => {
+      ctl.forks.push(from);
+      return `/fake/${a}/${++n}.jsonl`;
+    },
+    send: async (a, path, text) => {
+      ctl.sends.push(text);
+      return `[${path}] ${text}`;
+    },
     isBusy: () => false,
     complete: async (_sys, user) => {
       ctl.routePrompts.push(user);
+      const delay = ctl.routeDelays.shift() ?? 0;
+      if (delay) await new Promise((r) => setTimeout(r, delay));
       if (ctl.routeAnswer === null) throw new Error("no key");
       return ctl.routeAnswer;
     },
@@ -105,6 +120,37 @@ test("判成后台：开后台对话，先回执、做完回报，且不改当�
   assert.match(out.at(-2)!, /^→ dev\/bg-整理README · 后台/);
   assert.match(out.at(-1)!, /✅ 后台任务 dev\/bg-整理README 完成/);
   assert.equal(reg.current("app")?.name, "主线");
+});
+
+test("接着某段对话判成后台：分叉那段对话，后台带着上下文", async () => {
+  const { out, say, reg, ctl } = setup();
+  await say("/new dev 设计");
+  const src = reg.current("app")!.path;
+  ctl.routeAnswer = '{"action":"continue","target":"dev/设计","mode":"background","taskTitle":"实现"}';
+  await say("按刚才讨论的设计实现");
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(ctl.forks, [src]);
+  assert.match(out.at(-1)!, /✅ 后台任务 dev\/bg-实现 完成/);
+});
+
+test("对话超过 20 段时，当前对话仍在候选里，接着聊不会被拒", async () => {
+  const { out, say, ctl } = setup();
+  await say("/new dev 老对话");
+  for (let i = 0; i < 25; i++) await say(`/new dev 新${i}`);
+  await say("/use dev/老对话");
+  ctl.routeAnswer = '{"action":"continue","target":"dev/老对话","mode":"chat"}';
+  await say("接着说");
+  assert.match(ctl.routePrompts.at(-1)!, /dev\/老对话【当前】/);
+  assert.match(out.at(-1)!, /^→ dev\/老对话 · 接着聊/);
+});
+
+test("同一聊天连发两句：先发的先进对话，即使第一句路由更慢", async () => {
+  const { router, ctl } = setup();
+  ctl.routeDelays = [30, 0];
+  const out: string[] = [];
+  const r = async (x: string) => void out.push(x);
+  await Promise.all([router.handle("app", "第一句", r), router.handle("app", "第二句", r)]);
+  assert.deepEqual(ctl.sends, ["第一句", "第二句"]);
 });
 
 test("/bg 强制后台", async () => {

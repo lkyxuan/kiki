@@ -9,6 +9,8 @@ export interface AgentBackend {
   listAgents(): string[];
   exists(agent: string): boolean;
   create(agent: string, name: string): Promise<string>;
+  /** 从已有对话分叉（带上下文） */
+  fork(agent: string, fromPath: string, name: string): Promise<string>;
   send(agent: string, path: string, text: string): Promise<string>;
   isBusy(path: string): boolean;
   /** 一次性问模型（不进对话），路由用 */
@@ -38,9 +40,26 @@ export class Router {
     private defaultAgent: string,
   ) {}
 
+  private locks = new Map<string, Promise<void>>(); // 同一个聊天的消息按顺序路由
+
   async handle(chatId: string, text: string, reply: Reply): Promise<void> {
     const t = text.trim();
-    if (!t.startsWith("/")) return this.chat(chatId, t, reply);
+    if (!t.startsWith("/")) {
+      // 路由要等模型，期间用户可能又发了一句；排队，保证先发的先进对话、后一句能看到前一句选的去处。
+      // 锁只管到"消息排进对话队列"为止，不等回答，不同对话之间不互相拖慢。
+      const prev = this.locks.get(chatId) ?? Promise.resolve();
+      let release!: () => void;
+      const gate = new Promise<void>((r) => (release = r));
+      const mine = prev.then(() => gate);
+      this.locks.set(chatId, mine);
+      await prev;
+      try {
+        return await this.chat(chatId, t, reply, release);
+      } finally {
+        release();
+        if (this.locks.get(chatId) === mine) this.locks.delete(chatId);
+      }
+    }
 
     const [cmdRaw, ...args] = t.split(/\s+/);
     const cmd = cmdRaw;
@@ -72,7 +91,7 @@ export class Router {
   private pending = new Map<string, { text: string; options: Option[] }>(); // 拿不准时等用户选
   private last = new Map<string, string>(); // 每个聊天上一句路由过的话，给 /to 改投用
 
-  private async chat(chatId: string, text: string, reply: Reply) {
+  private async chat(chatId: string, text: string, reply: Reply, release: () => void = () => {}) {
     // 1. 上一句拿不准，用户回了个数字
     const pend = this.pending.get(chatId);
     if (pend && /^[1-9]$/.test(text)) {
@@ -82,7 +101,7 @@ export class Router {
         const d: Decision = "target" in o
           ? { action: "continue", target: o.target, mode: "chat" }
           : { action: "new", agent: o.agent, name: o.name, mode: "chat" };
-        return this.deliver(chatId, pend.text, d, reply);
+        return this.deliver(chatId, pend.text, d, reply, release);
       }
     }
     this.pending.delete(chatId);
@@ -100,9 +119,10 @@ export class Router {
     if (d.action === "ask") {
       this.pending.set(chatId, { text, options: d.options });
       const opts = d.options.map((o, i) => `${i + 1}. ${optionLabel(o)}`).join("\n");
+      release();
       return reply(`🤔 这句该放哪我拿不准${d.reason ? `（${d.reason}）` : ""}，回个数字：\n${opts}`);
     }
-    return this.deliver(chatId, text, d, reply);
+    return this.deliver(chatId, text, d, reply, release);
   }
 
   /** 让便宜模型判断去处；模型不可用或答得不像样，就退回"当前对话 / 默认对话"。 */
@@ -121,7 +141,7 @@ export class Router {
       desc: this.agents.describe(agent),
       sessions: this.registry
         .list(agent)
-        .slice(-20) // 每个宝只看最近 20 段，提示词别太长
+        .filter((s, i, all) => i >= all.length - 20 || s.path === cur?.path) // 每个宝只看最近 20 段，但当前对话一定在
         .map((s) => ({ label: label(s), recent: this.agents.recent(s.path, 2), background: s.background })),
     }));
     const targets = candidates.flatMap((c) => c.sessions.map((s) => s.label));
@@ -140,7 +160,7 @@ export class Router {
   }
 
   /** 按决定把这句话送进对话，回执 + 回答一起回给用户。 */
-  private async deliver(chatId: string, text: string, d: Exclude<Decision, { action: "ask" }>, reply: Reply) {
+  private async deliver(chatId: string, text: string, d: Exclude<Decision, { action: "ask" }>, reply: Reply, release: () => void = () => {}) {
     let rec: SessionRecord;
     let how: string;
     if (d.action === "continue") {
@@ -153,9 +173,16 @@ export class Router {
       how = "新开";
     }
     this.last.set(chatId, text);
-    if (d.mode === "background") return this.runBackground(chatId, rec.agent, text, d.taskTitle, reply);
+    if (d.mode === "background") {
+      // 接着某段对话去后台干：分叉那段对话，后台才看得到前面讨论过的内容
+      const from = d.action === "continue" ? rec.path : undefined;
+      release();
+      return this.runBackground(chatId, rec.agent, text, d.taskTitle, reply, from);
+    }
     this.registry.setCurrent(chatId, rec.path);
-    const answer = await this.agents.send(rec.agent, rec.path, text);
+    const pending = this.agents.send(rec.agent, rec.path, text); // 已排进对话队列
+    release();
+    const answer = await pending;
     await reply(`→ ${label(rec)} · ${how}\n\n${answer}`);
   }
 
@@ -215,10 +242,10 @@ export class Router {
   /** 后台执行的唯一入口（/bg 和自动路由判成 background 都走这里）。
    *  照 OpenClaw 的 spawn + announce：开一段新对话在后台跑，做完把结果推回发起的聊天。
    *  以后换成 tasks.start(...) 只改这里。 */
-  private async runBackground(chatId: string, agent: string, task: string, title: string | undefined, reply: Reply) {
+  private async runBackground(chatId: string, agent: string, task: string, title: string | undefined, reply: Reply, fromPath?: string) {
     let name = title ? `bg-${title}` : `bg-${stamp()}`;
     for (let i = 2; this.registry.get(agent, name); i++) name = `${title ? `bg-${title}` : `bg-${stamp()}`}${i}`;
-    const rec = await this.newSession(agent, name, true);
+    const rec = fromPath ? await this.forkSession(agent, fromPath, name) : await this.newSession(agent, name, true);
     await reply(`→ ${label(rec)} · 后台\n\n好，已在后台开始，做完我会回报。想插话可以 /use ${label(rec)}。`);
     // 不等它，路由器马上能接下一句
     this.agents
@@ -227,6 +254,13 @@ export class Router {
       .catch((e) => reply(`❌ 后台任务 ${label(rec)} 失败：${(e as Error).message}`));
   }
 
+
+  private async forkSession(agent: string, fromPath: string, name: string): Promise<SessionRecord> {
+    const path = await this.agents.fork(agent, fromPath, name);
+    const rec: SessionRecord = { agent, name, path, created: new Date().toISOString(), background: true };
+    this.registry.add(rec);
+    return rec;
+  }
 
   async newSession(agent: string, name: string, background = false): Promise<SessionRecord> {
     const existing = this.registry.get(agent, name);

@@ -94,6 +94,21 @@ export class Agents extends EventEmitter {
     return path;
   }
 
+  /** 从已有对话分叉出一段新对话（带上原对话的全部上下文），后台接着做时用。 */
+  async fork(agent: string, fromPath: string, name: string): Promise<string> {
+    const dir = this.agentDir(agent);
+    const sessionsDir = join(dir, "sessions");
+    mkdirSync(sessionsDir, { recursive: true });
+    await this.queues.get(fromPath)?.catch(() => {}); // 等原对话手上那句做完，免得分叉到一半
+    const session = await this.open(agent, SessionManager.forkFrom(fromPath, dir, sessionsDir));
+    session.setSessionName(name);
+    const path = session.sessionFile;
+    if (!path) throw new Error("pi 没有给出对话文件路径");
+    this.live.set(path, session);
+    this.watch(path, session);
+    return path;
+  }
+
   private async get(agent: string, path: string): Promise<AgentSession> {
     let s = this.live.get(path);
     if (!s) {
