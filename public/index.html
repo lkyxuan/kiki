@@ -29,13 +29,15 @@
   .item:hover { background: var(--hover); }
   .item.on { background: var(--active); font-weight: 500; }
   .item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-  /* 奇奇主按钮：和对话条目不一样，居中、大头像 */
+  /* 奇奇主按钮：和对话条目不一样，居中、大头像（会动，见 public/qiqi-eyes.js） */
   .kiki { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 18px 10px 14px; border-radius: 12px; font-weight: 600; font-size: 15px; transition: background .12s; }
-  .kiki img { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; transition: transform .2s cubic-bezier(.2,.8,.2,1); box-shadow: var(--shadow-sm); }
+  .kiki .ava { display: block; width: 68px; height: 68px; border-radius: 50%; overflow: hidden; transition: transform .2s cubic-bezier(.2,.8,.2,1); box-shadow: var(--shadow-sm); }
+  .kiki .ava img, .kiki .ava svg { display: block; width: 100%; height: 100%; }
   .kiki:hover { background: var(--hover); }
-  .kiki:hover img { transform: scale(1.04); }
+  .kiki:hover .ava { transform: scale(1.04); }
   .kiki.on { background: var(--active); }
-  .kiki.on img { box-shadow: 0 0 0 3px var(--side), 0 0 0 5px var(--accent); }
+  .kiki.on .ava { box-shadow: 0 0 0 3px var(--side), 0 0 0 5px var(--accent); }
+  .qiqi-ava .iris { transition: transform .35s ease-out; } /* 奇奇转眼珠 */
   .kiki .dot { position: absolute; top: 18px; right: calc(50% - 38px); width: 10px; height: 10px; border: 2px solid var(--side); }
   .label { font-size: 12px; font-weight: 600; color: var(--muted); padding: 16px 10px 4px; }
   .bao { margin-bottom: 4px; }
@@ -93,6 +95,18 @@
   .receipt b { font-weight: 600; font-size: 14px; }
   .receipt button { border-radius: 999px; padding: 4px 14px; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-soft); }
   .receipt button:hover { filter: brightness(.96); }
+  /* 捎话的回复：折叠成卡片，样式跟回执一致 */
+  .relay-back { border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px 10px 14px; max-width: 520px; }
+  .relay-back summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+  .relay-back summary::-webkit-details-marker { display: none; }
+  .relay-back .where { flex: 1; min-width: 0; line-height: 1.4; }
+  .relay-back .how { display: block; font-size: 12px; color: var(--muted); }
+  .relay-back b { font-weight: 600; font-size: 14px; }
+  .relay-back .peek { display: block; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .relay-back[open] .peek { display: none; }
+  .relay-back[open] summary { margin-bottom: 8px; }
+  .relay-back button { border-radius: 999px; padding: 4px 14px; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-soft); }
+  .relay-back button:hover { filter: brightness(.96); }
   .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .choices button { border: 1px solid var(--line-strong); background: var(--card); border-radius: 999px; padding: 5px 14px; text-align: left; font-size: 14px; box-shadow: var(--shadow-sm); }
   .choices button:hover { border-color: var(--accent); color: var(--accent); }
@@ -151,7 +165,7 @@
 </head>
 <body>
 <aside>
-  <button class="kiki" data-path="main" aria-label="奇奇"><img src="/qiqi.png" alt=""><span class="name">奇奇</span></button>
+  <button class="kiki" data-path="main" aria-label="奇奇"><span class="ava"><img src="/qiqi.png" alt=""></span><span class="name">奇奇</span></button>
   <div id="qiqi"></div>
   <div class="label" id="baos-label">我的宝</div>
   <div id="agents"></div>
@@ -216,6 +230,7 @@ function find(path) {
 }
 
 function renderSide() {
+  if (typeof thinkEyes === "function") thinkEyes();
   const k = $(".kiki");
   k.classList.toggle("on", current === "main");
   k.querySelector(".dot")?.remove();
@@ -296,6 +311,12 @@ async function loadAbout(name) {
 function render(text) {
   const r = text.match(/^→ (\S+?)\/(.+?) · (\S+)\n\n([\s\S]*)$/);
   if (r) return `<div class="receipt">${avatar(r[1])}<span class="where"><span class="how">${esc(r[3])}</span><b>${esc(r[1])} › ${esc(r[2])}</b></span><button data-goto="${esc(r[1] + "/" + r[2])}">打开对话</button></div>` + md(r[4]);
+  // 捎话的回复（kiki_relay 记回来的）：完整内容在那段对话里已经有了，这里折叠成一张卡片，免得两段对话看起来一模一样
+  const back = text.match(/^【(\S+?)\/(.+?) (回复|出错)】\s*([\s\S]*)$/);
+  if (back) {
+    const first = back[4].split("\n").find((l) => l.trim()) ?? "";
+    return `<details class="relay-back"><summary><span class="where"><span class="how">${back[3] === "回复" ? "捎话的回复" : "捎话出错"}</span><b>${esc(back[1])} › ${esc(back[2])}</b><span class="peek">${esc(first.replace(/[*#`]/g, "").slice(0, 60))}</span></span><button data-goto="${esc(back[1] + "/" + back[2])}">打开对话</button></summary>${md(back[4])}</details>`;
+  }
   if (text.startsWith("🤔")) {
     const [head, ...opts] = text.split("\n");
     return md(head.replace(/^🤔\s*/, "")) + '<div class="choices">' + opts.map((o) => {
@@ -324,6 +345,7 @@ async function open(path) {
   document.body.classList.remove("show-panel");
   renderSide();
   const hist = await (await fetch(`/api/history?path=${encodeURIComponent(path)}`)).json();
+  if (path !== current) return; // 连点两段对话时，先发的请求可能后回来，别把上一段的内容画到这一段
   $("#msgs").innerHTML = "";
   if (!hist.length) $("#msgs").innerHTML = path === "main"
     ? '<div class="hint">跟奇奇说就行，它会分给对应的宝。<br>@宝名 可以直接指定，/help 看命令。</div>'
@@ -341,7 +363,7 @@ async function send() {
   syncSend();
   $(".hint")?.remove();
   const r = await fetch("/api/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: current, text }) });
-  if (r.ok && current === "main") setPending(true); // 奇奇要先路由再回答，给个等待提示
+  if (r.ok && current === "main") { setPending(true); mainBusy = true; thinkEyes(); } // 奇奇要先路由再回答，给个等待提示
   if (!r.ok) addMsg("assistant", `出错了：${(await r.json()).error}`);
 }
 
@@ -459,6 +481,7 @@ $("#input").addEventListener("keydown", (e) => {
 const es = new EventSource("/api/events");
 es.addEventListener("message", (e) => {
   const m = JSON.parse(e.data);
+  if (m.path === "main" && m.role === "assistant" && mainBusy) { mainBusy = false; thinkEyes(); }
   if (m.path === current && m.role === "assistant") $(".pending")?.remove();
   if (m.path !== current) { if (m.role === "assistant") { unread.add(m.path); renderSide(); } return; }
   if (m.role === "assistant" && streaming) { streaming.innerHTML = render(m.text); streaming = null; return; }
@@ -516,6 +539,14 @@ es.addEventListener("open", () => { loadAsks(); return fetch("/api/update").then
   }).catch(() => {}); });
 
 loadTree().then(() => open("main"));
+
+// 奇奇的头像换成会动的版本；加载失败就留着静态图
+let eyes = null, mainBusy = false;
+import("/qiqi-eyes.js").then((m) => { eyes = m.mountQiqi($(".kiki .ava")); thinkEyes(); }).catch(() => {});
+// 有对话在干活（包括奇奇自己在分派）时，奇奇抬头看星星
+function thinkEyes() {
+  eyes?.think(mainBusy || tree.agents.some((a) => a.sessions.some((s) => s.busy)));
+}
 </script>
 </body>
 </html>
