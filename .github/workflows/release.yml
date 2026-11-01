@@ -1,6 +1,6 @@
 # 发布：改 package.json 里的版本号并合进 main（或者推一个同名 tag，或者在 Actions 页面手动运行），这里就会
 # 检查 → 测试 → 打 arm64 和 x64 两个 Kiki.app → 建 GitHub Release（tag 自动建）。这个版本已经发过就跳过。
-# 装好的 Kiki 会在 6 小时内发现新版本，空闲时自动装上。
+# 装好的 Kiki 会在一小时内发现新版本，空闲时自动装上。.dmg 给第一次安装用，自动更新用 .zip。
 name: release
 on:
   push:
@@ -41,4 +41,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.ver.outputs.tag }}
-        run: gh release create "$TAG" out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS --target "$GITHUB_SHA" --title "Kiki $TAG" --generate-notes
+        run: |
+          cat > notes.md <<'EOF'
+          ## 安装
+          - **推荐**：在「终端」里运行一行（自动下载、核对、装好、启动，不会被系统拦）：
+            `curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash`
+          - **或者下载 .dmg**：Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`。打开后把 Kiki 拖进「应用程序」。
+            Kiki 还没有苹果开发者签名，第一次打开会提示「无法验证开发者」：到「系统设置 → 隐私与安全性」最下面点「仍要打开」，
+            或者在终端运行 `xattr -dr com.apple.quarantine /Applications/Kiki.app`。
+          - 已经装过的 Kiki 会自己更新（每小时检查一次），不用重新下载。
+          EOF
+          gh release create "$TAG" out/Kiki-mac-arm64.dmg out/Kiki-mac-x64.dmg out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS \
+            --target "$GITHUB_SHA" --title "Kiki $TAG" --notes-file notes.md --generate-notes
