@@ -216,7 +216,7 @@ async function setEnv(key, value) { const r = await api("/api/settings/env", { k
 
 $("#save-model").onclick = async () => {
   try {
-    await setEnv("MODEL", $("#MODEL").value);
+    if (!$("#MODEL").disabled) await setEnv("MODEL", $("#MODEL").value);
     const key = $("#DEEPSEEK_API_KEY").value.trim();
     if (key && !$("#DEEPSEEK_API_KEY").disabled) await setEnv("DEEPSEEK_API_KEY", key);
     say("#model-msg", "已保存，重启后生效", "ok");

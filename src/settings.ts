@@ -20,10 +20,15 @@ type Key = keyof typeof KEYS;
 
 export type Source = "file" | "op" | "external" | "unset";
 
-/** 一个键的值从哪来：.env 文件、.env 里的 1Password 引用、外部注入，还是没设。 */
-export function sourceOf(fileVal: string | undefined, envVal: string | undefined): Source {
+/**
+ * 一个键的值从哪来：.env 文件、.env 里的 1Password 引用、外部注入，还是没设。
+ * 是不是外部注入要拿"启动时"的 .env 比（startVal），不能拿现在的文件比：
+ * 不然在设置页改过、还没重启的值，会被误认成外部注入。
+ */
+export function sourceOf(fileVal: string | undefined, envVal: string | undefined, startVal = fileVal): Source {
+  const fromStartFile = envVal === startVal || (startVal !== undefined && startVal.startsWith("op://"));
+  if (envVal !== undefined && envVal !== "" && !fromStartFile) return "external";
   if (fileVal !== undefined && fileVal.startsWith("op://")) return "op";
-  if (envVal !== undefined && envVal !== "" && envVal !== fileVal) return "external";
   if (fileVal !== undefined && fileVal !== "") return "file";
   return "unset";
 }
@@ -94,6 +99,8 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
   const agentsDir = join(opts.dataDir, "agents");
   const readEnvFile = () => (existsSync(envFile) ? readFileSync(envFile, "utf8") : "");
   const fileVals = () => parseEnv(readEnvFile()) as Record<string, string>;
+  const startVals = fileVals(); // 启动时 .env 的样子，用来判断哪些值是外部注入的
+  const source = (k: string) => sourceOf(fileVals()[k], process.env[k], startVals[k]);
   const agentFile = (name: string) => join(agentsDir, name, "AGENTS.md");
   const listAgents = () =>
     existsSync(agentsDir) ? readdirSync(agentsDir).filter((n) => statSync(join(agentsDir, n)).isDirectory()) : [];
@@ -102,13 +109,12 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
   let changed = false; // 改过需要重启的设置
 
   /** 实际要用的密钥：.env 里写的是 op:// 引用、进程里又没解析好时，现场用 op read 解析。 */
+  /** 测试用的密钥：外部注入的用进程里的；否则用 .env 里现在存的（改过还没重启也算），op:// 引用现场用 op read 解析。 */
   async function resolvedKey(): Promise<string | undefined> {
-    const file = fileVals().DEEPSEEK_API_KEY;
-    const env = process.env.DEEPSEEK_API_KEY;
-    if (env && !env.startsWith("op://")) return env;
-    const ref = file?.startsWith("op://") ? file : env;
-    if (ref?.startsWith("op://")) return (await run("op", ["read", ref], 15000)).trim();
-    return file || undefined;
+    const k = "DEEPSEEK_API_KEY";
+    const val = source(k) === "external" ? process.env[k] : fileVals()[k];
+    if (val?.startsWith("op://")) return (await run("op", ["read", val], 15000)).trim();
+    return val || undefined;
   }
 
   return async function handle(req: IncomingMessage, res: ServerResponse, url: URL) {
@@ -131,11 +137,11 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
       for (const k of Object.keys(KEYS) as Key[]) {
         const fv = file[k];
         const ev = process.env[k];
-        const source = sourceOf(fv, ev);
-        const shown = source === "external" ? ev : fv;
+        const src = source(k);
+        const shown = src === "external" ? ev : fv;
         env[k] = {
-          source,
-          value: shown === undefined ? "" : KEYS[k].secret && source !== "op" ? (shown ? mask(shown) : "") : shown,
+          source: src,
+          value: shown === undefined ? "" : KEYS[k].secret && src !== "op" ? (shown ? mask(shown) : "") : shown,
         };
       }
       return json({
@@ -156,7 +162,7 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
       const { key, value } = await body();
       if (!(key in KEYS)) return json({ error: `设置页不能改 ${key}` }, 400);
       if (typeof value !== "string" || /[\r\n]/.test(value)) return json({ error: "值不能换行" }, 400);
-      if (sourceOf(fileVals()[key], process.env[key]) === "external")
+      if (source(key) === "external")
         return json({ error: "这个值是启动时从外部注入的，这里改了也不生效" }, 409);
       writeFileSync(envFile, setEnvLine(readEnvFile(), key, value.trim() === "" ? undefined : value.trim()), { mode: 0o600 }); // 里面有密钥，新建时只给自己读写
       changed = true;

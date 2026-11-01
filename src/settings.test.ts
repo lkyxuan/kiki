@@ -40,3 +40,12 @@ test("validName 挡住路径穿越", () => {
 test("setEnvLine 单引号的值也读得回来", () => {
   assert.equal(parseEnv(setEnvLine("", "MODEL", "it's x")).MODEL, "it's x");
 });
+
+test("sourceOf 改过还没重启的值不算外部注入", () => {
+  // 启动时 .env 是 sk-old，进程里也是 sk-old；设置页改成 sk-new 后仍然是 file
+  assert.equal(sourceOf("sk-new", "sk-old", "sk-old"), "file");
+  // 启动时 .env 没有，进程里却有：外部注入
+  assert.equal(sourceOf("sk-new", "sk-shell", undefined), "external");
+  // 启动时是 op 引用（op run 解析成明文），改成明文后算 file
+  assert.equal(sourceOf("sk-new", "sk-resolved", "op://v/i/f"), "file");
+});
