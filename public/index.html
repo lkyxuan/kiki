@@ -212,6 +212,17 @@
     <iframe id="sheet-frame" title="设置"></iframe>
   </div>
 </div>
+<!-- 更新进行中的弹窗：点「现在更新」或后台自动更新时盖在最上面，告诉你 Kiki 正在更新、到哪一步了 -->
+<div id="updating" role="alertdialog" aria-modal="true" aria-labelledby="updating-title" hidden
+  style="position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--scrim, rgba(0,0,0,.35))">
+  <div style="width: min(420px, calc(100vw - 32px)); background: var(--bg, #fff); color: var(--text, #1d1d1b); border-radius: 14px; padding: 22px 22px 18px; box-shadow: 0 20px 60px rgba(0,0,0,.25)">
+    <div id="updating-title" style="font-size: 17px; font-weight: 600; margin-bottom: 4px">Kiki 正在更新</div>
+    <div id="updating-ver" style="font-size: 13px; color: var(--muted, #6f6e69); margin-bottom: 14px"></div>
+    <progress id="updating-bar" max="100" value="0" style="width: 100%; height: 8px; accent-color: var(--accent, #2f7d4f)"></progress>
+    <div id="updating-step" style="font-size: 13px; margin-top: 8px; min-height: 1.4em"></div>
+    <div style="font-size: 12px; color: var(--muted, #6f6e69); margin-top: 12px">更新完会自动重启并刷新页面，前后一般不到一分钟。对话记录不受影响。</div>
+  </div>
+</div>
 <script>
 const $ = (s) => document.querySelector(s);
 let tree = { agents: [] };
@@ -656,14 +667,35 @@ function renderUpdate(u) {
   if (!u) return;
   if (u.status === "available")
     el.innerHTML = u.canApply ? `新版本 v${esc(u.latest)} <button id="upd-go">更新</button>` : `新版本 v${esc(u.latest)}（git pull 更新）`;
-  else if (u.status === "downloading" || u.status === "installing")
-    el.innerHTML = `<span class="spin"></span>${u.step ? `${u.step.n}/${u.step.of} ` : ""}${esc(u.message || "")}${u.step?.percent !== undefined && u.step.n === 1 ? ` ${u.step.percent}%` : ""}`;
+  else if (u.status === "downloading" || u.status === "installing") el.textContent = ""; // 进度在弹窗里显示
   else if (u.status === "error") el.innerHTML = `<span title="${esc(u.message || "")}">更新出错</span>`;
   else if (u.last && u.last.result === "rolled_back" && u.last.from === u.current) el.textContent = `v${u.last.to} 没起来，已回滚`;
   else el.textContent = "";
   const go = $("#upd-go");
-  if (go) go.onclick = () => fetch("/api/update/apply", { method: "POST" });
+  if (go) go.onclick = () => { showUpdating({ ...u, status: "downloading", step: { n: 1, of: 6, label: "准备下载", percent: 0 } }); fetch("/api/update/apply", { method: "POST" }); };
+  showUpdating(u);
 }
+// 更新弹窗：下载、校验、自检、备份、等对话、切换重启 6 步
+let updatingFrom = null;
+function showUpdating(u) {
+  const box = $("#updating");
+  const busy = u && (u.status === "downloading" || u.status === "installing");
+  if (!busy) { if (!restarting) box.hidden = true; return; }
+  box.hidden = false;
+  updatingFrom = u.current;
+  $("#updating-ver").textContent = u.latest ? `v${u.current} → v${u.latest}` : "";
+  const st = u.step;
+  $("#updating-bar").value = st ? Math.round(((st.n - 1) + (st.percent ?? 0) / 100) / st.of * 100) : 0;
+  $("#updating-step").textContent = st ? `第 ${st.n}/${st.of} 步：${st.label}${st.n === 1 && st.percent !== undefined ? ` · ${st.percent}%` : ""}` : (u.message || "准备中…");
+}
+// 切换时 Kiki 会重启几秒，事件流断开：弹窗里说明正在重启，重新连上后版本变了就整页刷新
+let restarting = false;
+es.addEventListener("error", () => {
+  if ($("#updating").hidden) return;
+  restarting = true;
+  $("#updating-bar").value = 95;
+  $("#updating-step").textContent = "正在重启 Kiki，马上就好…";
+});
 es.addEventListener("update", (e) => renderUpdate(JSON.parse(e.data)));
 // 每次（重新）连上都刷新一下；Kiki 更新重启后版本号变了，就整页重载，用上新网页
 let seenVersion = null;
@@ -671,6 +703,7 @@ es.addEventListener("open", () => { loadAsks(); return fetch("/api/update").then
     if (!u) return;
     if (seenVersion && seenVersion !== u.current) return location.reload();
     seenVersion = u.current;
+    restarting = false; // 重新连上了（版本没变说明没换成功，弹窗关掉，看设置页的详情）
     renderUpdate(u);
   }).catch(() => {}); });
 

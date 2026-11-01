@@ -8,6 +8,7 @@ import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import {
+  appendFileSync,
   copyFileSync,
   createWriteStream,
   existsSync,
@@ -85,6 +86,26 @@ export class Updater extends EventEmitter {
       auto: process.env.KIKI_AUTO_UPDATE !== "0",
     };
     this.readReceipt();
+  }
+
+  /** 每一步记一行到 ~/Library/Logs/Kiki/update.log（和替换脚本 swap.sh 写同一个文件），设置页「详情」里能看到。 */
+  log(text: string) {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const ts = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    try {
+      mkdirSync(this.logDir, { recursive: true });
+      appendFileSync(join(this.logDir, "update.log"), `[${ts}] ${text}\n`);
+    } catch {}
+  }
+
+  /** update.log 最后 n 行。 */
+  logTail(n = 80): string[] {
+    try {
+      return readFileSync(join(this.logDir, "update.log"), "utf8").trimEnd().split("\n").slice(-n);
+    } catch {
+      return [];
+    }
   }
 
   readReceipt() {
@@ -172,6 +193,7 @@ export class Updater extends EventEmitter {
       this.release = { tag: r.tag_name, assets: r.assets };
       const latest = r.tag_name.replace(/^v/, "");
       const has = newer(latest, VERSION);
+      this.log(has ? `检查更新：发现新版本 ${latest}（当前 ${VERSION}）` : `检查更新：已是最新（${VERSION}）`);
       this.set({
         latest,
         notes: r.body?.slice(0, 2000),
@@ -180,6 +202,7 @@ export class Updater extends EventEmitter {
         checkedAt: new Date().toISOString(),
       });
     } catch (e) {
+      this.log(`检查更新失败：${(e as Error).message}`);
       this.set({ status: "error", message: `检查更新失败：${(e as Error).message}`, checkedAt: new Date().toISOString() });
     }
     return this.state;
@@ -208,9 +231,13 @@ export class Updater extends EventEmitter {
       mkdirSync(work, { recursive: true });
       const zip = join(work, zipAsset.name);
       const STEPS = 6;
-      const step = (n: number, label: string, percent?: number) =>
+      const step = (n: number, label: string, percent?: number) => {
+        if (percent === undefined || percent === 0) this.log(`第 ${n}/${STEPS} 步：${label}`);
         this.set({ step: { n, of: STEPS, label, percent }, message: `${label}…` });
+      };
+      this.log(`准备更新 ${VERSION} → ${to}`);
       step(1, `正在下载 ${to}`, 0);
+      const t0 = Date.now();
       const res = await this.gh(zipAsset.url, "application/octet-stream");
       const total = Number(res.headers.get("content-length")) || 0;
       const hash = createHash("sha256");
@@ -225,17 +252,21 @@ export class Updater extends EventEmitter {
             const pct = total ? Math.floor((got / total) * 100) : undefined;
             if (pct !== undefined && pct !== shown) {
               shown = pct;
-              step(1, `正在下载 ${to}（${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB）`, pct);
+              const mbps = got / 1048576 / Math.max(0.001, (Date.now() - t0) / 1000);
+              step(1, `正在下载 ${to}（${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB，${mbps.toFixed(1)} MB/s）`, pct || 1);
             }
             yield chunk;
           }
         },
         createWriteStream(zip),
       );
+      const secs = (Date.now() - t0) / 1000;
+      this.log(`下载完成：${(got / 1048576).toFixed(1)} MB，用时 ${secs.toFixed(1)} 秒，平均 ${(got / 1048576 / Math.max(0.001, secs)).toFixed(1)} MB/s`);
       step(2, "正在核对校验和");
       const sums = await (await this.gh(sumAsset.url, "application/octet-stream")).text();
       const want = sumFor(sums, zipAsset.name);
       if (!want || want !== hash.digest("hex")) throw new Error("校验和对不上，已放弃");
+      this.log("校验和一致");
 
       // 2. 解压到暂存区，用新版本自带的 Node 跑一次自检（相当于 Hermes 更新后先编译关键文件）
       this.set({ status: "installing" });
@@ -249,6 +280,7 @@ export class Updater extends EventEmitter {
         timeout: 60_000,
       });
       if (!stdout.includes(`kiki ${to} ok`)) throw new Error(`新版本自检没通过：${stdout.slice(0, 200)}`);
+      this.log(`新版本自检通过（${stdout.trim()}）`);
 
       // 3. 备份状态文件（只是小文件；对话记录不会被更新动到）
       step(4, "正在备份设置");
@@ -273,6 +305,7 @@ export class Updater extends EventEmitter {
       step(6, `正在切换到 ${to}，Kiki 会重启几秒`);
     } catch (e) {
       rmSync(staging, { recursive: true, force: true });
+      this.log(`更新失败：${(e as Error).message}`);
       this.set({ status: "error", message: `更新失败：${(e as Error).message}`, step: undefined });
     }
     return this.state;
