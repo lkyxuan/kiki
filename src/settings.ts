@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { Extensions, validSource } from "./extensions.js";
 import { listFeatures, setFeature } from "./features.js";
+import { listApproval, removeAlways, setMode } from "./approval.js";
 import { Mcp } from "./mcp.js";
 import { VERSION } from "./update.js";
 
@@ -288,6 +289,22 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
       } catch (e) {
         return json({ error: (e as Error).message }, 400);
       }
+    }
+    // 审批：四类动作各自 直接做 / 先问 / 不做，以及“以后都同意”记下的规则
+    if (p === "/api/settings/approval" && !post) return json(listApproval(opts.dataDir));
+    if (p === "/api/settings/approval/mode" && post) {
+      const { category, mode } = await body();
+      try {
+        setMode(opts.dataDir, String(category), String(mode));
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      return json({ ok: true });
+    }
+    if (p === "/api/settings/approval/forget" && post) {
+      const { key } = await body();
+      removeAlways(opts.dataDir, String(key));
+      return json({ ok: true });
     }
     if (p === "/api/settings/features" && post) {
       const { id, on } = await body();

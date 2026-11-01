@@ -41,6 +41,7 @@
   .field label { font-size: 13px; color: var(--muted); }
   input[type=text], input[type=password], textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   input:disabled { opacity: .6; }
+  .toggle-row select { min-height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
   textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
   .src { font-size: 12px; color: var(--muted); }
   .src.external { color: var(--warn); }
@@ -142,6 +143,14 @@
       <button class="btn" id="new-bao-go">新建一个宝</button>
       <span class="msg" id="new-msg"></span>
     </div>
+  </section>
+
+  <section>
+    <h2>审批 <small>收不回来的动作，做之前先问你一句；改了马上生效</small></h2>
+    <div id="approval" class="msg">读取中…</div>
+    <h3 class="sub">以后都同意的 <small>在卡片上点过“以后这类都同意”的，删掉就会重新问</small></h3>
+    <div id="always" class="msg">读取中…</div>
+    <p class="msg">读密码、写代码、装依赖这些都直接做，不会问。问的时候只暂停那一步，别的对话照常跑。<span id="ap-msg"></span></p>
   </section>
 
   <section>
@@ -381,6 +390,35 @@ $("#new-pkg-go").onclick = async () => {
   finally { $("#new-pkg-go").disabled = false; }
 };
 loadExtensions();
+
+const MODES = [["allow", "直接做"], ["ask", "先问"], ["deny", "不做"]];
+async function loadApproval() {
+  let r;
+  try { r = await api("/api/settings/approval"); } catch (e) { $("#approval").textContent = e.message; return; }
+  $("#approval").className = "";
+  $("#approval").innerHTML = r.categories.map((c) => `
+    <div class="toggle-row" data-id="${esc(c.id)}"><div class="t"><b>${esc(c.name)}</b><span>${esc(c.desc)}</span></div>
+      <select aria-label="${esc(c.name)}">${MODES.map(([v, l]) => `<option value="${v}" ${c.mode === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>`).join("");
+  for (const row of document.querySelectorAll("#approval .toggle-row")) {
+    const sel = row.querySelector("select");
+    sel.onchange = async () => {
+      try { await api("/api/settings/approval/mode", { category: row.dataset.id, mode: sel.value }); say("#ap-msg", "已保存", "ok"); }
+      catch (e) { say("#ap-msg", e.message, "err"); loadApproval(); }
+    };
+  }
+  const box = $("#always");
+  box.className = r.always.length ? "" : "msg";
+  box.innerHTML = r.always.length ? r.always.map((a) => `
+    <div class="toggle-row" data-key="${esc(a.key)}"><div class="t"><span>${esc(a.label)}</span></div><button class="btn rm">删掉</button></div>`).join("")
+    : "还没有。";
+  for (const row of document.querySelectorAll("#always .toggle-row")) {
+    row.querySelector(".rm").onclick = async () => {
+      try { await api("/api/settings/approval/forget", { key: row.dataset.key }); loadApproval(); }
+      catch (e) { say("#ap-msg", e.message, "err"); }
+    };
+  }
+}
+loadApproval();
 
 async function loadMcp() {
   const box = $("#mcp");
