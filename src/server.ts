@@ -49,6 +49,14 @@ export function startServer(opts: {
   };
   agents.on("delta", (d) => push("delta", d));
   agents.on("busy", (d) => push("busy", d));
+  agents.on("activity", (d) => push("activity", d)); // 正在想 / 正在调用哪个工具
+  // 奇奇分派时的进度：网页上显示“正在想交给哪个宝… / 已交给 X”，交出去后跟着那段对话的进度走
+  let mainLive: { since: number; status: string; follow?: string } | null = null;
+  router.progress = (chatId, p) => {
+    if (chatId !== CHAT_ID) return;
+    mainLive = { since: mainLive?.since ?? Date.now(), status: p.status, follow: p.path };
+    push("activity", { path: MAIN, live: mainLive });
+  };
   agents.on("message", (d) => push("message", d)); // 后台任务回报到原对话
   router.tasks.on("update", (t) => {
     push("task", t);
@@ -59,6 +67,10 @@ export function startServer(opts: {
 
   const mainSay = (role: ChatLine["role"], text: string) => {
     appendFileSync(mainLog, JSON.stringify({ role, text, ts: new Date().toISOString() }) + "\n");
+    if (role === "assistant" && mainLive) {
+      mainLive = null; // 奇奇回话了，这一轮算做完
+      push("activity", { path: MAIN, live: null });
+    }
     push("message", { path: MAIN, role, text });
   };
 
@@ -70,9 +82,10 @@ export function startServer(opts: {
   const tree = () => ({
     tasks: router.tasks.list().slice(-50),
     current: registry.current(CHAT_ID)?.path,
+    main: mainLive, // 奇奇正在分派的进度，没有就是 null
     agents: agents.listAgents().map((name) => ({
       name,
-      sessions: registry.list(name).map((s) => ({ ...s, busy: agents.isBusy(s.path) })),
+      sessions: registry.list(name).map((s) => ({ ...s, busy: agents.isBusy(s.path), live: agents.progress(s.path) ?? null })),
     })),
   });
 

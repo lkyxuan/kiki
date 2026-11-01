@@ -17,14 +17,20 @@ import {
   SessionManager,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
+import { type Live, type Step, describeTool, stepsFromMessages } from "./activity.js";
 import { baoFile, createBao } from "./bao.js";
 
 export interface ChatLine {
   role: "user" | "assistant";
   text: string;
+  steps?: Step[]; // 这条回答之前用过的工具（网页上折叠显示）
 }
 
-/** 事件：delta {path, text} 流式文字；busy {path, busy} 开始/结束干活。网页靠它实时刷新。 */
+/**
+ * 事件：delta {path, text} 流式文字；busy {path, busy} 开始/结束干活；
+ * activity {path, live} 这一轮的进度（正在想 / 正在调用哪个工具 / 做过的步骤），live 为 null 表示做完了。
+ * 网页靠它实时刷新。
+ */
 export class Agents extends EventEmitter {
   private runtime: Promise<ModelRuntime>;
   /** Kiki 自己的 pi 配置目录（设置、密钥、模型、扩展、技能），和用户自己装的 pi（~/.pi）完全分开。 */
@@ -35,6 +41,8 @@ export class Agents extends EventEmitter {
   extensions: ExtensionFactory[] = [];
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
+  private runs = new Map<string, Live>(); // path -> 正在干活的这一轮的进度
+  private labelCache?: Record<string, string>;
 
   constructor(
     private dataDir: string,
@@ -105,12 +113,81 @@ export class Agents extends EventEmitter {
     return session;
   }
 
+  /** Kiki 自己工具的中文名（kiki_peek → 看别的对话），进度里显示用。 */
+  private labels(): Record<string, string> {
+    return (this.labelCache ??= Object.fromEntries((this.toolsFor?.("") ?? []).map((t) => [t.name, t.label])));
+  }
+
+  /** 正在干活的对话这一轮的进度；没在干活返回 undefined。 */
+  progress(path: string): Live | undefined {
+    return this.runs.get(path);
+  }
+
   private watch(path: string, s: AgentSession) {
+    const show = (status?: string) => {
+      const run = this.runs.get(path);
+      if (!run) return;
+      if (status !== undefined) {
+        if (status === run.status) return; // 没变就不用推
+        run.status = status;
+      }
+      this.emit("activity", { path, live: run });
+    };
     s.subscribe((ev: any) => {
-      if (ev.type === "message_update" && ev.assistantMessageEvent?.type === "text_delta") {
-        this.emit("delta", { path, text: ev.assistantMessageEvent.delta });
-      } else if (ev.type === "agent_start") this.emit("busy", { path, busy: true });
-      else if (ev.type === "agent_end") this.emit("busy", { path, busy: false });
+      switch (ev.type) {
+        case "agent_start":
+          // 自动重试会再来一次 agent_start：接着用上一次的进度，别把做过的步骤清掉
+          if (!this.runs.has(path)) this.runs.set(path, { since: Date.now(), status: "正在思考…", steps: [] });
+          this.emit("busy", { path, busy: true });
+          show();
+          break;
+        case "agent_end":
+          if (ev.willRetry) break; // 马上会重试，先别说做完了
+          this.runs.delete(path);
+          this.emit("activity", { path, live: null });
+          this.emit("busy", { path, busy: false });
+          break;
+        case "turn_start":
+          show("正在思考…");
+          break;
+        case "message_update": {
+          const t = ev.assistantMessageEvent?.type;
+          if (t === "text_delta") this.emit("delta", { path, text: ev.assistantMessageEvent.delta });
+          else if (t === "text_start") show("正在回答…");
+          else if (t === "thinking_start") show("正在思考…");
+          else if (t === "toolcall_start") show("正在准备下一步…");
+          break;
+        }
+        case "tool_execution_start": {
+          const run = this.runs.get(path);
+          if (!run || ev.parentToolCallId) break; // 工具里再调的工具不单列
+          const d = describeTool(ev.toolName, ev.args, this.labels());
+          run.steps.push({ id: ev.toolCallId, ...d, status: "running" });
+          if (run.steps.length > 50) run.steps.splice(0, run.steps.length - 50); // 只留最近 50 步
+          show(`正在${d.title}…`);
+          break;
+        }
+        case "tool_execution_end": {
+          const run = this.runs.get(path);
+          const step = run?.steps.find((x) => x.id === ev.toolCallId);
+          if (!run || !step) break;
+          step.status = ev.isError ? "error" : "done";
+          step.ms = ev.durationMs;
+          const still = run.steps.find((x) => x.status === "running");
+          run.status = still ? `正在${still.title}…` : "正在思考…";
+          show();
+          break;
+        }
+        case "auto_retry_start":
+          show(`模型没回应，${Math.max(1, Math.round(ev.delayMs / 1000))} 秒后重试（第 ${ev.attempt}/${ev.maxAttempts} 次）…`);
+          break;
+        case "compaction_start":
+          show("对话太长了，正在整理前面的内容…");
+          break;
+        case "compaction_end":
+          show("正在思考…");
+          break;
+      }
     });
   }
 
@@ -232,6 +309,7 @@ export class Agents extends EventEmitter {
         .filter((e) => e.type === "message" || e.type === "custom_message")
         .map((e) => (e.type === "message" ? e.message : { role: "custom", content: e.content }));
     else return [];
+    const steps = stepsFromMessages(msgs, this.labels());
     const out: ChatLine[] = [];
     for (const m of msgs) {
       if (m.role !== "user" && m.role !== "assistant" && m.role !== "custom") continue;
@@ -240,7 +318,7 @@ export class Agents extends EventEmitter {
         typeof m.content === "string"
           ? m.content
           : (m.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
-      if (text.trim()) out.push({ role, text: text.trim() });
+      if (text.trim()) out.push({ role, text: text.trim(), ...(steps.has(m) ? { steps: steps.get(m) } : {}) });
       else if (m.role === "assistant" && m.stopReason === "error") out.push({ role: "assistant", text: `出错了：${m.errorMessage ?? "未知错误"}` });
     }
     return out;
