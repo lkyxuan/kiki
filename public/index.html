@@ -71,6 +71,12 @@
   .msg a { color: var(--accent); }
   .pending { color: var(--muted); display: flex; gap: 8px; align-items: center; }
   .hint { color: var(--muted); text-align: center; margin-top: 18vh; }
+  .receipt { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; margin-bottom: 8px; cursor: pointer; }
+  .receipt:hover { color: var(--text); background: var(--hover); }
+  .receipt b { color: var(--text); font-weight: 600; }
+  .choices { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; align-items: flex-start; }
+  .choices button { border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; text-align: left; }
+  .choices button:hover { background: var(--hover); }
   .composer { padding: 12px 24px 20px; }
   .box { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; border: 1px solid var(--line); border-radius: 14px; padding: 8px 8px 8px 14px; background: var(--bg); }
   textarea { flex: 1; border: 0; outline: 0; resize: none; background: none; color: var(--text); font: inherit; max-height: 200px; padding: 4px 0; }
@@ -141,10 +147,24 @@ function renderSide() {
     </div>`).join("");
 }
 
+// 主 bot 的回执："→ dev/路由器 · 接着聊" 第一行渲染成可点的小标签；拿不准时的 "1. …" 渲染成按钮
+function render(text) {
+  const r = text.match(/^→ (\S+?)\/(.+?) · (\S+)\n\n([\s\S]*)$/);
+  if (r) return `<div class="receipt" data-goto="${esc(r[1] + "/" + r[2])}">→ <b>${esc(r[1])} / ${esc(r[2])}</b> · ${esc(r[3])}</div>` + md(r[4]);
+  if (text.startsWith("🤔")) {
+    const [head, ...opts] = text.split("\n");
+    return md(head) + '<div class="choices">' + opts.map((o) => {
+      const m = o.match(/^(\d+)\. (.+)$/);
+      return m ? `<button data-choose="${m[1]}">${esc(o)}</button>` : "";
+    }).join("") + "</div>";
+  }
+  return md(text);
+}
+
 function addMsg(role, text) {
   const el = document.createElement("div");
   el.className = `msg ${role}`;
-  if (role === "user") el.textContent = text; else el.innerHTML = md(text);
+  if (role === "user") el.textContent = text; else el.innerHTML = render(text);
   $("#msgs").appendChild(el);
   $("#log").scrollTop = $("#log").scrollHeight;
   return el;
@@ -161,7 +181,7 @@ async function open(path) {
   const hist = await (await fetch(`/api/history?path=${encodeURIComponent(path)}`)).json();
   $("#msgs").innerHTML = "";
   if (!hist.length) $("#msgs").innerHTML = path === "main"
-    ? '<div class="hint">我是 Kiki。直接说话会进当前对话，输入 /help 看命令。</div>'
+    ? '<div class="hint">我是 Kiki。直接说话，我来判断放进哪段对话；@宝名 可以指定，/help 看命令。</div>'
     : '<div class="hint">新对话，说点什么吧。</div>';
   hist.forEach((m) => addMsg(m.role, m.text));
   if (s?.busy) setPending(true);
@@ -175,6 +195,7 @@ async function send() {
   autosize();
   $(".hint")?.remove();
   const r = await fetch("/api/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: current, text }) });
+  if (r.ok && current === "main") setPending(true); // 主 bot 要先路由再回答，给个等待提示
   if (!r.ok) addMsg("assistant", `出错了：${(await r.json()).error}`);
 }
 
@@ -213,7 +234,16 @@ document.body.addEventListener("click", (e) => {
   const nb = e.target.closest("[data-new]");
   if (nb) return newSession(nb.dataset.new, nb);
   const it = e.target.closest("[data-path]");
-  if (it) open(it.dataset.path);
+  if (it) return open(it.dataset.path);
+  const go = e.target.closest("[data-goto]");
+  if (go) {
+    const [agent, ...rest] = go.dataset.goto.split("/");
+    const s = tree.agents.find((a) => a.name === agent)?.sessions.find((x) => x.name === rest.join("/"));
+    if (s) open(s.path);
+    return;
+  }
+  const ch = e.target.closest("[data-choose]");
+  if (ch) { $("#input").value = ch.dataset.choose; send(); }
 });
 $("#send").onclick = send;
 $("#input").addEventListener("input", autosize);
@@ -226,9 +256,10 @@ es.addEventListener("message", (e) => {
   const m = JSON.parse(e.data);
   if (m.path === current && m.role === "assistant") $(".pending")?.remove();
   if (m.path !== current) { if (m.role === "assistant") { unread.add(m.path); renderSide(); } return; }
-  if (m.role === "assistant" && streaming) { streaming.innerHTML = md(m.text); streaming = null; return; }
+  if (m.role === "assistant" && streaming) { streaming.innerHTML = render(m.text); streaming = null; return; }
   $(".hint")?.remove();
   addMsg(m.role, m.text);
+  const p = $(".pending"); if (p) $("#msgs").appendChild(p); // 等待提示始终在最下面
 });
 es.addEventListener("delta", (e) => {
   const d = JSON.parse(e.data);

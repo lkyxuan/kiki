@@ -52,10 +52,10 @@ export class Agents extends EventEmitter {
     return existsSync(this.agentDir(agent));
   }
 
-  private async model() {
-    const [provider, ...rest] = this.modelSpec.split("/");
+  private async model(spec = this.modelSpec) {
+    const [provider, ...rest] = spec.split("/");
     const m = (await this.runtime).getModel(provider, rest.join("/"));
-    if (!m) throw new Error(`找不到模型 ${this.modelSpec}`);
+    if (!m) throw new Error(`找不到模型 ${spec}`);
     return m;
   }
 
@@ -94,6 +94,21 @@ export class Agents extends EventEmitter {
     return path;
   }
 
+  /** 从已有对话分叉出一段新对话（带上原对话的全部上下文），后台接着做时用。 */
+  async fork(agent: string, fromPath: string, name: string): Promise<string> {
+    const dir = this.agentDir(agent);
+    const sessionsDir = join(dir, "sessions");
+    mkdirSync(sessionsDir, { recursive: true });
+    await this.queues.get(fromPath)?.catch(() => {}); // 等原对话手上那句做完，免得分叉到一半
+    const session = await this.open(agent, SessionManager.forkFrom(fromPath, dir, sessionsDir));
+    session.setSessionName(name);
+    const path = session.sessionFile;
+    if (!path) throw new Error("pi 没有给出对话文件路径");
+    this.live.set(path, session);
+    this.watch(path, session);
+    return path;
+  }
+
   private async get(agent: string, path: string): Promise<AgentSession> {
     let s = this.live.get(path);
     if (!s) {
@@ -116,8 +131,37 @@ export class Agents extends EventEmitter {
     return run;
   }
 
+  /** 一次性问模型一句话（不进任何对话），路由用。 */
+  async complete(system: string, user: string, spec?: string): Promise<string> {
+    const rt = await this.runtime;
+    const msg: any = await rt.completeSimple(await this.model(spec), {
+      systemPrompt: system,
+      messages: [{ role: "user", content: user, timestamp: Date.now() }],
+    });
+    if (msg.stopReason === "error") throw new Error(msg.errorMessage ?? "模型出错");
+    return (msg.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("").trim();
+  }
+
+  /** 这个宝是干什么的：取 AGENTS.md 里"我负责什么"下面那段，没有就取标题。 */
+  describe(agent: string): string {
+    const f = join(this.agentDir(agent), "AGENTS.md");
+    if (!existsSync(f)) return "";
+    const md = readFileSync(f, "utf8");
+    const duty = md.match(/##\s*我负责什么\s*\n+([^\n#][^\n]*)/);
+    if (duty) return duty[1].trim();
+    return (md.match(/^#\s*(.+)$/m)?.[1] ?? "").trim();
+  }
+
   isBusy(path: string) {
     return this.live.get(path)?.isStreaming ?? false;
+  }
+
+  /** 用户在这段对话里最近说的 n 句，每句截到 60 字（路由用）。 */
+  recent(path: string, n: number): string[] {
+    return this.history(path)
+      .filter((l) => l.role === "user")
+      .slice(-n)
+      .map((l) => l.text.replace(/\s+/g, " ").slice(0, 60));
   }
 
   /** 一段对话里的聊天记录（只取文字，不含工具调用）。 */
