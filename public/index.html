@@ -138,10 +138,9 @@
   #sheet { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .18s; }
   #sheet.on { opacity: 1; pointer-events: auto; }
   #sheet[hidden] { display: none; } /* 关着时彻底移出 Tab 键顺序 */
-  #sheet .win { width: min(860px, calc(100% - 48px)); height: min(88vh, 920px); background: var(--grouped); border-radius: 14px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; transform: scale(.97) translateY(6px); transition: transform .22s cubic-bezier(.2,.8,.2,1); }
+  #sheet .win { width: min(960px, calc(100% - 48px)); height: min(88vh, 920px); background: var(--grouped); border-radius: 14px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; position: relative; transform: scale(.97) translateY(6px); transition: transform .22s cubic-bezier(.2,.8,.2,1); }
   #sheet.on .win { transform: none; }
-  #sheet .bar { height: 48px; flex: none; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid var(--line); background: var(--material); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); font-weight: 600; font-size: 14px; }
-  #sheet .close { position: absolute; right: 10px; top: 9px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); background: var(--fill); }
+  #sheet .close { position: absolute; z-index: 1; right: 14px; top: 14px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); background: var(--fill); }
   #sheet .close:hover { color: var(--text); background: var(--active); }
   #sheet iframe { flex: 1; border: 0; width: 100%; background: var(--grouped); }
 
@@ -177,7 +176,7 @@
 <section id="panel" aria-label="右栏"></section>
 <div id="sheet" role="dialog" aria-modal="true" aria-label="设置" hidden>
   <div class="win">
-    <div class="bar">设置<button class="close" id="sheet-close" aria-label="关闭设置" title="关闭（Esc）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <button class="close" id="sheet-close" aria-label="关闭设置" title="关闭（Esc）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     <iframe id="sheet-frame" title="设置"></iframe>
   </div>
 </div>
@@ -254,7 +253,7 @@ function renderPanel() {
   const s = find(current);
   if (s) {
     const about = aboutCache[s.agent];
-    html += `<div><h3>${esc(s.agent)}</h3><div class="card"><div class="about">${about === undefined ? "读取中…" : esc(about || "还没写说明")}</div><a href="/settings.html" data-settings>编辑说明</a></div></div>`;
+    html += `<div><h3>${esc(s.agent)}</h3><div class="card"><div class="about">${about === undefined ? "读取中…" : esc(about || "还没写说明")}</div><a href="/settings.html#baos" data-settings="baos">编辑说明</a></div></div>`;
     if (about === undefined) loadAbout(s.agent);
   } else {
     html += `<div><h3>我的宝</h3><div class="card">${tree.agents.map((a) => `<div class="row">${avatar(a.name)}<span class="name">${esc(a.name)}</span><small>${a.sessions.length} 段对话</small></div>`).join("") || '<div class="none">还没有宝</div>'}</div></div>`;
@@ -402,10 +401,10 @@ function togglePanel() {
 try { if (localStorage.getItem("kiki.panel") === "off") document.body.classList.add("no-panel"); } catch {}
 
 // 设置：弹窗打开，不离开聊天页
-function openSettings() {
+function openSettings(pane) {
   const sh = $("#sheet"), fr = $("#sheet-frame");
-  if (!fr.getAttribute("src")) fr.src = "/settings.html?embed=1";
-  else try { fr.contentWindow.location.reload(); } catch {}
+  // 每次打开都重新载入，显示最新的设置；pane 指定先打开哪一块（比如 baos）
+  fr.src = "/settings.html?embed=1&t=" + Date.now() + (typeof pane === "string" && pane ? "#" + pane : "");
   sh.hidden = false;
   void sh.offsetWidth; // 先排版一次，淡入动画才会生效
   sh.classList.add("on");
@@ -433,7 +432,7 @@ document.body.addEventListener("click", (e) => {
   const dc = e.target.closest("[data-decide]");
   if (dc) return decide(dc.dataset.id, dc.dataset.decide);
   const st = e.target.closest("[data-settings]");
-  if (st && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); return openSettings(); }
+  if (st && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); return openSettings(st.dataset.settings); }
   const nb = e.target.closest("[data-new]");
   if (nb) return newSession(nb.dataset.new, nb);
   const it = e.target.closest("[data-path]");
