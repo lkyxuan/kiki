@@ -861,7 +861,8 @@ function withImages(id) {
   if (!list.length) return text;
   if (list.some((a) => a.loading)) { addMsg("assistant", "图片还在上传，稍等一下再发。"); return ""; }
   if (!canSee()) { openModelMenu(`现在的模型「${modelName()}」看不了图，换一个标着「能看图」的模型再发。`); return ""; }
-  return list.map((a) => a.mark).join("\n") + (text ? "\n\n" + text : "");
+  // 图片标记放在文字后面：/bg、@宝名 这类开头的命令要留在最前面
+  return (text ? text + "\n\n" : "") + list.map((a) => a.mark).join("\n");
 }
 document.querySelectorAll(".composer[data-for]").forEach((c) => {
   const id = c.dataset.for;
@@ -898,7 +899,12 @@ function renderModels() {
   if (g.loggedIn) h += '<div class="sub">已用 ChatGPT 订阅登录。<button class="link" data-gpt="logout">退出登录</button></div>';
   else if (L.status === "waiting" && L.url) h += `<div class="sub">1. <a href="${esc(L.url)}" target="_blank" rel="noopener">打开 ChatGPT 登录页</a>，登录并同意。<br>2. 在 Mac mini 上登的，会自动连上。<br>在别的电脑上登的，最后会跳到一个打不开的 localhost 页面，把它地址栏里的网址整段粘到下面。</div><div class="row"><input id="gpt-code" placeholder="http://127.0.0.1:1455/auth/callback?code=…"><button data-gpt="code">确定</button></div><div class="sub"><button class="link" data-gpt="cancel">取消登录</button></div>`;
   else h += `<button class="opt" data-gpt="start"><span class="ok"></span><span class="n">用 ChatGPT 订阅登录…</span><span class="tag">能看图</span></button>${L.status === "error" ? `<div class="sub err">登录失败：${esc(L.error || "")}</div>` : ""}`;
+  // 登录中每 2 秒刷新一次菜单：别把正在粘的网址和光标弄丢
+  const old = $("#gpt-code"), val = old?.value, focused = old && document.activeElement === old;
   menu.innerHTML = h;
+  const now = $("#gpt-code");
+  if (now && val) now.value = val;
+  if (now && focused) now.focus();
 }
 function openModelMenu(note = "") {
   modelNote = note;
