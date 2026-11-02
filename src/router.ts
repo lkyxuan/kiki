@@ -31,6 +31,8 @@ export interface AgentBackend {
   /** 通知界面这段对话有了一条完整回答（可选） */
   announce?(path: string, text: string): void;
   abort?(path: string): Promise<void>;
+  /** 关掉一段对话（停下手上的活、放开内存），并把它的记录挪进回收站（可选） */
+  discard?(agent: string, path: string, name: string): Promise<void>;
 }
 
 type Reply = (text: string) => Promise<void>;
@@ -424,6 +426,27 @@ export class Router {
       .then((r) => this.agents.announce?.(rec.path, r))
       .catch((e) => this.agents.announce?.(rec.path, `出错了：${(e as Error).message}`));
     return `${made}已交接到 ${label(rec)}，新对话已收到交接说明。告诉用户时把对话写成 ${link(rec)}，界面上会变成能点开的卡片。`;
+  }
+
+  /** 删掉一段讨论串：停下它、从名册去掉、记录挪进回收站。宝的主对话不能删，只能清空。 */
+  async deleteSession(path: string): Promise<SessionRecord> {
+    const rec = this.registry.byPath(path);
+    if (!rec) throw new Error("没有这段对话");
+    if (rec.name === MAIN_SESSION) throw new Error("宝的主对话不能删，可以清空");
+    this.registry.remove(path);
+    await this.agents.discard?.(rec.agent, path, rec.name);
+    return rec;
+  }
+
+  /** 清空宝的主对话：旧记录挪进回收站，换一段新的空对话，名字和位置不变。返回的记录已指向新文件。 */
+  async clearMain(path: string): Promise<SessionRecord> {
+    const rec = this.registry.byPath(path);
+    if (!rec) throw new Error("没有这段对话");
+    if (rec.name !== MAIN_SESSION) throw new Error("只有主对话能清空，讨论串直接删");
+    const fresh = await this.agents.create(rec.agent, MAIN_SESSION);
+    this.registry.repoint(path, fresh);
+    await this.agents.discard?.(rec.agent, path, rec.name);
+    return rec;
   }
 
   /** 宝的主对话：没有就建。 */
