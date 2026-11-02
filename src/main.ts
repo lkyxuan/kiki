@@ -18,6 +18,7 @@ import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { startServer } from "./server.js";
 import { FileTaskStore } from "./tasks.js";
+import { taskTools } from "./tasktool.js";
 import { Updater, VERSION } from "./update.js";
 
 // 自动更新装新版本前会先跑一次 --selftest：能走到这里说明 Node 和全部代码都加载成功了
@@ -64,7 +65,14 @@ const router = new Router(agents, registry, defaultBao, new FileTaskStore(join(d
 });
 // 对话里的 agent 可以把一件新事交接到新对话（自己写交接说明）
 router.rules = () => loadRules(dataDir);
-const TOOL_FEATURE: Record<string, FeatureId> = { kiki_handoff: "handoff", kiki_peek: "peek", kiki_relay: "relay", kiki_remember: "remember" };
+const TOOL_FEATURE: Record<string, FeatureId> = {
+  kiki_handoff: "handoff",
+  kiki_peek: "peek",
+  kiki_relay: "relay",
+  kiki_remember: "remember",
+  kiki_task: "schedule",
+  kiki_ask_user: "background",
+};
 // 每段对话一句话摘要：回完话后台更新（registry.json 里的 summary），路由和主对话都只看摘要
 const summaries = new Summaries({
   registry,
@@ -91,6 +99,8 @@ agents.toolsFor = () =>
     handoffTool({ listBaos: () => agents.listAgents(), describe: (b) => agents.describe(b), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
     ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
     lookTool((name, q) => agents.look(name, q)), // 看不了图的模型再看一眼图
+    // 待办、定时任务、等某件事做完再做；后台任务卡住时停下来问用户
+    ...taskTools({ tasks: router.tasks, listBaos: () => agents.listAgents(), baoOf: (p) => (p ? registry.byPath(p)?.agent : undefined) }),
   ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
 
 // 每个宝一段主对话，老对话都当讨论串。放在扩展和工具都挂好之后，启动时补建的主对话也带着它们
