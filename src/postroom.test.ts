@@ -267,3 +267,16 @@ test("奇奇看信：不重要的只记下不惊动宝；重要的提醒；连�
   assert.deepEqual(notified, ["账单", "「报名黑客松」有新消息"]);
   assert.equal(pr.inbox.rows.find((r) => r.title === "周报")?.status, "triaged");
 });
+
+test("连着任务卡的：交回任务接着办；任务接不上就退回交回对话", async () => {
+  const { pr, drop } = setup();
+  const got: string[] = [];
+  pr.notify = async () => {};
+  pr.followTask = async (id) => (got.push(`task:${id}`), id === "t1" ? "" : undefined);
+  pr.followUp = async (s) => (got.push(`session:${s}`), "已交回");
+  pr.triage = async () => ({ important: false, route: false, crossed: [], follow: [{ text: "a", task: "t1" }, { text: "b", task: "t2", link: "宝/对话" }] });
+  drop("1.md", "进展");
+  await pr.poll();
+  await pr.settled();
+  assert.deepEqual(got, ["task:t1", "task:t2", "session:宝/对话"]);
+});

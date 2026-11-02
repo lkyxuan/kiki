@@ -413,7 +413,9 @@ export class Postroom extends EventEmitter {
   /** 只通知、不分派的那种：经通知通道告诉你。server.ts 接上 */
   notify: (item: InboxItem) => Promise<void> = async () => {};
   /** 奇奇看信（triage.ts）：判断要不要提醒、要不要交给宝、改关注清单。没接或出错就照老办法全交给奇奇 */
-  triage?: (item: InboxItem) => Promise<{ important: boolean; why?: string; route: boolean; add?: string; crossed: string[]; doneWhy?: string; follow: { text: string; link: string }[] } | undefined>;
+  triage?: (item: InboxItem) => Promise<{ important: boolean; why?: string; route: boolean; add?: string; crossed: string[]; doneWhy?: string; follow: { text: string; link?: string; task?: string }[]; bao?: string } | undefined>;
+  /** 连着任务卡的事有了新消息：交回那个任务接着办（任务看板接上）。返回 undefined 表示任务接不上了，改交回对话 */
+  followTask?: (taskId: string, text: string) => Promise<string | undefined>;
   /** 关注清单里连着对话的事有了新消息：交回那段对话（"宝/对话名"），让它带着原来的上下文出下一步。返回给你看的一句话。server.ts 接上 */
   followUp: (session: string, watch: string, item: InboxItem) => Promise<string> = async () => {
     throw new Error("还没接上");
@@ -602,12 +604,17 @@ export class Postroom extends EventEmitter {
           // 连着任务的事有了新消息（比如一周前报名的项目来了新邮件）：交回那个任务的对话，并告诉你
           if (v.follow.length) {
             for (const f of v.follow) {
-              const where = await this.followUp(f.link, f.text, item).catch((e) => `没交回去：${(e as Error).message}`);
+              const body = `${item.title ? `${item.title}\n` : ""}${item.text}`;
+              let where = f.task && this.followTask ? await this.followTask(f.task, `【收发室】你在等的「${f.text}」有新消息（来自 ${item.from}）：\n\n${body}`).catch(() => undefined) : undefined;
+              if (where !== undefined) where = where || "已交回原任务接着办。";
+              else if (f.link) where = await this.followUp(f.link, f.text, item).catch((e) => `没交回去：${(e as Error).message}`);
+              else where = "原任务已经接不上了，请你看一眼。";
               await this.notify({ ...item, title: `「${f.text}」有新消息`, text: `${v.why ?? item.title ?? ""}\n${where}` });
             }
-            this.inbox.put({ ...item, status: "routed", routedTo: `→ ${v.follow.map((f) => f.link).join("、")} · 接着办` });
+            this.inbox.put({ ...item, status: "routed", routedTo: `→ ${v.follow.map((f) => f.link ?? `任务 ${f.task}`).join("、")} · 接着办` });
             return;
           }
+          if (v.bao) item = { ...item, bao: v.bao }; // 交给奇奇时直接 @ 这个宝
           if (!v.route || item.route === false) {
             this.inbox.put({ ...item, status: "triaged" }); // 记在收件箱里（以后的简报会用），不惊动宝
             return;
