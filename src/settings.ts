@@ -1,6 +1,6 @@
 // 设置页的接口：/api/settings*。页面是 public/settings.html。
 //
-// 配置写回 <数据目录>/.env：只改对应的那一行，注释和别的行原样保留。改完要重启 Kiki 才生效。
+// 配置写回 <数据目录>/.env：只改对应的那一行，注释和别的行原样保留。改完要重启 Kiki 才生效（直接填的 DeepSeek 密钥例外，马上生效）。
 // 如果某个值是进程启动时从外面带进来的（比如 op run 注入、终端里 export），这里改了也没用，界面会标出来。
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -199,8 +199,16 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
       if (typeof value !== "string" || /[\r\n]/.test(value)) return json({ error: "值不能换行" }, 400);
       if (source(key) === "external")
         return json({ error: "这个值是启动时从外部注入的，这里改了也不生效" }, 409);
-      writeFileSync(envFile, setEnvLine(readEnvFile(), key, value.trim() === "" ? undefined : value.trim()), { mode: 0o600 }); // 里面有密钥，新建时只给自己读写
-      changed = true;
+      const v = value.trim();
+      writeFileSync(envFile, setEnvLine(readEnvFile(), key, v === "" ? undefined : v), { mode: 0o600 }); // 里面有密钥，新建时只给自己读写
+      if (key === "DEEPSEEK_API_KEY" && !isRef(v)) {
+        // 直接填的密钥马上生效（内核每次调用模型时现读环境变量），新用户填完就能聊，不用先重启。
+        // 启动时的样子也一起改掉，免得 sourceOf 把它当成外部注入的值。
+        if (v) process.env[key] = v;
+        else delete process.env[key];
+        if (v) startVals[key] = v;
+        else delete startVals[key];
+      } else changed = true;
       return json({ ok: true, changed });
     }
 

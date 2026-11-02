@@ -1,7 +1,7 @@
 // Kiki 的原生窗口外壳。
 // 两种用法（第一次打开时选，菜单「连接到…」随时改，和 Hermes 的远程网关一样前后端分离）：
 //   本机：在这台电脑上运行 Kiki——登记 launchd 后台服务、等它起来，再在窗口里显示界面
-//   远程：只当界面，连另一台电脑上的 Kiki（比如经 Tailscale 的 https://mac-mini.xxx.ts.net:8888），本机不跑后台
+//   远程：只当界面，连另一台电脑上的 Kiki（比如经 Tailscale 的 https://mac-mini.xxx.ts.net），本机不跑后台
 // 关掉窗口不会停服务；点 Dock 图标再打开。外部链接用默认浏览器打开。
 import Cocoa
 import WebKit
@@ -79,7 +79,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         webView.evaluateJavaScript("window.kikiOpenSettings && kikiOpenSettings()", completionHandler: nil)
     }
 
+    // 直接在 .dmg 里双击、或者从「下载」里打开时，macOS 会把 App 放到一个临时的只读位置运行（App Translocation）。
+    // 这时登记的后台服务指向一个推出磁盘或重启后就没了的路径，自动更新也换不了 App，所以先请用户拖进「应用程序」。
+    func runningFromTemporaryPlace() -> Bool {
+        let path = Bundle.main.bundlePath
+        return path.hasPrefix("/Volumes/") || path.contains("/AppTranslocation/")
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if runningFromTemporaryPlace() {
+            NSApp.activate(ignoringOtherApps: true)
+            let a = NSAlert()
+            a.messageText = "请先把 Kiki 拖进「应用程序」"
+            a.informativeText = """
+            Kiki 要在后台一直运行、自己更新，所以不能直接在安装盘或「下载」文件夹里打开。\
+            把 Kiki 拖进「应用程序」文件夹，再从那里打开就好了。
+            """
+            a.addButton(withTitle: "打开「应用程序」文件夹")
+            a.addButton(withTitle: "退出")
+            if a.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications"))
+            }
+            NSApp.terminate(nil)
+            return
+        }
         buildMenu()
         buildWindow()
         if server == nil {
@@ -111,20 +134,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let a = NSAlert()
         a.messageText = firstTime ? "欢迎使用 Kiki" : "连接到哪个 Kiki？"
         a.informativeText = (error.map { $0 + "\n\n" } ?? "") + """
-        在这台电脑上运行 Kiki；或者只把这里当界面，连接另一台电脑（比如家里的 Mac mini）上的 Kiki。\
-        连远程时两台电脑都要开着 Tailscale，地址形如 https://mac-mini.xxx.ts.net:8888
+        第一次用选「在这台电脑上运行」就行。\
+        如果 Kiki 已经跑在另一台电脑（比如家里的 Mac mini）上，也可以只把这里当界面：填那台电脑的地址，再点「连接远程地址」。\
+        连远程时两台电脑都要开着 Tailscale，地址形如 https://mac-mini.xxx.ts.net
         """
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 340, height: 24))
-        field.placeholderString = "远程地址，比如 https://mac-mini.xxx.ts.net:8888"
+        field.placeholderString = "远程地址（可不填），比如 https://mac-mini.xxx.ts.net"
         if isRemote { field.stringValue = server! }
         a.accessoryView = field
-        a.addButton(withTitle: "连接远程地址")
-        a.addButton(withTitle: "在这台电脑上运行")
+        // 第一个按钮是默认按钮（按回车就是它）：新用户直接回车就在本机跑起来；本来就连远程的，回车还是连远程
+        let remoteFirst = isRemote
+        a.addButton(withTitle: remoteFirst ? "连接远程地址" : "在这台电脑上运行")
+        a.addButton(withTitle: remoteFirst ? "在这台电脑上运行" : "连接远程地址")
         if !firstTime { a.addButton(withTitle: "取消") }
-        a.window.initialFirstResponder = field
+        if remoteFirst { a.window.initialFirstResponder = field }
         a.beginSheetModal(for: window) { r in
+            let local: NSApplication.ModalResponse = remoteFirst ? .alertSecondButtonReturn : .alertFirstButtonReturn
+            let remote: NSApplication.ModalResponse = remoteFirst ? .alertFirstButtonReturn : .alertSecondButtonReturn
             switch r {
-            case .alertFirstButtonReturn:
+            case local:
+                self.server = "local"
+                self.connect()
+            case remote:
                 var text = field.stringValue.trimmingCharacters(in: .whitespaces)
                 if !text.isEmpty && !text.contains("://") { text = "https://" + text }
                 while text.hasSuffix("/") { text.removeLast() }
@@ -133,9 +164,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                     return
                 }
                 self.server = url.absoluteString
-                self.connect()
-            case .alertSecondButtonReturn:
-                self.server = "local"
                 self.connect()
             default:
                 break
