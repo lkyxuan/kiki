@@ -144,6 +144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 
     func connect() {
+        lastConnectError = ""
         generation += 1
         loaded = false
         if isRemote, let url = normalizedRemote(server!) ?? URL(string: server!) {
