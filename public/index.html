@@ -124,9 +124,8 @@
   .via { color: var(--muted); }
   .via .how { margin-left: 6px; font-size: 12px; color: var(--faint); }
   /* 右栏里打开的对话（点小卡片打开）：能看、能接着说，也能挪到中间 */
-  #peek { width: 440px; flex: none; border-left: 1px solid var(--line); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+  #peek { width: 420px; flex: none; border-left: 1px solid var(--line); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
   #peek[hidden] { display: none; }
-  body.peeking #panel { display: none; }
   #peek .peek-head { display: flex; align-items: center; gap: 8px; padding: 12px 10px 12px 16px; border-bottom: 1px solid var(--line); }
   #peek .peek-head .t { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #peek .peek-head .t .crumb { color: var(--muted); font-weight: 500; }
@@ -174,9 +173,11 @@
   .send:disabled { opacity: .3; }
   .send svg { width: 18px; height: 18px; }
 
-  /* 右栏：进行中、后台任务、这个宝 */
-  #panel { width: 300px; flex: none; border-left: 1px solid var(--line); background: var(--side); overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 18px; }
+  /* 最右一列：这个宝的长期情况（等你点头、出问题、正在跑、定时任务、后台任务），和短期对话分开，一直在 */
+  #panel { width: 280px; flex: none; border-left: 1px solid var(--line); background: var(--side); overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 18px; }
   body.no-panel #panel { display: none; }
+  #panel .ptitle { font-weight: 600; font-size: 15px; margin: -4px 4px -6px; }
+  #panel .row .bad { color: var(--err); flex: none; width: 14px; text-align: center; }
   #panel h3 { margin: 0 0 6px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
   #panel .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px; font-size: 14px; box-shadow: var(--shadow-sm); }
   #panel .row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
@@ -224,7 +225,7 @@
   #sheet .close:hover { color: var(--text); background: var(--active); }
   #sheet iframe { flex: 1; border: 0; width: 100%; background: var(--grouped); }
 
-  @media (max-width: 1100px) { #peek:not([hidden]) { position: fixed; right: 0; top: 0; bottom: 0; z-index: 6; width: min(440px, 100%); box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
+  @media (max-width: 1400px) { #peek:not([hidden]) { position: fixed; right: 0; top: 0; bottom: 0; z-index: 6; width: min(440px, 100%); box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 1100px) { #panel { display: none; } body.show-panel #panel { display: flex; position: fixed; right: 0; top: 0; bottom: 0; z-index: 5; box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 700px) { aside { width: 200px; } #log, .composer, #asks { padding-left: 16px; padding-right: 16px; } #sheet .win { width: 100%; height: 100%; border-radius: 0; } }
   /* Kiki.app：没有单独的标题栏，三栏颜色铺到顶；左上角给红绿灯让位，顶部空白处可以拖动窗口 */
@@ -246,7 +247,7 @@
   <header>
     <span id="title">奇奇</span>
     <span id="upd"></span>
-    <button class="icon-btn" id="panel-toggle" aria-label="显示或隐藏右栏" title="右栏"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
+    <button class="icon-btn" id="panel-toggle" aria-label="显示或隐藏最右边的情况栏" title="情况栏"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
   </header>
   <div id="log"><div class="msgs" id="msgs"></div></div>
   <div id="asks" aria-live="polite"></div>
@@ -257,7 +258,6 @@
     </div>
   </div>
 </main>
-<section id="panel" aria-label="右栏"></section>
 <section id="peek" aria-label="右边打开的对话" hidden>
   <div class="peek-head">
     <span class="t" id="peek-title"></span>
@@ -271,6 +271,7 @@
     </div>
   </div>
 </section>
+<section id="panel" aria-label="这个宝的情况"></section>
 <div id="newbao" role="dialog" aria-modal="true" aria-labelledby="newbao-title" hidden>
   <form autocomplete="off">
     <h2 id="newbao-title">新建一个宝</h2>
@@ -392,27 +393,31 @@ async function openBao(name) {
 }
 
 // 右栏：哪些对话在干活、后台任务、当前这个宝
+// 最右一列：当前这一层的长期情况。在奇奇看全部，在某个宝里只看这个宝
+const layerOf = () => (current === "main" ? null : find(current)?.agent ?? null);
 function renderPanel() {
-  const all = tree.agents.flatMap((a) => a.sessions);
-  // 在干活的对话：后面的小字写它正在干嘛（正在运行命令…），不然写是哪个宝的
-  // 点了在右边打开（主对话会去中间），中间的对话不动
+  const layer = layerOf(), mine = (agent) => !layer || agent === layer;
+  const all = tree.agents.filter((a) => mine(a.name)).flatMap((a) => a.sessions);
+  // 后面的小字：在干活就写它正在干嘛（正在运行命令…），不然写是哪个宝的
   const row = (s) => `<button class="row" data-thread="${esc(s.path)}">${s.busy ? '<span class="spin"></span>' : avatar(s.agent)}<span class="name">${esc(s.name)}</span><small class="st">${esc(s.busy && s.live ? s.live.status : s.agent)}</small></button>`;
+  const card = (title, body) => `<div><h3>${title}</h3><div class="card">${body}</div></div>`;
   const busy = all.filter((s) => s.busy);
   const bg = all.filter((s) => s.background).sort((x, y) => String(y.created).localeCompare(String(x.created))).slice(0, 8);
-  let html = "";
+  const tasks = (tree.tasks || []).filter((t) => mine(t.agent));
+  const bad = tasks.filter((t) => t.status === "failed" || t.status === "interrupted").slice(-5).reverse();
+  const queued = tasks.filter((t) => t.status === "queued");
+  let html = `<div class="ptitle">${layer ? esc(layer) : "全部"}的情况</div>`;
   const back = !peek && lastPeek && find(lastPeek);
-  if (back) html += `<div><h3>刚才看的</h3><div class="card"><button class="row" data-thread="${esc(back.path)}">${back.busy ? '<span class="spin"></span>' : avatar(back.agent)}<span class="name">${esc(back.name)}</span><small>${esc(back.agent)}</small></button></div></div>`;
-  if (asks.length) html += `<div><h3>等你点头</h3><div class="card">${asks.map((a) => { const s = find(a.path); return `<button class="row" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small>${esc(s ? s.name : a.agent)}</small></button>`; }).join("")}</div></div>`;
-  html += `<div><h3>进行中</h3><div class="card">${busy.length ? busy.map(row).join("") : '<div class="none">现在没有在干活的对话</div>'}</div></div>`;
-  html += `<div><h3>后台任务</h3><div class="card">${bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>'}</div></div>`;
-  const s = find(current);
-  if (s) {
-    const about = aboutCache[s.agent];
-    html += `<div><h3>${esc(s.agent)}</h3><div class="card"><div class="about">${about === undefined ? "读取中…" : esc(about || "还没写说明")}</div><a href="/settings.html#baos" data-settings="baos">编辑说明</a></div></div>`;
-    if (about === undefined) loadAbout(s.agent);
-  } else {
-    html += `<div><h3>我的宝</h3><div class="card">${tree.agents.map((a) => `<div class="row">${avatar(a.name)}<span class="name">${esc(a.name)}</span><small>${a.sessions.length} 段对话</small></div>`).join("") || '<div class="none">还没有宝</div>'}</div></div>`;
-  }
+  if (back) html += card("刚才看的", `<button class="row" data-thread="${esc(back.path)}">${back.busy ? '<span class="spin"></span>' : avatar(back.agent)}<span class="name">${esc(back.name)}</span><small>${esc(back.agent)}</small></button>`);
+  const myAsks = asks.filter((a) => mine(a.agent));
+  if (myAsks.length) html += card("等你点头", myAsks.map((a) => { const s = find(a.path); return `<button class="row" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small>${esc(s ? s.name : a.agent)}</small></button>`; }).join(""));
+  if (bad.length) html += card("出了问题", bad.map((t) => `<button class="row" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.result || "")}"><span class="bad">!</span><span class="name">${esc(t.title)}</span><small>${t.status === "failed" ? "失败" : "中断"}</small></button>`).join(""));
+  html += card("正在跑", busy.length || queued.length ? busy.map(row).join("") + queued.map((t) => `<div class="row"><span class="spin" style="opacity:.4"></span><span class="name">${esc(t.title)}</span><small>排队</small></div>`).join("") : '<div class="none">现在没有在跑的</div>');
+  html += card("定时任务", '<div class="none">还没有定时任务</div>');
+  html += card("后台任务", bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>');
+  const name = layer || DEFAULT_BAO, about = aboutCache[name];
+  html += card(`关于${esc(name)}`, `<div class="about">${about === undefined ? "读取中…" : esc(about || "还没写说明")}</div><a href="/settings.html#baos" data-settings="baos">编辑说明</a>`);
+  if (about === undefined) loadAbout(name);
   $("#panel").innerHTML = html;
   renderAsks();
 }
