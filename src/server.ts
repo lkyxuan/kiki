@@ -47,11 +47,24 @@ export function startServer(opts: {
   const settings = settingsApi({ dataDir: opts.dataDir, port: opts.port });
   const chatgpt = new ChatGPTLogin(() => agents.modelRuntime(), opts.dataDir, agents.engineDir);
   // 模型菜单：现在用的、能选的、ChatGPT 登没登录
-  const modelInfo = async () => ({
-    current: agents.currentModel,
-    models: await agents.modelChoices(),
-    chatgpt: { loggedIn: await chatgpt.loggedIn().catch(() => false), login: chatgpt.state },
-  });
+  const modelInfo = async () => {
+    const models = await agents.modelChoices();
+    return {
+      current: agents.currentModel,
+      models,
+      vision: (await agents.visionChoice(models))?.spec ?? null, // 现在的模型看不了图时，先交给它看
+      chatgpt: { loggedIn: await chatgpt.loggedIn().catch(() => false), login: chatgpt.state },
+    };
+  };
+  const saveEnv = (key: string, value: string) => {
+    const envFile = join(opts.dataDir, ".env");
+    try {
+      writeFileSync(envFile, setEnvLine(existsSync(envFile) ? readFileSync(envFile, "utf8") : "", key, value), { mode: 0o600 });
+    } catch (e) {
+      console.warn(`${key} 写回 .env 失败：`, (e as Error).message);
+    }
+    process.env[key] = value;
+  };
 
   const push = (event: string, data: unknown) => {
     const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -162,14 +175,18 @@ export function startServer(opts: {
       } catch (e) {
         return json({ error: (e as Error).message }, 400);
       }
-      const envFile = join(opts.dataDir, ".env");
-      try {
-        writeFileSync(envFile, setEnvLine(existsSync(envFile) ? readFileSync(envFile, "utf8") : "", "MODEL", spec), { mode: 0o600 });
-      } catch (e) {
-        console.warn("模型写回 .env 失败：", (e as Error).message);
-      }
-      process.env.MODEL = spec;
+      saveEnv("MODEL", spec);
       push("model", { current: spec });
+      return json(await modelInfo());
+    }
+    // 看图模型：POST /api/models/vision {spec}
+    if (url.pathname === "/api/models/vision" && req.method === "POST") {
+      const { spec } = await body();
+      const pick = (await agents.modelChoices()).find((c) => c.spec === spec && c.image);
+      if (!pick) return json({ error: "这个模型看不了图，或者还没登录" }, 400);
+      agents.visionSpec = pick.spec;
+      saveEnv("VISION_MODEL", pick.spec);
+      push("model", { vision: pick.spec });
       return json(await modelInfo());
     }
     // 用 ChatGPT 订阅登录：start 拿登录网址，code 远程时粘回跳转后的网址，cancel / logout

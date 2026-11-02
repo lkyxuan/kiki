@@ -37,6 +37,27 @@ export function saveImage(dataDir: string, dataUrl: string): string {
   return `![图片](/api/image/${name})`;
 }
 
+/** 消息里图片的文件名（按出现顺序，去重）。 */
+export const imageNames = (text: string) => [...new Set([...text.matchAll(MARK)].map((m) => m[1]))];
+
+/** 读一张已存的图；没有这个文件返回 undefined。 */
+export function readImage(dataDir: string, name: string): ImagePart | undefined {
+  const f = join(uploadsDir(dataDir), name);
+  if (!validImageName(name) || !existsSync(f)) return undefined;
+  return { type: "image", data: readFileSync(f).toString("base64"), mimeType: imageMime(name) };
+}
+
+/**
+ * 当前模型看不了图时（比如 DeepSeek），先让看图模型把图读成文字，附在消息后面（学的 Hermes）。
+ * 包在 <kiki-image-note> 里：模型看得到，网页显示时收起来。
+ */
+export function imageNote(items: { name: string; text: string }[], by: string): string {
+  const body = items
+    .map((i) => `[用户附了一张图片（${i.name}），${by} 看到的内容：\n${i.text}]`)
+    .join("\n");
+  return `\n\n<kiki-image-note>\n${body}\n[你自己看不到图片，上面是别的模型读出来的文字。要看细节就用 kiki_look 工具，image 填文件名，question 写要看什么。]\n</kiki-image-note>`;
+}
+
 /** 消息里有没有图片标记。 */
 export const hasImages = (text: string) => new RegExp(MARK.source).test(text);
 

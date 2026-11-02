@@ -190,6 +190,7 @@
   .atts .att.loading img { opacity: .4; }
   .atts .att button { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; line-height: 18px; text-align: center; }
   .composer.drop .box { border-color: var(--accent); box-shadow: var(--shadow), 0 0 0 3px var(--accent-soft); }
+  .msg .seen { display: block; font-size: 11.5px; opacity: .7; margin-top: 4px; }
   .msg img.pic { display: block; max-width: min(320px, 100%); max-height: 320px; border-radius: 10px; margin: 2px 0 6px; cursor: zoom-in; }
   .model-wrap { position: relative; align-self: flex-end; flex: none; }
   #model-btn { height: 32px; padding: 0 10px; border-radius: 16px; font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 4px; max-width: 180px; }
@@ -380,7 +381,9 @@ const CHAT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const chip = (to, title) => `<button class="chip" data-peek="${to}" title="在右边打开 ${to}">${CHAT_ICON}<span>${title}</span></button>`;
 // 用户消息：原样显示文字，图片标记 ![图片](/api/image/名字) 画成缩略图
 const PIC = /!\[图片\]\(\/api\/image\/([a-f0-9]{32}\.(?:png|jpg|gif|webp))\)\n*/g;
-const userHtml = (text) => esc(text).replace(PIC, (_, n) => `<img class="pic" src="/api/image/${n}" alt="图片" data-full="/api/image/${n}">`);
+// 当前模型看不了图时，后台附上的「看图模型读到的内容」：网页上收起来，只留一行小字
+const NOTE = /\n*&lt;kiki-image-note&gt;[\s\S]*?&lt;\/kiki-image-note&gt;/g;
+const userHtml = (text) => esc(text).replace(NOTE, '<span class="seen">图片已先交给看图模型读过</span>').replace(PIC, (_, n) => `<img class="pic" src="/api/image/${n}" alt="图片" data-full="/api/image/${n}">`);
 // 极简 Markdown：代码块、行内代码、粗体、链接、段落
 function md(src) {
   const parts = src.split(/```(?:\w*)\n?([\s\S]*?)```/g);
@@ -939,14 +942,14 @@ async function addFiles(id, files) {
     if (!r.ok) { atts[id] = atts[id].filter((x) => x !== a); renderAtts(id); addMsg("assistant", `图片没传上去：${j.error || r.status}`); continue; }
     a.mark = j.mark; a.loading = false; renderAtts(id);
   }
-  if (atts[id].length && !canSee()) openModelMenu(`现在的模型「${modelName()}」看不了图，换一个标着「能看图」的模型再发。`);
+  if (atts[id].length && !canTakeImages()) openModelMenu(NO_EYES);
 }
 // 发送前：拼上图片标记；还在上传、或者模型看不了图就先不发
 function withImages(id) {
   const text = document.getElementById(id).value.trim(), list = atts[id];
   if (!list.length) return text;
   if (list.some((a) => a.loading)) { addMsg("assistant", "图片还在上传，稍等一下再发。"); return ""; }
-  if (!canSee()) { openModelMenu(`现在的模型「${modelName()}」看不了图，换一个标着「能看图」的模型再发。`); return ""; }
+  if (!canTakeImages()) { openModelMenu(NO_EYES); return ""; }
   // 图片标记放在文字后面：/bg、@宝名 这类开头的命令要留在最前面
   return (text ? text + "\n\n" : "") + list.map((a) => a.mark).join("\n");
 }
@@ -968,6 +971,9 @@ let models = { current: "", models: [], chatgpt: { loggedIn: false, login: { sta
 let modelNote = "", loginPoll = null;
 const modelName = () => models.models.find((m) => m.spec === models.current)?.name || models.current.split("/").pop() || "模型";
 const canSee = () => !!models.models.find((m) => m.spec === models.current)?.image;
+const visionName = () => models.models.find((m) => m.spec === models.vision)?.name;
+const canTakeImages = () => canSee() || !!models.vision; // 现在的模型看不了图时，有看图模型帮它先看也行
+const NO_EYES = "还没有能看图的模型。用 ChatGPT 订阅登录一下，DeepSeek 收到的图就会先交给 GPT 看。";
 async function loadModels() {
   const r = await fetch("/api/models");
   if (r.ok) models = await r.json();
@@ -975,12 +981,17 @@ async function loadModels() {
 }
 function renderModels() {
   $("#model-name").textContent = modelName();
-  $("#model-btn").title = `现在用的模型：${modelName()}${canSee() ? "（能看图）" : "（只看文字）"}，点了可以换`;
+  $("#model-btn").title = `现在用的模型：${modelName()}${canSee() ? "（能看图）" : visionName() ? `（图片先交给 ${visionName()} 看）` : "（只看文字）"}，点了可以换`;
   const menu = $("#model-menu");
   if (menu.hidden) return;
   const g = models.chatgpt, L = g.login || {};
   let h = modelNote ? `<div class="sub">${esc(modelNote)}</div><div class="sep"></div>` : "";
   h += models.models.map((m) => `<button class="opt" role="menuitemradio" aria-checked="${m.spec === models.current}" data-model="${esc(m.spec)}"><span class="ok">${m.spec === models.current ? "✓" : ""}</span><span class="n">${esc(m.name)}</span>${m.image ? '<span class="tag">能看图</span>' : ""}</button>`).join("");
+  const eyes = models.models.filter((m) => m.image);
+  if (!canSee() && eyes.length) { // 现在的模型看不了图：选谁先帮它看
+    h += `<div class="sep"></div><div class="sub">${esc(modelName())} 看不了图。你发的图先交给下面这个模型读成文字：</div>`;
+    h += eyes.map((m) => `<button class="opt" role="menuitemradio" aria-checked="${m.spec === models.vision}" data-vision="${esc(m.spec)}"><span class="ok">${m.spec === models.vision ? "✓" : ""}</span><span class="n">${esc(m.name)}</span><span class="tag">看图用</span></button>`).join("");
+  }
   h += '<div class="sep"></div>';
   if (g.loggedIn) h += '<div class="sub">已用 ChatGPT 订阅登录。<button class="link" data-gpt="logout">退出登录</button></div>';
   else if (L.status === "waiting" && L.url) h += `<div class="sub">1. <a href="${esc(L.url)}" target="_blank" rel="noopener">打开 ChatGPT 登录页</a>，登录并同意。<br>2. 在 Mac mini 上登的，会自动连上。<br>在别的电脑上登的，最后会跳到一个打不开的 localhost 页面，把它地址栏里的网址整段粘到下面。</div><div class="row"><input id="gpt-code" placeholder="http://127.0.0.1:1455/auth/callback?code=…"><button data-gpt="code">确定</button></div><div class="sub"><button class="link" data-gpt="cancel">取消登录</button></div>`;
@@ -1005,7 +1016,14 @@ $("#model-btn").onclick = (e) => { e.stopPropagation(); $("#model-menu").hidden 
 document.addEventListener("click", (e) => { if (!e.target.closest?.(".model-wrap")) closeModelMenu(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#model-menu").hidden) closeModelMenu(); });
 $("#model-menu").addEventListener("click", async (e) => {
-  const opt = e.target.closest("[data-model]"), gpt = e.target.closest("[data-gpt]");
+  const opt = e.target.closest("[data-model]"), gpt = e.target.closest("[data-gpt]"), eye = e.target.closest("[data-vision]");
+  if (eye) {
+    const r = await fetch("/api/models/vision", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ spec: eye.dataset.vision }) });
+    const j = await r.json();
+    if (!r.ok) { modelNote = j.error; renderModels(); return; }
+    models = j; modelNote = ""; renderModels();
+    return;
+  }
   if (opt) {
     const r = await fetch("/api/models/use", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ spec: opt.dataset.model }) });
     const j = await r.json();
@@ -1026,7 +1044,7 @@ $("#model-menu").addEventListener("click", async (e) => {
     await loadModels();
     if (models.chatgpt.loggedIn || models.chatgpt.login?.status !== "waiting") {
       clearInterval(loginPoll);
-      if (models.chatgpt.loggedIn) modelNote = "登录好了，选一个标着「能看图」的模型就能发图片。";
+      if (models.chatgpt.loggedIn) modelNote = "登录好了。现在可以直接发图片：DeepSeek 收到的图会先交给 GPT 看；也可以直接换成 GPT。";
       renderModels();
     }
   }, 2000);

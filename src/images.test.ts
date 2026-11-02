@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { hasImages, loadImages, saveImage, validImageName } from "./images.js";
+import { hasImages, imageNames, imageNote, loadImages, saveImage, validImageName } from "./images.js";
 
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
@@ -28,4 +28,12 @@ test("不收别的东西", () => {
   assert.throws(() => saveImage(dir, "data:text/html;base64,PGI+"));
   assert.throws(() => saveImage(dir, "../../etc/passwd"));
   assert.ok(!validImageName("../x.png"));
+});
+
+test("看不了图时附上的文字说明", () => {
+  const note = imageNote([{ name: "a".repeat(32) + ".png", text: "一只猫" }], "GPT-6 Luna");
+  assert.match(note, /^\n\n<kiki-image-note>\n/);
+  assert.match(note, /GPT-6 Luna 看到的内容：\n一只猫/);
+  assert.match(note, /kiki_look/);
+  assert.deepEqual(imageNames("x ![图片](/api/image/" + "b".repeat(32) + ".jpg) ![图片](/api/image/" + "b".repeat(32) + ".jpg)"), ["b".repeat(32) + ".jpg"]);
 });
