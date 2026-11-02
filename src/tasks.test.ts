@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { FileTaskStore, formatTask, parseTask, type Task, type TaskBackend, Tasks } from "./tasks.js";
+import { FileTaskStore, formatTask, MemoryTaskStore, parseTask, type Task, type TaskBackend, Tasks } from "./tasks.js";
 
 const tick = (ms = 10) => new Promise((r) => setTimeout(r, ms));
 
@@ -159,4 +159,212 @@ test("reportTo：不分叉，只回报到指定对话；重跑也带着", async 
   reloaded.retry(t.id);
   await tick();
   assert.match(notes[1], /^\/r\.jsonl ✅/);
+});
+
+// ---------- 待办、定时、依赖、等你 ----------
+
+function clock(start: string) {
+  let t = new Date(start).getTime();
+  return { now: () => new Date(t), advance: (ms: number) => (t += ms) };
+}
+
+test("定时：when 在将来就进待办，到点自动开跑", async () => {
+  const c = clock("2026-11-02T08:00:00");
+  const { backend } = fakeBackend();
+  const tasks = new Tasks(new MemoryTaskStore(), backend, { now: c.now });
+  const t = tasks.start({ agent: "dev", title: "提醒", prompt: "p", when: new Date(c.now().getTime() + 30).toISOString() });
+  assert.equal(t.status, "todo");
+  c.advance(30);
+  await tick(150); // 闹钟 +50ms 余量
+  assert.equal(t.status, "done");
+});
+
+test("关机期间到点的待办：recover 时补跑", async () => {
+  const c = clock("2026-11-02T08:00:00");
+  const store = new MemoryTaskStore();
+  const { backend } = fakeBackend();
+  const t = new Tasks(store, backend, { now: c.now }).start({ agent: "dev", title: "早报", prompt: "p", when: "2026-11-02T09:00:00" });
+  c.advance(2 * 3_600_000);
+  const again = new Tasks(store, backend, { now: c.now });
+  again.recover();
+  await tick();
+  assert.equal(again.get(t.id)?.status, "done");
+});
+
+test("重复：定时任务自己留在待办，每次到点另开一个任务，挪到下一次", async () => {
+  const c = clock("2026-11-02T08:59:59.990");
+  const { backend } = fakeBackend();
+  const tasks = new Tasks(new MemoryTaskStore(), backend, { now: c.now });
+  const tpl = tasks.start({ agent: "dev", title: "早报", prompt: "整理早报", repeat: "每天 09:00" });
+  assert.equal(tpl.status, "todo");
+  assert.equal(new Date(tpl.when!).getHours(), 9);
+  c.advance(20);
+  await tick(120);
+  const runs = tasks.list((t) => t.parent === tpl.id);
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].status, "done");
+  assert.equal(tpl.status, "todo");
+  assert.equal(new Date(tpl.when!).getDate(), 3, "下一次是明天 9 点");
+  // 现在跑一次：多开一个，不改下次时间
+  tasks.runNow(tpl.id);
+  await tick();
+  assert.equal(tasks.list((t) => t.parent === tpl.id).length, 2);
+  assert.equal(new Date(tpl.when!).getDate(), 3);
+  // 取消定时任务
+  tasks.cancel(tpl.id);
+  assert.equal(tpl.status, "cancelled");
+});
+
+test("看不懂的重复规则直接报错", () => {
+  const tasks = new Tasks(new MemoryTaskStore(), fakeBackend().backend);
+  assert.throws(() => tasks.start({ agent: "dev", title: "x", prompt: "p", repeat: "偶尔" }), /看不懂重复规则/);
+});
+
+test("等 A 做完再做 B；A 失败则 B 标失败", async () => {
+  const gates: ((v: string) => void)[] = [];
+  const fails: ((e: Error) => void)[] = [];
+  const { backend } = fakeBackend((text) => new Promise((r, j) => (gates.push(r), fails.push(j))));
+  const tasks = new Tasks(new MemoryTaskStore(), backend);
+  const a = tasks.start({ agent: "dev", title: "A", prompt: "pa" });
+  const b = tasks.start({ agent: "dev", title: "B", prompt: "pb", after: a.id });
+  await tick();
+  assert.equal(b.status, "todo");
+  gates[0]("ok");
+  await tick();
+  assert.equal(a.status, "done");
+  assert.equal(b.status, "running");
+  gates[1]("ok");
+  await tick();
+  const c = tasks.start({ agent: "dev", title: "C", prompt: "pc" });
+  const d = tasks.start({ agent: "dev", title: "D", prompt: "pd", after: c.id });
+  await tick();
+  fails[2](new Error("坏了"));
+  await tick();
+  assert.equal(d.status, "failed");
+  assert.match(d.result!, /等的任务「C」失败了/);
+  // 重跑 D：不再等 C
+  const d2 = tasks.retry(d.id)!;
+  assert.equal(d2.after, undefined);
+});
+
+test("只记下来（hold）：进待办，点开始才跑", async () => {
+  const { backend } = fakeBackend();
+  const tasks = new Tasks(new MemoryTaskStore(), backend);
+  const t = tasks.start({ agent: "dev", title: "回头做", prompt: "p", hold: true });
+  await tick();
+  assert.equal(t.status, "todo");
+  tasks.runNow(t.id);
+  await tick();
+  assert.equal(t.status, "done");
+});
+
+test("卡住问人：停在等你，回答后在原对话接着干，做完回报", async () => {
+  const sent: string[] = [];
+  let tasks!: Tasks;
+  const { backend, notes } = fakeBackend(async (text) => {
+    sent.push(text);
+    if (text === "写周报") {
+      tasks.ask(tasks.list()[0].session!, "这周的重点是 Kiki 还是别的？");
+      return "卡在：不知道重点";
+    }
+    return `好的，按「${text}」写完了`;
+  });
+  tasks = new Tasks(new MemoryTaskStore(), backend);
+  const seen: string[] = [];
+  const t = tasks.start({ agent: "dev", title: "周报", prompt: "写周报", origin: "/o.jsonl" }, (x) => seen.push(x.status));
+  await tick();
+  assert.equal(t.status, "blocked");
+  assert.equal(t.question, "这周的重点是 Kiki 还是别的？");
+  assert.equal(notes.length, 0, "卡住时不往原对话回报");
+  assert.equal(tasks.blockedBySession(t.session!)?.id, t.id);
+  const session = t.session;
+  tasks.answer(t.id, "Kiki");
+  await tick();
+  assert.equal(t.status, "done");
+  assert.equal(t.session, session, "在原来那段后台对话里接着干");
+  assert.equal(t.question, undefined);
+  assert.deepEqual(sent, ["写周报", "Kiki"]);
+  assert.match(notes[0], /✅ 后台任务「周报」完成/);
+  assert.ok(seen.includes("blocked"));
+});
+
+test("不是后台任务的对话里 ask 返回 undefined", () => {
+  const tasks = new Tasks(new MemoryTaskStore(), fakeBackend().backend);
+  assert.equal(tasks.ask("/random.jsonl", "?"), undefined);
+});
+
+test("定时字段写进文件能读回来", () => {
+  const t: Task = { id: "x", title: "早报", status: "todo", agent: "dev", prompt: "p", created: "", repeat: "每天 09:00", when: "2026-11-03T01:00:00.000Z" };
+  assert.deepEqual(parseTask(formatTask(t)), t);
+});
+
+test("依赖失败一路往下传：A 取消 → B、C 都标失败", () => {
+  const tasks = new Tasks(new MemoryTaskStore(), fakeBackend().backend);
+  const a = tasks.start({ agent: "dev", title: "A", prompt: "p", hold: true });
+  const b = tasks.start({ agent: "dev", title: "B", prompt: "p", after: a.id });
+  const c = tasks.start({ agent: "dev", title: "C", prompt: "p", after: b.id });
+  tasks.cancel(a.id);
+  assert.equal(b.status, "failed");
+  assert.equal(c.status, "failed");
+  assert.ok(tasks.retry(c.id), "下游也能重跑");
+});
+
+test("回答卡住的任务也排队，不超过同时跑的上限", async () => {
+  const gates: (() => void)[] = [];
+  let tasks!: Tasks;
+  const { backend } = fakeBackend((text) => {
+    if (text === "问") {
+      tasks.ask(tasks.list((t) => t.prompt === "问")[0].session!, "?");
+      return Promise.resolve("卡住");
+    }
+    return new Promise((r) => gates.push(() => r(text)));
+  });
+  tasks = new Tasks(new MemoryTaskStore(), backend, { concurrency: 1 });
+  const q = tasks.start({ agent: "dev", title: "q", prompt: "问" });
+  await tick();
+  assert.equal(q.status, "blocked");
+  const other = tasks.start({ agent: "dev", title: "o", prompt: "别的" });
+  await tick();
+  assert.equal(other.status, "running");
+  tasks.answer(q.id, "答");
+  await tick();
+  assert.equal(q.status, "queued", "名额被占着，回答先排队");
+  gates.shift()!();
+  await tick();
+  assert.equal(other.status, "done");
+  assert.equal(q.status, "running");
+  gates.shift()!();
+  await tick();
+  assert.equal(q.status, "done");
+  assert.equal(q.result, "答");
+});
+
+test("定时任务等的前置做完：交给闹钟开子任务，不把定时任务本身跑掉", async () => {
+  const c = clock("2026-11-02T08:00:00");
+  const gates: (() => void)[] = [];
+  const { backend } = fakeBackend((text) => (text === "前置" ? new Promise((r) => gates.push(() => r(text))) : Promise.resolve(text)));
+  const tasks = new Tasks(new MemoryTaskStore(), backend, { now: c.now });
+  const pre = tasks.start({ agent: "dev", title: "前置", prompt: "前置" });
+  const tpl = tasks.start({ agent: "dev", title: "早报", prompt: "早报", repeat: "每天 09:00", after: pre.id });
+  c.advance(2 * 3_600_000); // 过了 9 点，前置还没完
+  await tick(80);
+  assert.equal(tasks.list((t) => t.parent === tpl.id).length, 0);
+  gates.shift()!();
+  await tick(80);
+  assert.equal(tpl.status, "todo", "定时任务还在");
+  assert.equal(tasks.list((t) => t.parent === tpl.id).length, 1);
+});
+
+test("hold：到点、前置做完都不自动跑，记进文件，点开始才跑", async () => {
+  const c = clock("2026-11-02T08:00:00");
+  const store = new MemoryTaskStore();
+  const tasks = new Tasks(store, fakeBackend().backend, { now: c.now });
+  const t = tasks.start({ agent: "dev", title: "x", prompt: "p", hold: true, when: "2026-11-02T07:00:00" });
+  await tick(80);
+  assert.equal(t.status, "todo");
+  assert.equal(parseTask(formatTask(t))?.hold, true);
+  tasks.runNow(t.id);
+  await tick();
+  assert.equal(t.status, "done");
+  assert.equal(t.hold, undefined);
 });
