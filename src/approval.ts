@@ -200,33 +200,30 @@ export class Approvals extends EventEmitter {
     w.done(decision);
   }
 
+  /** 一次工具调用要不要拦：不用管返回 undefined，拦下返回原因。要问的话在这里等你点。
+   *  对话里的扩展和后台任务子程序（经 IPC 转过来）都走这里。 */
+  async check(toolName: string, input: any, cwd: string, path: string, signal?: AbortSignal): Promise<{ block: true; reason: string } | undefined> {
+    const hit = await classify(this.dataDir, toolName, input, cwd);
+    if (!hit) return;
+    const state = readState(this.dataDir);
+    const mode = modeOf(state, hit.category);
+    const name = nameOf(hit.category);
+    // 先看“不做”：设成不做之后，以前点过的“以后都同意”也不算数
+    if (mode === "deny")
+      return { block: true, reason: `用户在 Kiki 设置里把「${name}」设成了不做。不要换个写法绕过去，告诉用户这一步需要他自己来。` };
+    if (mode === "allow" || state.always.some((a) => a.key === hit.key)) return;
+    const decision = await this.request(
+      { agent: basename(cwd), path, category: hit.category, label: hit.label, detail: detailOf(toolName, input), key: hit.key },
+      signal,
+    );
+    if (decision === "no")
+      return { block: true, reason: `用户没有同意这一步（${name}）。不要换个写法再试，告诉用户你停在了哪里、还需要他做什么。` };
+  }
+
   /** 给 pi 用的扩展：每次调用工具前过一遍。 */
   extension(): ExtensionFactory {
     return (pi) => {
-      pi.on("tool_call", async (ev, ctx) => {
-        const hit = await classify(this.dataDir, ev.toolName, ev.input, ctx.cwd);
-        if (!hit) return;
-        const state = readState(this.dataDir);
-        const mode = modeOf(state, hit.category);
-        const name = nameOf(hit.category);
-        // 先看“不做”：设成不做之后，以前点过的“以后都同意”也不算数
-        if (mode === "deny")
-          return { block: true, reason: `用户在 Kiki 设置里把「${name}」设成了不做。不要换个写法绕过去，告诉用户这一步需要他自己来。` };
-        if (mode === "allow" || state.always.some((a) => a.key === hit.key)) return;
-        const decision = await this.request(
-          {
-            agent: basename(ctx.cwd),
-            path: ctx.sessionManager.getSessionFile() ?? "",
-            category: hit.category,
-            label: hit.label,
-            detail: detailOf(ev.toolName, ev.input),
-            key: hit.key,
-          },
-          ctx.signal,
-        );
-        if (decision === "no")
-          return { block: true, reason: `用户没有同意这一步（${name}）。不要换个写法再试，告诉用户你停在了哪里、还需要他做什么。` };
-      });
+      pi.on("tool_call", (ev, ctx) => this.check(ev.toolName, ev.input, ctx.cwd, ctx.sessionManager.getSessionFile() ?? "", ctx.signal));
     };
   }
 }
