@@ -10,6 +10,7 @@ import type { Approvals, Decision } from "./approval.js";
 import { rejectReason } from "./guard.js";
 import type { Registry } from "./registry.js";
 import { answerText, deliveryText, type Postroom } from "./postroom.js";
+import type { Notifier } from "./notify.js";
 import type { Router } from "./router.js";
 import { Logins } from "./login.js";
 import { setProviderModels, setProviderOn } from "./modelprefs.js";
@@ -44,6 +45,7 @@ export function startServer(opts: {
   updater?: Updater;
   approvals?: Approvals;
   postroom?: Postroom;
+  notifier?: Notifier;
 }) {
   const { agents, registry, router } = opts;
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
@@ -107,9 +109,13 @@ export function startServer(opts: {
       ? readFileSync(mainLog, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l))
       : [];
 
-  // 收发室：外部 agent 发来的新消息交给奇奇分派（和你在奇奇里说话走同一条路，聊天 id 单独一个），
-  // 奇奇的回执记进奇奇的聊天；回复某次派活的，直接记回派活的那段对话
+  // 通知通道之一：Kiki 界面，在奇奇的聊天里多一条
+  opts.notifier?.add({ id: "kiki-ui", name: "Kiki 界面", send: (n) => mainSay("assistant", `${n.urgent ? "⚠️ " : "📮 "}${n.title}\n\n${n.text}`) });
+
+  // 收发室：收件箱里的新消息交给奇奇分派（和你在奇奇里说话走同一条路，聊天 id 单独一个），
+  // 奇奇的回执经通知通道告诉你；回复某次派活的，直接记回派活的那段对话
   const pr = opts.postroom;
+  const viewing = new Map<string, number>(); // path -> 最近一次报“正开着”的时间
   if (pr) {
     pr.deliver = (it) =>
       new Promise((ok, fail) => {
@@ -117,7 +123,12 @@ export function startServer(opts: {
         router
           .handle(POSTROOM_CHAT, deliveryText(it, (b) => agents.exists(b)), async (r) => {
             first ||= r;
-            mainSay("assistant", `📮 收发室 · 「${it.from}」发来${it.title ? `「${it.title}」` : "一条消息"}\n\n${r}`);
+            void opts.notifier?.send({
+              title: `收发室 · 「${it.from}」发来${it.title ? `「${it.title}」` : "一条消息"}`,
+              text: r,
+              urgent: it.attention,
+              source: `收发室 · ${it.from}`,
+            });
             push("tree", tree());
           })
           .then(() => ok(first), fail);
@@ -128,7 +139,20 @@ export function startServer(opts: {
       await agents.note(rec.agent, rec.path, answerText(it, sent));
       return true;
     };
+    // 只在你没开着那段对话时才会走到这里：告诉你结果写在哪了
+    pr.notify = async (it) => {
+      const rec = it.path && it.path !== MAIN ? registry.byPath(it.path) : undefined;
+      const where = rec ? `\n\n结果在 [${rec.name === "主对话" ? rec.agent : rec.name}](kiki:${rec.agent}/${rec.name})` : "";
+      const title = it.status === "replied" || it.re ? `「${it.from}」回复了${it.title ? `「${it.title}」` : ""}` : (it.title ?? `「${it.from}」有新消息`);
+      await opts.notifier?.send({ title, text: `${it.text.length > 600 ? `${it.text.slice(0, 600)}…` : it.text}${where}`, urgent: it.attention, source: it.from });
+    };
+    // 网页报上来你正开着哪几段对话（中间 + 右栏），90 秒内没再报就当你不在了
+    pr.isViewing = (p) => (viewing.get(p) ?? 0) > Date.now() - 90_000;
     pr.on("change", () => push("tree", tree()));
+    // 分派失败、外部 agent 出错：也经通知通道说一声（不只是情况栏里一行）
+    pr.on("attention", (a: { title: string; why: string; from: string }) =>
+      void opts.notifier?.send({ title: `收发室 · 「${a.from}」${a.title}`, text: a.why, urgent: true, source: `收发室 · ${a.from}` }),
+    );
   }
 
   const tree = () => ({
@@ -161,6 +185,16 @@ export function startServer(opts: {
     if (url.pathname.startsWith("/api/settings")) return settings(req, res, url); // 设置页，见 settings.ts
 
     // 收发室：GET 看一览；POST /api/postroom/poll 立刻收一轮、send {agent, text, title} 派活、dismiss {id} 不用再看
+    // 网页报：你现在正开着哪几段对话（页面藏到后台时报空）。收发室据此决定提不提醒、清掉未读
+    if (url.pathname === "/api/viewing" && req.method === "POST") {
+      const b = await body();
+      const paths: string[] = Array.isArray(b.paths) ? b.paths.filter((p: unknown) => typeof p === "string") : [];
+      const now = Date.now();
+      for (const [p] of viewing) if (!paths.includes(p)) viewing.delete(p);
+      for (const p of paths) viewing.set(p, now);
+      pr?.markRead(paths);
+      return json({ ok: true });
+    }
     if (url.pathname.startsWith("/api/postroom") && pr) {
       if (url.pathname === "/api/postroom") return json(pr.state());
       if (req.method !== "POST") return json({ error: "要用 POST" }, 405);

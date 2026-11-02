@@ -119,15 +119,27 @@ test("队列落盘：重启后还在", async () => {
   assert.equal(again.inbox.rows[0].text, "hello");
 });
 
-test("A2A / ACP 先占位：登记了也只显示“下一步才做”", async () => {
+test("不认识的接法：显示联系不上，派活报错", async () => {
   const { dataDir, pr } = setup();
-  writeFileSync(join(dataDir, "postroom", "agents.json"), JSON.stringify([{ name: "cc", kind: "acp", command: "claude" }]));
+  writeFileSync(join(dataDir, "postroom", "agents.json"), JSON.stringify([{ name: "x", kind: "smoke" }]));
   await pr.poll();
+  const x = pr.state().agents.find((a) => a.name === "x");
+  assert.equal(x?.state, "offline");
+  assert.match(x?.note ?? "", /不认识/);
+  await assert.rejects(pr.send("x", "hi"), /不认识/);
+});
+
+test("内部来源也进同一个收件箱：route false 只通知不分派", async () => {
+  const { pr, delivered } = setup();
+  const notified: string[] = [];
+  pr.notify = async (it) => void notified.push(`${it.from}:${it.title}`);
+  pr.post("后台任务", { title: "周报写完了", text: "……", route: false });
+  pr.post("定时任务", { title: "该喝水了", text: "到点" });
   await pr.settled();
-  const cc = pr.state().agents.find((a) => a.name === "cc");
-  assert.equal(cc?.state, "offline");
-  assert.match(cc?.note ?? "", /下一步/);
-  await assert.rejects(pr.send("cc", "hi"), /下一步/);
+  assert.deepEqual(notified, ["后台任务:周报写完了"]);
+  assert.equal(delivered.length, 1);
+  assert.equal(pr.inbox.rows.find((r) => r.from === "后台任务")?.status, "notified");
+  assert.ok(pr.inbox.rows.every((r) => r.internal));
 });
 
 test("信箱可以放在别处", async () => {
@@ -159,4 +171,49 @@ test("读到一半出错或重启：落盘前不挪走，没分出去的重启�
   await again.settled();
   assert.deepEqual(delivered, ["第一条", "第二条"]);
   release();
+});
+
+test("run：派活并等回音（任务看板的外部执行者），停下时 reject", async () => {
+  const { pr, drop, answered } = setup();
+  await pr.poll();
+  const p = pr.run("grokbot", "查价格", { title: "查价" });
+  await new Promise((r) => setTimeout(r, 20));
+  const sent = pr.outbox.rows.at(-1)!;
+  drop("r.md", `---\nre: ${sent.id}\n---\n7 万`);
+  await pr.poll();
+  await pr.settled();
+  assert.equal(await p, "7 万");
+  assert.deepEqual(answered, []); // 结果交给了等着的任务，不另外记回对话
+  const ac = new AbortController();
+  const q = pr.run("grokbot", "别做了", { signal: ac.signal });
+  await new Promise((r) => setTimeout(r, 20));
+  ac.abort();
+  await assert.rejects(q, /已停下/);
+  assert.equal(pr.outbox.rows.at(-1)!.status, "stopped");
+});
+
+test("已读未读：结果写回派活的对话；你正开着就不提醒，不在就提醒，打开后清掉", async () => {
+  const { pr, drop } = setup();
+  const notified: string[] = [];
+  pr.notify = async (it) => void notified.push(it.text);
+  let open = new Set<string>(["/s/a.jsonl"]);
+  pr.isViewing = (p) => open.has(p);
+  await pr.poll();
+  const a = await pr.send("grokbot", "一", "一", "/s/a.jsonl");
+  const b = await pr.send("grokbot", "二", "二", "/s/b.jsonl");
+  drop("ra.md", `---\nre: ${a.id}\n---\n回一`);
+  drop("rb.md", `---\nre: ${b.id}\n---\n回二`);
+  await pr.poll();
+  await pr.settled();
+  assert.deepEqual(notified, ["回二"]); // 开着 a，只提醒 b
+  assert.equal(pr.state().unreadCount, 1);
+  assert.equal(pr.state().unread[0].path, "/s/b.jsonl");
+  pr.markRead(["/s/b.jsonl"]);
+  assert.equal(pr.state().unreadCount, 0);
+  // 内部来源：写在了某段对话里，route false
+  open = new Set();
+  pr.post("后台任务", { title: "做完了", text: "ok", route: false, path: "/s/c.jsonl" });
+  await pr.settled();
+  assert.equal(pr.state().unreadCount, 1);
+  assert.equal(notified.length, 2);
 });

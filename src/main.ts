@@ -16,7 +16,11 @@ import { MAIN_SESSION } from "./bao.js";
 import { addRuleSections, DEFAULT_BAO, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
-import { Postroom, postroomTool } from "./postroom.js";
+import { ADAPTERS, Postroom, postroomTool } from "./postroom.js";
+import { A2AAgent } from "./a2a.js";
+import { AcpAgent } from "./acp.js";
+import { WatchAgent } from "./watch.js";
+import { Notifier } from "./notify.js";
 import { startServer } from "./server.js";
 import { FileTaskStore } from "./tasks.js";
 import { Updater, VERSION } from "./update.js";
@@ -92,6 +96,20 @@ const postroom = new Postroom({
   intervalMs: Number(process.env.POSTROOM_POLL_SEC || 60) * 1000,
   isOn: () => isOn(dataDir, "postroom"),
 });
+// 收发室的接法：信箱（postroom.ts 自带）、A2A（接自家 bot）、ACP（接 Claude Code / Codex）、定时检查（网页 / RSS / 文件）
+Object.assign(ADAPTERS, {
+  a2a: (cfg, ctx) => new A2AAgent(cfg.name, cfg, ctx),
+  acp: (cfg, ctx) => new AcpAgent(cfg.name, cfg, ctx),
+  watch: (cfg, ctx) => new WatchAgent(cfg.name, cfg, ctx),
+} satisfies typeof ADAPTERS);
+// 外部 agent 要做收不回来的动作：和自己的对话一样走审批，卡片挂在派活的那段对话上
+postroom.approve = async (req) => {
+  const rec = req.origin ? registry.byPath(req.origin) : undefined;
+  const r = await approvals.gate(req, { agent: rec?.agent ?? DEFAULT_BAO, path: req.origin ?? "", detail: req.detail });
+  return r.ok;
+};
+// 通知通道：要告诉你的事从这里发出去。现在只有 Kiki 界面（server.ts 挂上），以后的 Telegram、微信做成插件也挂这里
+const notifier = new Notifier();
 // 设置页关掉的能力不挂给 agent（新开的对话生效）
 agents.toolsFor = () =>
   [
@@ -133,5 +151,6 @@ startServer({
   updater,
   approvals,
   postroom,
+  notifier,
 });
 postroom.start();

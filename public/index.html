@@ -426,7 +426,19 @@ function find(path) {
   for (const a of tree.agents) for (const s of a.sessions) if (s.path === path) return s;
 }
 
+// 告诉后台你正开着哪几段对话：收发室据此决定提不提醒、清掉未读。页面藏到后台时报空
+let viewSent = "", viewAt = 0;
+function reportViewing(force) {
+  const paths = document.visibilityState === "visible" ? [current, peek].filter(Boolean) : [];
+  const key = paths.join("|");
+  if (!force && key === viewSent && Date.now() - viewAt < 45000) return;
+  viewSent = key; viewAt = Date.now();
+  fetch("/api/viewing", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ paths }) }).catch(() => {});
+}
+document.addEventListener("visibilitychange", () => reportViewing(true));
+setInterval(() => reportViewing(true), 45000);
 function renderSide() {
+  reportViewing();
   if (typeof thinkEyes === "function") thinkEyes();
   const k = $(".kiki");
   k.classList.toggle("on", current === "main");
@@ -504,7 +516,10 @@ function renderPanel() {
   if (!layer && pr) {
     const rows = pr.attention.map((a) => `<div class="row" title="${esc(a.why)}"><span class="bad">!</span><span class="name">${esc(a.title)}</span><small>${esc(a.from)}</small>${a.id.startsWith("agent:") ? "" : `<button class="x" data-pr-dismiss="${esc(a.id)}" aria-label="不用再看">×</button>`}</div>`)
       .concat(pr.agents.map((a) => `<div class="row" title="${esc(a.note || "")}"><span class="dot-st ${a.state}"></span><span class="name">${esc(a.name)}</span><small class="st">${esc(a.label)}${a.waiting ? ` · ${a.waiting} 件没回` : ""}</small></div>`));
-    html += card("收发室", rows.length ? rows.join("") : '<div class="none">还没有外部 agent，在数据目录 postroom/mailbox/ 下建个文件夹就能接上</div>');
+    // 未读：结果写进了某段对话，但你当时没开着它。点一下打开，看过就清掉
+    const unreadRows = (pr.unread || []).map((u) => { const s = u.path === "main" ? null : find(u.path); return `<button class="row" ${s ? `data-thread="${esc(u.path)}"` : 'data-path="main"'} title="${esc(u.text.slice(0, 200))}"><span class="dot-st working"></span><span class="name">${esc(u.title || u.text.slice(0, 24))}</span><small>${esc(u.from)}</small></button>`; });
+    rows.unshift(...unreadRows);
+    html += card(`收发室${pr.unreadCount ? ` · ${pr.unreadCount} 条未读` : ""}`, rows.length ? rows.join("") : '<div class="none">还没有外部 agent，在数据目录 postroom/mailbox/ 下建个文件夹就能接上</div>');
   }
   html += card("定时任务", '<div class="none">还没有定时任务</div>');
   html += card("后台任务", bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>');

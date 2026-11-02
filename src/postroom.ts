@@ -43,6 +43,8 @@ export interface Incoming {
   re?: string; // 回复的是哪次派活（outbox 里的 id）
   attention?: boolean; // 对方说这条要你亲自看
   bao?: string; // 对方指定交给哪个宝
+  route?: false; // 只通知、不分派
+  path?: string; // 内部来源：结果已经写进了哪段对话
   /** 收发室把这条落盘后调用：这时对方那边才算“已取走”（信箱就是把文件挪进 done/） */
   ack?: () => void;
 }
@@ -53,6 +55,7 @@ export interface Outgoing {
   title: string;
   text: string;
   from?: string; // 谁派的（宝/对话），给对方看
+  origin?: string; // 派活的对话（pi JSONL 路径）：对方要权限时，审批卡片挂在这段对话上
 }
 
 /** 一个外部 agent。不管用哪种协议接，收发室只认这三件事。 */
@@ -63,21 +66,48 @@ export interface ExternalAgent {
   dispatch(task: Outgoing): Promise<void>;
   /** 拿新到的消息和结果；调过 ack 的下次不会再给，没调的下次还会给 */
   collect(): Promise<Incoming[]>;
+  /** 不再用时（配置改了、删了）收尾，比如关掉子进程 */
+  close?(): void;
+  /** 让对方停下某件派出去的活（任务超时、你叫停），能停就停 */
+  cancel?(id: string): Promise<void>;
 }
 
 export interface AgentConfig {
   name: string;
-  kind: string; // mailbox | a2a | acp
+  kind: string; // mailbox | a2a | acp | watch
   dir?: string; // mailbox：信箱文件夹，不写就是 postroom/mailbox/<name>
-  url?: string; // a2a：对方的地址（下一步）
-  command?: string; // acp：启动命令，比如 claude、codex（下一步）
+  url?: string; // a2a：对方的地址；watch：要盯的网页 / RSS / 接口
+  headers?: Record<string, string>; // a2a、watch：请求头，比如 Authorization
+  preset?: string; // acp：claude-code 或 codex
+  command?: string; // acp：自己写启动命令（不用预置时）
+  args?: string[];
+  cwd?: string; // acp：在哪个文件夹干活
+  path?: string; // watch：要盯的本地文件或文件夹
+  every?: number; // watch：几分钟看一次，默认每轮都看
+  [k: string]: unknown;
 }
 
-/** 适配器：按 kind 造出外部 agent。a2a（接自家 bot）和 acp（接 Claude Code / Codex）下一步做，先占位。 */
-export const ADAPTERS: Record<string, ((cfg: AgentConfig, root: string) => ExternalAgent) | null> = {
-  mailbox: (cfg, root) => new MailboxAgent(cfg.name, cfg.dir ? expand(cfg.dir) : join(root, "mailbox", cfg.name)),
-  a2a: null,
-  acp: null,
+/** 适配器拿到的环境：收发室的文件夹，和问你同不同意的办法（审批卡片）。 */
+export interface AdapterContext {
+  root: string;
+  /** 对方要做收不回来的动作时问你；没接审批就一律不同意 */
+  approve(req: PermissionRequest): Promise<boolean>;
+}
+
+export interface PermissionRequest {
+  agent: string; // 外部 agent 的名字
+  origin?: string; // 派活的对话：卡片挂在这里
+  category: "delete" | "force" | "send" | "spend"; // 审批的四类
+  key: string; // 点“以后都同意”时记住的
+  label: string; // 给人看的这类动作
+  detail: string; // 具体要做的事
+}
+
+export type AdapterFactory = (cfg: AgentConfig, ctx: AdapterContext) => ExternalAgent;
+
+/** 适配器：按 kind 造出外部 agent。a2a、acp、watch 在各自的文件里，main.ts 启动时注册进来。 */
+export const ADAPTERS: Record<string, AdapterFactory | null> = {
+  mailbox: (cfg, ctx) => new MailboxAgent(cfg.name, cfg.dir ? expand(cfg.dir) : join(ctx.root, "mailbox", cfg.name)),
 };
 
 // ---------- 信箱适配器（共享文件夹） ----------
@@ -179,8 +209,11 @@ export function parseMessage(raw: string, isJson = false): Incoming {
   return { id: h.id ?? "", text: m[2].trim(), title: h.title || undefined, re: h.re || undefined, attention: h.attention === "true", bao: h.bao || undefined };
 }
 
-const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
-const expand = (p: string) => resolve(p.replace(/^~/, homedir()));
+/** 奇奇自己的聊天在网页里的 path */
+export const MAIN_PATH = "main";
+
+export const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+export const expand = (p: string) => resolve(p.replace(/^~/, homedir()));
 
 // ---------- 收件队列 ----------
 
@@ -193,7 +226,11 @@ export interface InboxItem {
   re?: string;
   bao?: string;
   attention?: boolean;
-  status: "new" | "routed" | "replied" | "failed";
+  status: "new" | "routed" | "replied" | "notified" | "failed";
+  internal?: boolean; // Kiki 自己的来源（后台任务、定时任务）
+  route?: false; // 只通知你、不再交给奇奇分派（比如后台任务的结果已经回报到原对话了）
+  path?: string; // 结果写在了哪段对话（pi JSONL 路径；"main" 是奇奇）。你打开过那段就算读过
+  read?: boolean; // 已读：写进去时你正开着那段，或者后来点开看过。未读的才提醒你
   routedTo?: string; // 奇奇的回执第一行，比如 “→ 工作宝/主对话 · 交给宝”
   error?: string;
   dismissed?: boolean; // 「X 的情况」里点了 ×
@@ -206,7 +243,7 @@ export interface OutboxItem {
   text: string;
   origin?: string; // 派活的对话（pi JSONL 路径），结果回到这里
   sent: string;
-  status: "sent" | "answered";
+  status: "sent" | "answered" | "stopped";
   answer?: string; // 回复它的那条收件编号
 }
 
@@ -248,6 +285,24 @@ export interface PostroomOptions {
   adapters?: typeof ADAPTERS;
 }
 
+/** 外部 agent 自己的小状态（比如 A2A 还在等哪些任务、watch 上次看到什么），存在 postroom/state/<名字>.json。 */
+export function stateFile(root: string, name: string) {
+  mkdirSync(join(root, "state"), { recursive: true });
+  return join(root, "state", `${name.replace(/[\/\\:*?"<>|]/g, "_")}.json`);
+}
+export function loadState<T>(root: string, name: string, fallback: T): T {
+  try {
+    return { ...fallback, ...JSON.parse(readFileSync(stateFile(root, name), "utf8")) };
+  } catch {
+    return fallback;
+  }
+}
+export function saveState(root: string, name: string, data: unknown) {
+  const f = stateFile(root, name);
+  writeFileSync(`${f}.tmp`, JSON.stringify(data, null, 2));
+  renameSync(`${f}.tmp`, f);
+}
+
 export interface Attention {
   id: string;
   from: string;
@@ -256,7 +311,8 @@ export interface Attention {
   at?: string;
 }
 
-/** 事件：change(state) 外部 agent 状态或收件队列有变化。 */
+/** 事件：change(state) 外部 agent 状态或收件队列有变化；
+ *  outbox(row) 派出去的活新建或有了回音——任务看板接这个，把外部派活也记成任务卡。 */
 export class Postroom extends EventEmitter {
   readonly root: string;
   readonly inbox: JsonlTable<InboxItem>;
@@ -271,6 +327,14 @@ export class Postroom extends EventEmitter {
   };
   /** 对某次派活的回复：送回派活的那段对话。返回 false 表示那段对话没了，改交给奇奇。server.ts 接上 */
   answer: (item: InboxItem, sent: OutboxItem) => Promise<boolean> = async () => false;
+  /** 只通知、不分派的那种：经通知通道告诉你。server.ts 接上 */
+  notify: (item: InboxItem) => Promise<void> = async () => {};
+  /** 你现在是不是正开着这段对话。server.ts 按网页报上来的接上 */
+  isViewing: (path: string) => boolean = () => false;
+  /** 外部 agent 要做收不回来的动作时问你。main.ts 接到审批卡片 */
+  approve: (req: PermissionRequest) => Promise<boolean> = async () => false;
+  private waiters = new Map<string, (text: string) => void>(); // run() 在等回音的派活
+  private live = new Map<string, { key: string; agent: ExternalAgent }>(); // 有状态的适配器（A2A、ACP 的子进程）要留着复用
 
   constructor(private opts: PostroomOptions) {
     super();
@@ -300,12 +364,20 @@ export class Postroom extends EventEmitter {
     return [...out.values()];
   }
 
+  /** 按配置拿到外部 agent；配置没变就复用上次那个（A2A 记着任务、ACP 开着进程）。 */
   private connect(cfg: AgentConfig): ExternalAgent | string {
+    const key = JSON.stringify(cfg);
+    const had = this.live.get(cfg.name);
+    if (had?.key === key) return had.agent;
+    had?.agent.close?.();
+    this.live.delete(cfg.name);
     const make = (this.opts.adapters ?? ADAPTERS)[cfg.kind];
     if (make === undefined) return `不认识的接法 ${cfg.kind}`;
     if (make === null) return `${cfg.kind} 接法下一步才做`;
     try {
-      return make(cfg, this.root);
+      const agent = make(cfg, { root: this.root, approve: (r) => this.approve(r) });
+      this.live.set(cfg.name, { key, agent });
+      return agent;
     } catch (e) {
       return (e as Error).message;
     }
@@ -321,6 +393,8 @@ export class Postroom extends EventEmitter {
 
   stop() {
     clearInterval(this.timer);
+    for (const { agent } of this.live.values()) agent.close?.();
+    this.live.clear();
   }
 
   /** 收一轮。上一轮还没收完就等它，不叠着跑。 */
@@ -350,6 +424,8 @@ export class Postroom extends EventEmitter {
       }
       const old = this.statuses.get(cfg.name);
       if (old?.state !== st.state || old?.note !== st.note) changed = true;
+      const bad = (s?: AgentStatus) => s?.state === "error" || s?.state === "offline";
+      if (bad(st) && !bad(old) && old) this.emit("attention", { from: cfg.name, title: STATE_LABEL[st.state], why: st.note ?? "" }); // 刚变坏才说一次
       this.statuses.set(cfg.name, { ...st, kind: cfg.kind });
       for (const m of got) {
         const item = this.record(cfg.name, m);
@@ -365,6 +441,8 @@ export class Postroom extends EventEmitter {
     for (const n of [...this.statuses.keys()])
       if (!seen.has(n)) {
         this.statuses.delete(n); // 文件夹删了就不显示了
+        this.live.get(n)?.agent.close?.();
+        this.live.delete(n);
         changed = true;
       }
     if (changed) this.emit("change", this.state());
@@ -390,6 +468,8 @@ export class Postroom extends EventEmitter {
       re: m.re,
       bao: m.bao,
       attention: m.attention || undefined,
+      route: m.route,
+      path: m.path,
       status: "new",
     };
     this.inbox.put(item);
@@ -400,16 +480,53 @@ export class Postroom extends EventEmitter {
   private async route(item: InboxItem) {
     const sent = item.re ? this.outbox.get(item.re) : undefined;
     try {
-      if (sent && sent.to === item.from && (await this.answer(item, sent))) {
-        this.outbox.put({ ...sent, status: "answered", answer: item.id });
+      if (item.route === false) {
+        // 结果已经写在某段对话里了（或者只是个提醒）：你正开着那段就不打扰，不在才提醒
+        const path = item.path ?? MAIN_PATH;
+        const read = this.isViewing(path);
+        if (!read) await this.notify(item);
+        this.inbox.put({ ...item, path, read, status: "notified" });
+        return;
+      }
+      const wait = sent && sent.to === item.from ? this.waiters.get(sent.id) : undefined;
+      if (sent && wait) {
+        // 任务卡在等这件的结果：交给它（由任务那边回报到原对话），不再另外记
+        this.waiters.delete(sent.id);
+        wait(item.text);
+        const done: OutboxItem = { ...sent, status: "answered", answer: item.id };
+        this.outbox.put(done);
+        this.emit("outbox", done);
         this.inbox.put({ ...item, status: "replied" });
         return;
       }
+      if (sent && sent.to === item.from && (await this.answer(item, sent))) {
+        const done: OutboxItem = { ...sent, status: "answered", answer: item.id };
+        this.outbox.put(done);
+        this.emit("outbox", done);
+        // 结果先写回派活的那段对话；你正开着它就算读过，不然提醒你一声
+        const read = this.isViewing(sent.origin!);
+        const replied: InboxItem = { ...item, path: sent.origin, read, status: "replied" };
+        if (!read) await this.notify(replied);
+        this.inbox.put(replied);
+        return;
+      }
       const receipt = await this.deliver(item);
-      this.inbox.put({ ...item, status: "routed", routedTo: receipt.split("\n")[0].slice(0, 80) });
+      // 奇奇的回执写在奇奇的聊天里
+      this.inbox.put({ ...item, path: MAIN_PATH, read: this.isViewing(MAIN_PATH), status: "routed", routedTo: receipt.split("\n")[0].slice(0, 80) });
     } catch (e) {
       this.inbox.put({ ...item, status: "failed", error: (e as Error).message });
+      this.emit("attention", { from: item.from, title: `${item.title ?? "一条消息"}没分出去`, why: (e as Error).message });
     }
+  }
+
+  /** Kiki 内部的来源（后台任务做完、定时任务到点……）往收件箱里投一条，和外部来的走同一条路。
+   *  route: false 表示只通知你、不再交给奇奇分派。 */
+  post(from: string, m: Omit<Incoming, "id" | "ack">): InboxItem {
+    const item = { ...this.record(from, { ...m, id: "" }), internal: true };
+    this.inbox.put(item);
+    this.enqueue(item);
+    this.emit("change", this.state());
+    return item;
   }
 
   /** 派一件事给外部 agent。origin 是派活的对话，对方回复时结果回到那里。 */
@@ -420,10 +537,44 @@ export class Postroom extends EventEmitter {
     if (typeof agent === "string") throw new Error(agent);
     const t = title?.trim() || text.replace(/\s+/g, " ").trim().slice(0, 16);
     const row: OutboxItem = { id: newId(), to, title: t, text, origin, sent: new Date().toISOString(), status: "sent" };
-    await agent.dispatch({ id: row.id, title: t, text, from });
+    await agent.dispatch({ id: row.id, title: t, text, from, origin });
     this.outbox.put(row);
+    this.emit("outbox", row);
     this.emit("change", this.state());
     return row;
+  }
+
+  /** 派活并等回音：给任务看板当“外部执行者”用。对方回复时 resolve 回复原文；signal 停下时让对方也停、reject。 */
+  async run(to: string, text: string, opts: { title?: string; origin?: string; from?: string; signal?: AbortSignal } = {}): Promise<string> {
+    if (opts.signal?.aborted) throw new Error("已停下");
+    const row = await this.send(to, text, opts.title, opts.origin, opts.from);
+    return new Promise<string>((ok, fail) => {
+      const onAbort = () => {
+        if (!this.waiters.delete(row.id)) return;
+        const agent = this.live.get(to)?.agent;
+        void agent?.cancel?.(row.id).catch(() => {});
+        this.outbox.put({ ...row, status: "stopped" });
+        this.emit("outbox", this.outbox.get(row.id));
+        fail(new Error("已停下"));
+      };
+      opts.signal?.addEventListener("abort", onAbort, { once: true });
+      this.waiters.set(row.id, (t) => {
+        opts.signal?.removeEventListener("abort", onAbort);
+        ok(t);
+      });
+    });
+  }
+
+  /** 你打开了这些对话：写在里面的结果都算读过。 */
+  markRead(paths: string[]) {
+    const set = new Set(paths);
+    let n = 0;
+    for (const it of this.inbox.rows)
+      if (!it.read && it.path && set.has(it.path)) {
+        this.inbox.put({ ...it, read: true });
+        n++;
+      }
+    if (n) this.emit("change", this.state());
   }
 
   /** 「X 的情况」里点了 ×：这条不用再看了。 */
@@ -446,7 +597,8 @@ export class Postroom extends EventEmitter {
     for (const it of this.inbox.rows)
       if (!it.dismissed && (it.attention || it.status === "failed"))
         attention.push({ id: it.id, from: it.from, title: it.title || it.text.slice(0, 24), why: it.status === "failed" ? `没分出去：${it.error}` : "对方说这条要你看", at: it.received });
-    return { agents, attention: attention.slice(-10), recent: this.inbox.rows.slice(-10).reverse() };
+    const unread = this.inbox.rows.filter((it) => it.path && !it.read && !it.dismissed && it.status !== "failed");
+    return { agents, attention: attention.slice(-10), unread: unread.slice(-10).reverse(), unreadCount: unread.length, recent: this.inbox.rows.slice(-10).reverse() };
   }
 }
 
@@ -513,8 +665,17 @@ const MAILBOX_README = `# 收发室的信箱
 信箱也可以放在别处（比如同步盘里），在上一层的 agents.json 里登记：
 
 \`\`\`json
-[{ "name": "grokbot", "kind": "mailbox", "dir": "~/Dropbox/grokbot-mailbox" }]
+[
+  { "name": "grokbot", "kind": "mailbox", "dir": "~/Dropbox/grokbot-mailbox" },
+  { "name": "grok", "kind": "a2a", "url": "http://localhost:9999", "headers": { "Authorization": "Bearer …" } },
+  { "name": "claude-code", "kind": "acp", "preset": "claude-code", "cwd": "~/code/kiki" },
+  { "name": "codex", "kind": "acp", "preset": "codex", "cwd": "~/code/kiki" },
+  { "name": "HN", "kind": "watch", "url": "https://news.ycombinator.com/rss", "every": 30, "route": false },
+  { "name": "下载", "kind": "watch", "path": "~/Downloads" }
+]
 \`\`\`
+
+接法说明见 Kiki 仓库的 docs/postroom.md。
 
 ## 文件夹里有什么
 
