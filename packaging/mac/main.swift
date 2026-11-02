@@ -44,9 +44,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "kikiWindow", let v = message.body as? String { windowAction(v); return }
         guard message.name == "kikiTheme", let v = message.body as? String, ["system", "light", "dark"].contains(v) else { return }
         theme = v
         applyTheme()
+    }
+
+    // 标题栏是透明的、网页铺满整个窗口，所以顶部空白处的拖动和双击由网页告诉这里
+    func windowAction(_ v: String) {
+        switch v {
+        case "drag":
+            if let e = NSApp.currentEvent, e.type == .leftMouseDown || e.type == .leftMouseDragged { window.performDrag(with: e) }
+        case "zoom":
+            // 跟随「系统设置 → 桌面与程序坞 → 连按窗口标题栏」的选择
+            switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
+            case "Minimize": window.performMiniaturize(nil)
+            case "None": break
+            default: window.zoom(nil)
+            }
+        default: break
+        }
     }
 
     // 菜单「显示 → 外观」：交给网页去改（网页记住选择，再发消息回来）
@@ -140,10 +157,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let config = WKWebViewConfiguration()
         // 告诉网页自己在 App 里（网页可以据此微调样式）
         let script = WKUserScript(
-            source: "document.documentElement.classList.add('kiki-app')",
+            source: "document.documentElement.classList.add('kiki-app', 'kiki-fullsize')",
             injectionTime: .atDocumentStart, forMainFrameOnly: true)
         config.userContentController.addUserScript(script)
         config.userContentController.add(self, name: "kikiTheme")
+        config.userContentController.add(self, name: "kikiWindow")
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
 
         webView = WKWebView(frame: .zero, configuration: config)
@@ -154,11 +172,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1180, height: 780),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)
         window.title = "Kiki"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        // 网页一直铺到窗口顶上，红绿灯落在左栏上，没有单独的一条标题栏
+        if #available(macOS 11.0, *) { window.titlebarSeparatorStyle = .none }
         window.backgroundColor = pageBackground
         window.minSize = NSSize(width: 720, height: 480)
         window.isReleasedWhenClosed = false
@@ -177,7 +197,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
         .s{width:22px;height:22px;border:2.5px solid #5b6cf0;border-top-color:transparent;border-radius:50%;animation:r .8s linear infinite}
         @keyframes r{to{transform:rotate(360deg)}}
-        </style></head><body><div class="s"></div><div>\(text)</div></body></html>
+        </style></head><body><div class="s"></div><div>\(text)</div>
+        <script>document.onmousedown=function(e){if(e.button===0)try{webkit.messageHandlers.kikiWindow.postMessage(e.detail===2?"zoom":"drag")}catch(x){}}</script>
+        </body></html>
         """
         webView.loadHTMLString(html, baseURL: nil)
     }
