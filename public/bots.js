@@ -1,12 +1,11 @@
-// 宝的默认头像：按名字随机生成一个小机器人（同一个名字永远是同一个）。
-// 只用一个形状、两只眼睛、一种主色，可爱靠眼睛（和 Kiki 的 logo 一个路子）。
+// 宝的默认头像：按名字生成一个小精灵（同一个名字永远是同一个）。
+// 两种颜色：一个主色的形状（云朵、水滴、小幽灵、花、星星、豆子）+ 白色眼睛。
 // 用法：kikiBot("生活宝") → SVG 字符串。透明底，深浅主题都能看。
 (function () {
-  // 主色：饱和但不刺眼，白色面罩在上面都看得清
-  const HUES = ["#5b6cf0", "#3a9bf0", "#20b2aa", "#36b37e", "#8bc34a", "#f5b82e", "#ff8a3d", "#ff6b8b", "#e05fd0", "#9b6cf0", "#ef5a5a"];
-  const INK = "#1f2440"; // 眼睛、嘴
+  const HUES = ["#5b6cf0", "#3a9bf0", "#20b2aa", "#36b37e", "#f5b82e", "#ff8a3d", "#ff6b8b", "#e05fd0", "#9b6cf0", "#ef5a5a"];
+  const EYE = "#fff";
 
-  // 字符串 → 32 位种子 → 一串伪随机数（mulberry32）
+  // 字符串 → 种子 → 一串伪随机数（mulberry32）
   function rng(seed) {
     let h = 2166136261;
     for (const c of String(seed)) h = Math.imul(h ^ c.codePointAt(0), 16777619);
@@ -21,53 +20,36 @@
   }
   const pick = (r, arr) => arr[Math.floor(r() * arr.length)];
 
-  // 头：圆角方块 / 圆 / 宽扁 / 圆顶（全在 viewBox 0 0 32 32 里，下方留 2 的边）
-  const HEADS = [
-    (c) => `<rect x="4" y="9" width="24" height="21" rx="7" fill="${c}"/>`,
-    (c) => `<circle cx="16" cy="19.5" r="11.5" fill="${c}"/>`,
-    (c) => `<rect x="2.5" y="11" width="27" height="19" rx="8" fill="${c}"/>`,
-    (c) => `<path d="M4 20a12 12 0 0 1 24 0v4a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z" fill="${c}"/>`,
+  // 五角星：普通的星形折线，再描一圈同色圆角边让尖角变软
+  function softStar() {
+    const pt = (i, rad) => { const a = -Math.PI / 2 + (i * Math.PI) / 5; return [16 + rad * Math.cos(a), 17 + rad * Math.sin(a)]; };
+    const f = ([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`;
+    let d = "";
+    for (let i = 0; i < 10; i++) d += (i ? "L" : "M") + f(pt(i, i % 2 ? 6 : 12));
+    return d + "z";
+  }
+
+  // 形状（viewBox 0 0 32 32），y 是眼睛的高度
+  const SHAPES = [
+    { y: 18, d: "M9 27a6.5 6.5 0 0 1-1.2-12.9A8.5 8.5 0 0 1 24.3 12 6.5 6.5 0 0 1 23 27z" }, // 云朵
+    { y: 19, d: "M16 3c5 6 10 10.5 10 16a10 10 0 0 1-20 0c0-5.5 5-10 10-16z" }, // 水滴
+    { y: 14.5, d: "M5 15a11 11 0 0 1 22 0v13l-3.7-2.6L19.7 28 16 25.4 12.3 28l-3.6-2.6L5 28z" }, // 小幽灵
+    { y: 16, d: "M16 3.5a5 5 0 0 1 4.3 2.5 5 5 0 0 1 5.7 5.7 5 5 0 0 1 0 8.6 5 5 0 0 1-5.7 5.7 5 5 0 0 1-8.6 0A5 5 0 0 1 6 20.3a5 5 0 0 1 0-8.6A5 5 0 0 1 11.7 6 5 5 0 0 1 16 3.5z" }, // 花
+    { y: 17.5, d: softStar(), soft: true }, // 星星（描一圈同色圆角边，尖角变软）
+    { y: 16.5, d: "M3 16.5a13 11.5 0 1 0 26 0a13 11.5 0 1 0-26 0z" }, // 豆子
   ];
-  // 天线：没有 / 一根小球 / 两根 / 小芽 / 小星星
-  const ANTENNAE = [
-    () => "",
-    (c) => `<path d="M16 9V4.5" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/><circle cx="16" cy="3.6" r="2.2" fill="${c}"/>`,
-    (c) => `<path d="M11 10 8.6 5.2M21 10l2.4-4.8" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/><circle cx="8.2" cy="4.6" r="1.8" fill="${c}"/><circle cx="23.8" cy="4.6" r="1.8" fill="${c}"/>`,
-    (c) => `<path d="M16 9.5V6" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/><path d="M16 6c0-2.6 1.8-4 4.4-4-.2 2.6-1.8 4-4.4 4zM16 6.4c0-2-1.4-3.2-3.4-3.2.1 2 1.4 3.2 3.4 3.2z" fill="${c}"/>`,
-    (c) => `<path d="M16 9.5V7" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/><path d="M16 1.2l1.2 2.5 2.6.3-1.9 1.8.5 2.6L16 7.1l-2.4 1.3.5-2.6-1.9-1.8 2.6-.3z" fill="#ffd166"/>`,
-  ];
-  // 眼睛：圆点 / 竖椭圆 / 开心弯弯 / 眨一只 / 大眼带高光 / 往右上看
+  // 眼睛（白色）：圆点 / 竖条 / 开心弯弯 / 往右上看
   const EYES = [
-    (y) => `<circle cx="12" cy="${y}" r="1.9" fill="${INK}"/><circle cx="20" cy="${y}" r="1.9" fill="${INK}"/>`,
-    (y) => `<rect x="10.6" y="${y - 2.6}" width="2.8" height="5.2" rx="1.4" fill="${INK}"/><rect x="18.6" y="${y - 2.6}" width="2.8" height="5.2" rx="1.4" fill="${INK}"/>`,
-    (y) => `<path d="M10 ${y + 1}q2-2.6 4 0M18 ${y + 1}q2-2.6 4 0" stroke="${INK}" stroke-width="1.7" fill="none" stroke-linecap="round"/>`,
-    (y) => `<circle cx="12" cy="${y}" r="2" fill="${INK}"/><path d="M18 ${y}h4" stroke="${INK}" stroke-width="1.7" stroke-linecap="round"/>`,
-    (y) => `<circle cx="12" cy="${y}" r="2.6" fill="${INK}"/><circle cx="20" cy="${y}" r="2.6" fill="${INK}"/><circle cx="12.9" cy="${y - 0.9}" r=".9" fill="#fff"/><circle cx="20.9" cy="${y - 0.9}" r=".9" fill="#fff"/>`,
-    (y) => `<circle cx="13" cy="${y - 0.8}" r="1.9" fill="${INK}"/><circle cx="21" cy="${y - 0.8}" r="1.9" fill="${INK}"/>`,
+    (y) => `<circle cx="12" cy="${y}" r="2" fill="${EYE}"/><circle cx="20" cy="${y}" r="2" fill="${EYE}"/>`,
+    (y) => `<rect x="10.7" y="${y - 2.6}" width="2.6" height="5.2" rx="1.3" fill="${EYE}"/><rect x="18.7" y="${y - 2.6}" width="2.6" height="5.2" rx="1.3" fill="${EYE}"/>`,
+    (y) => `<path d="M10 ${y + 1}q2-2.6 4 0M18 ${y + 1}q2-2.6 4 0" stroke="${EYE}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+    (y) => `<circle cx="13" cy="${y - 0.8}" r="2" fill="${EYE}"/><circle cx="21" cy="${y - 0.8}" r="2" fill="${EYE}"/>`,
   ];
-  // 嘴：没有 / 小笑 / 小 o / 猫嘴
-  const MOUTHS = [
-    () => "",
-    (y) => `<path d="M14.4 ${y}q1.6 1.4 3.2 0" stroke="${INK}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
-    (y) => `<ellipse cx="16" cy="${y + 0.3}" rx="1" ry="1.1" fill="${INK}"/>`,
-    (y) => `<path d="M13.8 ${y}q1.1 1.2 2.2 0q1.1 1.2 2.2 0" stroke="${INK}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`,
-  ];
-  // 面罩：白色圆角屏，眼睛画在上面
-  const FACE = { 0: [7, 13.5, 18, 12], 1: [7.5, 14, 17, 11.5], 2: [6, 15, 20, 11], 3: [7, 14, 18, 12] };
 
   function kikiBot(seed) {
     const r = rng(seed || "宝");
-    const head = Math.floor(r() * HEADS.length);
-    const c = pick(r, HUES), ant = pick(r, ANTENNAE), eyes = pick(r, EYES), mouth = pick(r, MOUTHS);
-    const blush = r() < 0.35;
-    const [fx, fy, fw, fh] = FACE[head];
-    const ey = fy + fh * 0.42, my = fy + fh * 0.74;
-    return `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`
-      + ant(c) + HEADS[head](c)
-      + `<rect x="${fx}" y="${fy}" width="${fw}" height="${fh}" rx="${fh / 2.4}" fill="#fff"/>`
-      + (blush ? `<circle cx="9.6" cy="${my - 0.6}" r="1.3" fill="#ff8fa3" opacity=".7"/><circle cx="22.4" cy="${my - 0.6}" r="1.3" fill="#ff8fa3" opacity=".7"/>` : "")
-      + eyes(ey) + mouth(my)
-      + `</svg>`;
+    const shape = pick(r, SHAPES), c = pick(r, HUES), eyes = pick(r, EYES);
+    return `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="${shape.d}" fill="${c}"${shape.soft ? ` stroke="${c}" stroke-width="3" stroke-linejoin="round"` : ""}/>${eyes(shape.y)}</svg>`;
   }
   window.kikiBot = kikiBot;
 })();
