@@ -436,3 +436,25 @@ test("外部执行者：交给注册的执行者，没接上就失败", async ()
   assert.equal(u.status, "failed");
   assert.match(u.result!, /没有叫「没这个」的执行者/);
 });
+
+test("外部执行者：按名字现查；停任务时 signal 被 abort，任务标已取消", async () => {
+  const tasks = new Tasks(new MemoryTaskStore(), fakeBackend().backend);
+  let seen: AbortSignal | undefined;
+  tasks.executorFor = (name) =>
+    name === "codex"
+      ? {
+          run: (_t, signal) =>
+            new Promise<string>((_, reject) => {
+              seen = signal;
+              signal.addEventListener("abort", () => reject(new Error("对方已停")));
+            }),
+        }
+      : undefined;
+  const t = tasks.start({ agent: "dev", title: "写代码", prompt: "p", executor: "codex" });
+  await tick();
+  assert.equal(t.status, "running");
+  await tasks.stop(t.id);
+  await tick();
+  assert.equal(seen?.aborted, true);
+  assert.equal(t.status, "cancelled");
+});

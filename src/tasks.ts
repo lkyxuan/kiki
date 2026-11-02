@@ -147,8 +147,9 @@ const safe = (s: string) => s.replace(/[\/\\:*?"<>|\n]/g, " ").trim().slice(0, 3
 /** 执行器对外面的全部要求，测试时可以换成假的。 */
 /** 外部执行者（收发室里的外部 bot）：拿到任务去做，返回结果。超时、重试、回报都复用任务的规则。 */
 export interface Executor {
-  run(t: Task): Promise<string>;
-  /** 停下（停任务时调），可以没有 */
+  /** signal：停任务、超时时会 abort，执行者收到后通知对方也停，然后 reject 就行 */
+  run(t: Task, signal: AbortSignal): Promise<string>;
+  /** 停下（停任务时调），可以没有；用 signal 就不用它 */
   stop?(t: Task): Promise<void> | void;
 }
 
@@ -197,6 +198,9 @@ export class Tasks extends EventEmitter {
   private resumes = new Map<string, string>(); // 任务 id -> 用户的回答或返工要求（排队等着在原对话里接着干）
   private stopping = new Set<string>(); // 正在被停下的任务：这一轮结束时标"已取消"
   private executors = new Map<string, Executor>();
+  private controllers = new Map<string, AbortController>(); // 任务 id -> 交给外部执行者的停止信号
+  /** 按名字找执行者（收发室的外部 agent 是动态的，用它就不用每次重新注册）；先查 registerExecutor 注册过的 */
+  executorFor?: (name: string) => Executor | undefined;
   private timer?: NodeJS.Timeout;
   /** 没有专门回报对象的任务（定时开出来的、重启后的、agent 用工具记的）做完/卡住时找它，server 接到收件箱。 */
   defaultNotify?: Notify;
@@ -215,9 +219,19 @@ export class Tasks extends EventEmitter {
     return this.opts.now?.() ?? new Date();
   }
 
-  /** 收发室注册外部执行者（名字就是任务卡上的 executor）。 */
+  /** 收发室注册外部执行者（名字就是任务卡上的 executor）。同名再注册就覆盖。 */
   registerExecutor(name: string, ex: Executor) {
     this.executors.set(name, ex);
+  }
+
+  private executor(name: string): Executor | undefined {
+    return this.executors.get(name) ?? this.executorFor?.(name);
+  }
+
+  /** 停外部执行者：先发停止信号，再调它的 stop（有的话）。 */
+  private async stopExecutor(t: Task) {
+    this.controllers.get(t.id)?.abort();
+    await this.executor(t.executor!)?.stop?.(t);
   }
 
   /** 启动时调一次：上次没做完的（排队/进行中）标成"中断"，返回它们，由调用方告诉用户。待办和等你的照旧留着。 */
@@ -321,7 +335,7 @@ export class Tasks extends EventEmitter {
     if (!t) return undefined;
     if (t.status !== "running") return this.cancel(id);
     this.stopping.add(id);
-    if (t.executor) await this.executors.get(t.executor)?.stop?.(t);
+    if (t.executor) await this.stopExecutor(t);
     else if (t.session) await this.backend.abort?.(t.session);
     return t;
   }
@@ -465,9 +479,11 @@ export class Tasks extends EventEmitter {
       step?.() ??
       (async () => {
         if (t.executor) {
-          const ex = this.executors.get(t.executor);
+          const ex = this.executor(t.executor);
           if (!ex) throw new Error(`没有叫「${t.executor}」的执行者（收发室里没接上）`);
-          return ex.run(t);
+          const c = new AbortController();
+          this.controllers.set(t.id, c);
+          return ex.run(t, c.signal);
         }
         const path = await this.backend.spawn(t.agent, t.title, t.origin);
         if (timedOut) return ""; // 开对话就超时了（比如原对话一直忙），不再开始干活
@@ -479,7 +495,7 @@ export class Tasks extends EventEmitter {
       // 超时从派活算起，包括开对话（分叉原对话可能要排在原对话后面）
       const answer = await this.withTimeout(work, () => {
         timedOut = true;
-        if (t.executor) void this.executors.get(t.executor)?.stop?.(t);
+        if (t.executor) void this.stopExecutor(t);
         else if (t.session) void this.backend.abort?.(t.session);
       });
       const q = this.asked.get(t.id);
@@ -494,6 +510,7 @@ export class Tasks extends EventEmitter {
       if (this.stopping.delete(t.id)) this.update(t, { status: "cancelled", finished: iso(this.now()), result: "已停下。" });
       else this.update(t, { status: "failed", finished: iso(this.now()), result: (e as Error).message });
     } finally {
+      this.controllers.delete(t.id);
       this.running--;
       this.pump(); // 先放下一个任务开跑，再回报原对话：原对话忙时回报要排队，别卡住整个队列
     }
