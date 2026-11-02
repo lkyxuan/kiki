@@ -227,7 +227,10 @@ export class Updater extends EventEmitter {
     try {
       // 1. 下载并校验
       this.set({ status: "downloading", message: `正在下载 ${to}…`, step: undefined });
-      rmSync(work, { recursive: true, force: true });
+      // 顺手清掉以前几次更新留在临时目录里的下载（每次几十 MB）
+      for (const d of readdirSync(tmpdir())) {
+        if (d.startsWith("kiki-update-")) rmSync(join(tmpdir(), d), { recursive: true, force: true });
+      }
       mkdirSync(work, { recursive: true });
       const zip = join(work, zipAsset.name);
       const STEPS = 6;

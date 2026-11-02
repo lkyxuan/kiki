@@ -170,6 +170,7 @@
   #sheet { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .18s; }
   #sheet.on { opacity: 1; pointer-events: auto; }
   #sheet[hidden] { display: none; } /* 关着时彻底移出 Tab 键顺序 */
+  #updating[hidden] { display: none !important; } /* 行内 display:grid 会盖过 hidden，必须单独写 */
   #sheet .win { width: min(960px, calc(100% - 48px)); height: min(88vh, 920px); background: var(--grouped); border-radius: 14px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; position: relative; transform: scale(.97) translateY(6px); transition: transform .22s cubic-bezier(.2,.8,.2,1); }
   #sheet.on .win { transform: none; }
   #sheet .close { position: absolute; z-index: 1; right: 14px; top: 14px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); background: var(--fill); }
