@@ -28,7 +28,7 @@
   #ver-btn { flex: none; min-height: 24px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--raised); box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 500; white-space: nowrap; }
   #ver-btn:hover { background: var(--hover); }
   #ver-btn.new { background: var(--accent); color: var(--on-accent); border-color: transparent; }
-  #ver-btn.on { border-color: var(--accent); color: var(--accent); }
+  #ver-btn.on:not(.new) { border-color: var(--accent); color: var(--accent); }
   .about-kiki { display: flex; align-items: center; gap: 14px; }
   .about-kiki img { border-radius: 12px; flex: none; }
   .about-kiki b { font-size: 16px; }
@@ -121,7 +121,7 @@
     nav { width: 100%; height: auto; position: sticky; top: 0; z-index: 2; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; }
     #nav-items { flex-direction: row; overflow-x: auto; }
     .nav-item { width: auto; }
-    #ver-box { display: none; }
+    #ver-box { margin-top: 4px; padding: 6px 2px 0; } /* 窄屏也留着更新入口 */
     .wrap { padding: 18px 16px 48px; }
     .top { flex-direction: row; align-items: center; padding-bottom: 6px; }
     .top h1 { font-size: 17px; }
