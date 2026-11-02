@@ -75,11 +75,15 @@ const port = Number(process.env.PORT || 4567);
 const updater = new Updater({
   dataDir,
   port,
-  // 没有对话在跑才自动装，免得打断干活
-  isIdle: () =>
-    registry.list().every((s) => !agents.isBusy(s.path)) &&
-    router.tasks.list((t) => t.status === "queued" || t.status === "running").length === 0 &&
-    approvals.list().length === 0, // 有卡片等你点头时也别重启，不然那一步就丢了
+  // 没有对话在跑才自动装，免得打断干活；不空闲时说清楚卡在谁身上，写进更新日志
+  whyBusy: () => {
+    const s = registry.list().find((s) => agents.isBusy(s.path));
+    if (s) return `对话「${s.agent}/${s.name}」还在跑`;
+    const t = router.tasks.list((t) => t.status === "queued" || t.status === "running")[0];
+    if (t) return `后台任务「${t.title}」还没做完（${t.status === "queued" ? "排队中" : "进行中"}）`;
+    if (approvals.list().length) return "有卡片在等你点头"; // 这时重启，那一步就丢了
+    return undefined;
+  },
 });
 updater.start();
 
