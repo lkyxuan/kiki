@@ -64,15 +64,6 @@ const router = new Router(agents, registry, defaultBao, new FileTaskStore(join(d
 // 对话里的 agent 可以把一件新事交接到新对话（自己写交接说明）
 router.rules = () => loadRules(dataDir);
 const TOOL_FEATURE: Record<string, FeatureId> = { kiki_handoff: "handoff", kiki_peek: "peek", kiki_relay: "relay", kiki_remember: "remember" };
-void router.ensureMains().catch((e) => console.warn("补主对话失败：", (e as Error).message)); // 每个宝一段主对话，老对话都当讨论串
-router.isOn = (id) => isOn(dataDir, id);
-// 设置页关掉的能力不挂给 agent（新开的对话生效）
-agents.toolsFor = () =>
-  [
-    handoffTool({ listBaos: () => agents.listAgents(), describe: (b) => agents.describe(b), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
-    ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
-  ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
-
 // 每段对话一句话摘要：回完话后台更新（registry.json 里的 summary），路由和主对话都只看摘要
 const summaries = new Summaries({
   registry,
@@ -92,6 +83,16 @@ agents.extensions.push((pi) => {
     return digest ? { systemPrompt: `${ev.systemPrompt}\n\n${digest}` } : undefined;
   });
 });
+router.isOn = (id) => isOn(dataDir, id);
+// 设置页关掉的能力不挂给 agent（新开的对话生效）
+agents.toolsFor = () =>
+  [
+    handoffTool({ listBaos: () => agents.listAgents(), describe: (b) => agents.describe(b), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
+    ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
+  ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
+
+// 每个宝一段主对话，老对话都当讨论串。放在扩展和工具都挂好之后，启动时补建的主对话也带着它们
+void router.ensureMains().catch((e) => console.warn("补主对话失败：", (e as Error).message)); // 每个宝一段主对话，老对话都当讨论串
 
 const port = Number(process.env.PORT || 4567);
 const updater = new Updater({
