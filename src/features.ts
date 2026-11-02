@@ -9,7 +9,8 @@ export const FEATURES = [
   { id: "peek", name: "看别的对话", desc: "宝可以读别的对话里说了什么（kiki_peek）" },
   { id: "relay", name: "捎话", desc: "宝可以给别的对话捎一句话（kiki_relay）" },
   { id: "remember", name: "记下来", desc: "宝可以把关于你的事记进“关于我”（kiki_remember）" },
-  { id: "background", name: "后台任务", desc: "要干活的事开到后台去做，做完回报；关掉后一律直接聊" },
+  { id: "background", name: "后台任务", desc: "要干活的事开到后台去做，做完回报；卡住时停下来问你（kiki_ask_user）；关掉后一律直接聊" },
+  { id: "schedule", name: "待办和定时", desc: "宝可以记待办、定时任务（每天/每周）、等某件事做完再做的事（kiki_task）" },
   { id: "postroom", name: "收发室", desc: "定时去外部 agent（信箱文件夹等）收消息、看状态，新消息交给奇奇分派；宝也能派活给它们（kiki_outside）" },
 ] as const;
 
