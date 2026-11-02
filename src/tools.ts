@@ -56,7 +56,7 @@ export function kikiTools(opts: { host: ToolHost; dataDir: string; listBaos: () 
     description: "往另一段已有对话（宝名/对话名）发一句话，让那边的 agent 处理；那边回答后，回答会记回这段对话。立刻返回，不用等。",
     promptSnippet: "kiki_relay：把一句话或一个结论捎给另一段对话",
     promptGuidelines: [
-      "这边得出的结论、决定或要那边做的事，属于另一段已有对话时，直接用 kiki_relay 捎过去，不要先问用户；捎完一句话告诉用户捎给了谁。",
+      "这边得出的结论、决定或要那边做的事，属于另一段已有对话时，直接用 kiki_relay 捎过去，不要先问用户；捎完一句话告诉用户捎给了谁，对话写成 [对话名](kiki:宝/对话名)。",
       "捎的话要自带上下文，让那边不看这边的聊天也能懂。",
       "只在用户要求、或者这边的结论明确需要那边知道时才捎，不要顺手多捎。",
     ],
