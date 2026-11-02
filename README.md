@@ -44,7 +44,7 @@ Kiki 内核负责建对话、续对话、调用模型和工具，轻量、可扩
 | 💬 | **具名对话** | 每个 Bot 下可开多段有名字的对话，随时切换、随时续聊，上下文互不干扰 |
 | ⚡ | **前台聊天，后台干活** | 讨论在对话里直接聊；真要干活就 `/bg` 丢到后台，完成后结果自动送回 |
 | 🔒 | **本地优先** | 网页只监听 `127.0.0.1`；对话是 JSONL、资料是 Markdown，全部存在你的硬盘上 |
-| 🔌 | **模型自由** | 默认 DeepSeek，输入框旁一键切换模型；用 ChatGPT 订阅登录即可发图片，不需要 API Key |
+| 🔌 | **模型自由** | 默认 DeepSeek，Anthropic、OpenAI、Google 等主流模型改一行配置即可切换 |
 | 🧩 | **可替换的外壳** | 编排层与数据彻底分离，界面、通道、模型都可以替换，不被任何一家锁定 |
 
 ## 🖼️ 界面预览
@@ -129,7 +129,7 @@ npm start
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | — | 模型 API Key |
-| `MODEL` | `deepseek/deepseek-flash` | 模型，格式 `provider/model`（输入框旁的模型按钮会改这一行） |
+| `MODEL` | `deepseek/deepseek-flash` | 模型，格式 `provider/model` |
 | `DATA_DIR` | `~/kiki-data` | 数据目录 |
 | `DEFAULT_AGENT` | `奇奇` | 未选择对话时，消息默认落到哪个 Bot |
 | `PORT` | `4567` | 网页端口 |
