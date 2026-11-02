@@ -88,7 +88,8 @@ agents.extensions.push((pi) => {
     const file = ctx.sessionManager.getSessionFile();
     const rec = file ? registry.byPath(file) : undefined;
     if (rec?.name !== MAIN_SESSION) return;
-    const digest = router.threadDigest(rec.agent);
+    // 再加一行后台任务的数：奇奇看全部，别的宝看自己的
+    const digest = [router.threadDigest(rec.agent), router.taskCount(rec.agent === DEFAULT_BAO ? undefined : rec.agent)].filter(Boolean).join("\n\n");
     return digest ? { systemPrompt: `${ev.systemPrompt}\n\n${digest}` } : undefined;
   });
 });

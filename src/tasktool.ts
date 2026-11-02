@@ -27,17 +27,22 @@ export function taskTools(opts: {
     label: "记任务",
     description:
       "管理后台任务。action=add：记一件要后台去做的事——填 when 就到点再做，填 repeat 就按时重复（定时任务），填 after 就等那个任务做完再做，都不填就马上开始；hold=true 只记进待办、等用户点开始。" +
-      "action=list：看还没结束的任务。action=cancel：取消一个待办/定时任务（填 id）。" +
+      "action=list：看任务（没结束的 + 最近做完的）。action=stop：停下任务（正在跑的也能停，填 id）。" +
+      "action=revise：改任务（填 id 和 text）——没开跑的改进任务内容，正在跑的插话进去，等你回答的当作回答，做完的在原对话里返工、做完重新回报。" +
+      "done_when：一句话写做到什么算完（完成标准），执行时会对照它。" +
       "when 的写法：+30m、+2h、+1d、21:00（今天，过了就明天）、明天 09:00、后天 9:30、周五 18:00、下周一 10:00、2026-11-05 09:00。" +
       "repeat 的写法：每天 09:00、工作日 09:00、每周一 09:00、每小时。",
     promptSnippet: "kiki_task：记待办、定时任务（每天/每周）、等某个任务做完再做的事",
     promptGuidelines: [
       "用户说「明天/几点/每天/每周…帮我做…」「等…做完再…」「先记下，回头做」时，用 kiki_task 记下来，不要只口头答应；记完一句话告诉用户什么时候做、做完回报到哪。",
       "prompt 要写成到时候能直接动手的完整任务（自带背景），因为执行时是一段新的后台对话，看不到这里的聊天。",
-      "用户要取消或改时间：先 action=list 找到 id，cancel 掉旧的，需要的话再 add 一个新的。",
+      "add 时尽量填 done_when（做到什么算完），让结果有明确的边界。",
+      "用户要停、改、返工某个任务：先 action=list 找到 id，再用 stop 或 revise（text 写成给那个任务的一句话）；改时间就 stop 掉旧的再 add 一个新的。",
     ],
     parameters: Type.Object({
-      action: Type.Optional(Type.Union([Type.Literal("add"), Type.Literal("list"), Type.Literal("cancel")], { description: "默认 add" })),
+      action: Type.Optional(
+        Type.Union([Type.Literal("add"), Type.Literal("list"), Type.Literal("stop"), Type.Literal("revise"), Type.Literal("cancel")], { description: "默认 add；cancel 同 stop" }),
+      ),
       title: Type.Optional(Type.String({ description: "任务名，10 个字以内" })),
       prompt: Type.Optional(Type.String({ description: "到时候交给后台对话的完整任务说明" })),
       bao: Type.Optional(Type.String({ description: "交给哪个宝做，默认本宝" })),
@@ -45,7 +50,9 @@ export function taskTools(opts: {
       repeat: Type.Optional(Type.String({ description: "重复规则（定时任务）" })),
       after: Type.Optional(Type.String({ description: "等这个任务 id 做完再做" })),
       hold: Type.Optional(Type.Boolean({ description: "只记进待办，等用户手动开始" })),
-      id: Type.Optional(Type.String({ description: "cancel 时填任务 id" })),
+      id: Type.Optional(Type.String({ description: "stop / revise 时填任务 id" })),
+      text: Type.Optional(Type.String({ description: "revise 时填：给那个任务的话" })),
+      done_when: Type.Optional(Type.String({ description: "完成标准：做到什么算完，一句话" })),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx) {
       const from: string | undefined = ctx?.sessionManager?.getSessionFile?.();
@@ -53,11 +60,18 @@ export function taskTools(opts: {
         const action = p.action ?? "add";
         if (action === "list") {
           const open = opts.tasks.list((t) => OPEN.includes(t.status));
-          return text(open.length ? open.map((t) => taskLine(t, now())).join("\n") : "现在没有没做完的任务。");
+          const recent = opts.tasks.list((t) => !OPEN.includes(t.status)).slice(-5);
+          const lines = [...open, ...recent].map((t) => taskLine(t, now()));
+          return text(lines.length ? lines.join("\n") : "还没有任务。");
         }
-        if (action === "cancel") {
-          const t = opts.tasks.cancel(p.id ?? "");
-          return t ? text(`已取消：${t.title}`) : text(`没取消成：没有这个待办/定时任务（${p.id}），用 action=list 看看。`, true);
+        if (action === "stop" || action === "cancel") {
+          const t = await opts.tasks.stop(p.id ?? "");
+          if (!t) return text(`没停成：没有这个任务（${p.id}），用 action=list 看看。`, true);
+          return text(t.status === "running" ? `正在停下「${t.title}」。` : t.status === "cancelled" ? `已停下「${t.title}」。` : `「${t.title}」已经${STATUS_LABEL[t.status]}了，不用停。`);
+        }
+        if (action === "revise") {
+          const how = opts.tasks.revise(p.id ?? "", p.text ?? "");
+          return how ? text(how) : text("没改成：没有这个任务、没写 text，或者它正由外部 bot 在做。", true);
         }
         if (!p.title?.trim() || !p.prompt?.trim()) return text("add 需要 title 和 prompt。", true);
         const bao = p.bao?.trim() || opts.baoOf(from);
@@ -73,6 +87,7 @@ export function taskTools(opts: {
           agent: bao,
           title: p.title.trim().slice(0, 30),
           prompt: p.prompt.trim(),
+          doneWhen: p.done_when?.trim() || undefined,
           when,
           repeat: p.repeat?.trim() || undefined,
           after: p.after?.trim() || undefined,

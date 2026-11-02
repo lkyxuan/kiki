@@ -35,7 +35,7 @@ test("kiki_task：定时、重复、等待、只记下", async () => {
   r = await call(task, { action: "list" });
   assert.match(r.text, /\[定时\] 早报 · life · 工作日 09:00，下次 明天 09:00/);
   r = await call(task, { action: "cancel", id: first.id });
-  assert.match(r.text, /已取消：提醒买菜/);
+  assert.match(r.text, /已停下「提醒买菜」/);
 });
 
 test("kiki_task：看不懂的时间和规则、没有的宝都报错", async () => {
