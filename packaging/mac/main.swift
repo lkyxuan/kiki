@@ -9,7 +9,7 @@ import WebKit
 // 和网页一致的背景色，免得标题栏和页面之间有色差
 let pageBackground = NSColor(name: nil) { appearance in
     appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        ? NSColor(srgbRed: 0.118, green: 0.118, blue: 0.122, alpha: 1)
+        ? NSColor(srgbRed: 0.098, green: 0.098, blue: 0.106, alpha: 1)
         : NSColor.white
 }
 
