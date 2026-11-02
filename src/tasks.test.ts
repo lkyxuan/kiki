@@ -480,3 +480,21 @@ test("关注的事有新消息：回到原对话接着办，做完重新回报�
   tasks.cancel(u.id);
   assert.equal(tasks.followUp(u.id, "新消息"), undefined, "取消的不接");
 });
+
+test("开对话时就被停：不再把任务发出去，标已取消", async () => {
+  let release!: () => void;
+  const sent: string[] = [];
+  const backend: TaskBackend = {
+    spawn: () => new Promise((r) => (release = () => r("/slow.jsonl"))),
+    send: async (_a, _p, text) => (sent.push(text), "做了"),
+    note: async () => {},
+  };
+  const tasks = new Tasks(new MemoryTaskStore(), backend);
+  const t = tasks.start({ agent: "dev", title: "删东西", prompt: "删掉旧文件" });
+  await tick();
+  await tasks.stop(t.id);
+  release();
+  await tick();
+  assert.deepEqual(sent, []);
+  assert.equal(t.status, "cancelled");
+});

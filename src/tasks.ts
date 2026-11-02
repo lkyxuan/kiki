@@ -524,7 +524,11 @@ export class Tasks extends EventEmitter {
           return ex.run(t, c.signal);
         }
         const path = await this.backend.spawn(t.agent, t.title, t.origin);
-        if (timedOut) return ""; // 开对话就超时了（比如原对话一直忙），不再开始干活
+        if (timedOut || this.stopping.has(t.id)) {
+          // 开对话时就超时/被停了（比如原对话一直忙），不再开始干活
+          await this.backend.abort?.(path);
+          return "";
+        }
         this.update(t, { session: path });
         return this.backend.send(t.agent, path, taskPrompt(t));
       })();
