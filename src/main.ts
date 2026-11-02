@@ -62,6 +62,7 @@ const router = new Router(agents, registry, defaultBao, new FileTaskStore(join(d
 // 对话里的 agent 可以把一件新事交接到新对话（自己写交接说明）
 router.rules = () => loadRules(dataDir);
 const TOOL_FEATURE: Record<string, FeatureId> = { kiki_handoff: "handoff", kiki_peek: "peek", kiki_relay: "relay", kiki_remember: "remember" };
+void router.ensureMains().catch((e) => console.warn("补主对话失败：", (e as Error).message)); // 每个宝一段主对话，老对话都当讨论串
 router.isOn = (id) => isOn(dataDir, id);
 // 设置页关掉的能力不挂给 agent（新开的对话生效）
 agents.toolsFor = () =>

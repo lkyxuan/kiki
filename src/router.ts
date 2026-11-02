@@ -5,6 +5,7 @@ import { briefMessage, type HandoffRequest } from "./handoff.js";
 import type { Registry, SessionRecord } from "./registry.js";
 import { MemoryTaskStore, STATUS_LABEL, type Task, Tasks, type TaskStore } from "./tasks.js";
 import { buildRouteInput, buildRouteSystem, type Decision, type Part, parseDecision, type RouteCandidate } from "./route.js";
+import { MAIN_SESSION } from "./bao.js";
 
 /** 路由器对 pi 那一层的全部要求，测试时可以换成假的。 */
 export interface AgentBackend {
@@ -158,13 +159,12 @@ export class Router {
 
   /** 让便宜模型判断去处；模型不可用或答得不像样，就退回"当前对话 / 默认对话"。 */
   private async decide(chatId: string, text: string, onlyAgent?: string): Promise<Decision> {
+    await this.ensureMains();
     const cur = this.registry.current(chatId);
     const fallback = (): Decision => {
       if (cur && (!onlyAgent || cur.agent === onlyAgent)) return { action: "continue", target: label(cur), mode: "chat" };
       const agent = onlyAgent ?? this.defaultAgent;
-      return this.registry.get(agent, "默认")
-        ? { action: "continue", target: `${agent}/默认`, mode: "chat" }
-        : { action: "new", agent, name: "默认", mode: "chat" };
+      return { action: "new", agent, name: MAIN_SESSION, mode: "chat" }; // 交给那个宝的主对话
     };
     if (!this.isOn("route")) return fallback(); // 自动路由关了：投进当前对话或默认的宝
     const agents = this.agents.listAgents();
@@ -173,7 +173,7 @@ export class Router {
       desc: this.agents.describe(agent),
       sessions: this.registry
         .list(agent)
-        .filter((s, i, all) => i >= all.length - 20 || s.path === cur?.path) // 每个宝只看最近 20 段，但当前对话一定在
+        .filter((s, i, all) => i >= all.length - 20 || s.path === cur?.path || s.name === MAIN_SESSION) // 每个宝只看最近 20 段，主对话和当前对话一定在
         .map((s) => ({ label: label(s), recent: this.agents.recent(s.path, 2), background: s.background })),
     }));
     const targets = candidates.flatMap((c) => c.sessions.map((s) => s.label));
@@ -218,9 +218,10 @@ export class Router {
     if (d.mode === "background") {
       // 接着某段对话派的活：分叉那段对话去后台做（带着前面的讨论），结果也回报到那段对话；
       // 新话题直接开任务，不再多开一段空对话
-      const origin = d.action === "continue" ? this.registry.find(d.target)[0] : undefined;
-      const agent = origin?.agent ?? (d.action === "new" ? d.agent : this.defaultAgent);
-      const title = d.taskTitle ?? (d.action === "new" ? d.name : stamp());
+      const hit = d.action === "continue" ? this.registry.find(d.target)[0] : undefined;
+      const origin = hit?.name === MAIN_SESSION ? undefined : hit; // 交给宝的主对话的活不分叉主对话，开干净的任务
+      const agent = hit?.agent ?? (d.action === "new" ? d.agent : this.defaultAgent);
+      const title = d.taskTitle ?? (d.action === "new" && d.name !== MAIN_SESSION ? d.name : stamp());
       release();
       return this.runBackground(chatId, agent, text, title, origin, reply);
     }
@@ -228,12 +229,17 @@ export class Router {
     let how: string;
     if (d.action === "continue") {
       rec = this.registry.find(d.target)[0];
-      how = "接着聊";
+      how = rec.name === MAIN_SESSION ? "交给宝" : "接着聊";
     } else {
-      let name = d.name;
-      for (let i = 2; this.registry.get(d.agent, name); i++) name = `${d.name}${i}`; // 防重名
-      rec = await this.newSession(d.agent, name);
-      how = made ? "新建宝并新开" : "新开";
+      if (d.name === MAIN_SESSION) {
+        rec = await this.ensureMain(d.agent);
+        how = made ? "新建宝" : "交给宝";
+      } else {
+        let name = d.name;
+        for (let i = 2; this.registry.get(d.agent, name); i++) name = `${d.name}${i}`; // 防重名
+        rec = await this.newSession(d.agent, name);
+        how = made ? "新建宝并新开" : "新开";
+      }
     }
     this.registry.setCurrent(chatId, rec.path);
     this.progress(chatId, { status: `已交给 ${label(rec)}`, path: rec.path });
@@ -255,7 +261,7 @@ export class Router {
       if (p.action === "new" && p.newBao && !this.agents.exists(agent)) {
         try {
           this.agents.createBao!(agent, p.newBao);
-          made = "新建宝，";
+          made = "新建宝";
         } catch (e) {
           console.warn("[route] 新建宝失败，用默认的宝：", (e as Error).message);
           agent = this.defaultAgent;
@@ -265,11 +271,12 @@ export class Router {
       if (p.mode === "background" && this.isOn("background")) {
         const title = p.taskTitle ?? (p.action === "new" ? p.name : stamp());
         this.tasks.start({ agent, title, prompt: p.text, origin: origin?.path, chatId }, this.notifier(reply));
-        lines.push(`- 后台任务「${title}」（${agent}）：${made}做完回报到这里`);
+        lines.push(`- 后台任务「${title}」（${agent}）：${made ? "新建宝，" : ""}做完回报到这里`);
         continue;
       }
       let rec: SessionRecord;
       if (origin) rec = origin;
+      else if (p.action === "new" && p.name === MAIN_SESSION) rec = await this.ensureMain(agent);
       else {
         const base = p.action === "new" ? p.name : stamp();
         let name = base;
@@ -277,7 +284,7 @@ export class Router {
         rec = await this.newSession(agent, name);
       }
       first ??= rec;
-      lines.push(`- ${link(rec)}：${made}${origin ? "接着聊" : "新开"}`);
+      lines.push(`- ${link(rec)}：${made || (rec.name === MAIN_SESSION ? "交给宝" : origin ? "接着聊" : "新开")}`);
       jobs.push(() =>
         this.agents
           .send(rec.agent, rec.path, p.text)
@@ -384,6 +391,7 @@ export class Router {
       if (!req.duty?.trim() || !this.agents.createBao)
         throw new Error(`没有宝「${req.bao}」。已有：${this.agents.listAgents().join("、")}；要新建就同时填 duty（这个宝负责什么）`);
       this.agents.createBao(req.bao, req.duty);
+      await this.ensureMain(req.bao);
       made = `新建了宝「${req.bao}」，`;
     }
     const base = req.name.replace(/[\/\n]/g, " ").trim().slice(0, 30) || stamp();
@@ -414,6 +422,16 @@ export class Router {
       .then((r) => this.agents.announce?.(rec.path, r))
       .catch((e) => this.agents.announce?.(rec.path, `出错了：${(e as Error).message}`));
     return `${made}已交接到 ${label(rec)}，新对话已收到交接说明。告诉用户时把对话写成 ${link(rec)}，界面上会变成能点开的卡片。`;
+  }
+
+  /** 宝的主对话：没有就建。 */
+  async ensureMain(agent: string): Promise<SessionRecord> {
+    return this.registry.get(agent, MAIN_SESSION) ?? (await this.newSession(agent, MAIN_SESSION));
+  }
+
+  /** 给每个宝补上主对话（启动时、路由前调用；老数据里的对话都当讨论串）。 */
+  async ensureMains() {
+    for (const a of this.agents.listAgents()) if (!this.registry.get(a, MAIN_SESSION)) await this.ensureMain(a);
   }
 
   /** 找一段对话：宝名/对话名。 */
@@ -500,7 +518,7 @@ function nowText(d = new Date()) {
 
 const label = (s: SessionRecord) => `${s.agent}/${s.name}`;
 /** 对话引用：网页把 [名字](kiki:宝/对话) 显示成能点开的小卡片，点了在右栏打开那段对话。 */
-const link = (s: SessionRecord) => `[${s.name}](kiki:${label(s)})`;
+const link = (s: SessionRecord) => `[${s.name === MAIN_SESSION ? s.agent : s.name}](kiki:${label(s)})`; // 主对话的卡片显示宝名
 
 function stamp() {
   const d = new Date();

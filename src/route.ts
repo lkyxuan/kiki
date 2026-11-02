@@ -2,7 +2,7 @@
 // 顺带给出第二层的建议：聊（chat）还是后台干（background）。
 // 这里只有纯逻辑（拼提示词、解析结果），调模型和执行在 router.ts。
 
-import { validBaoName } from "./bao.js";
+import { MAIN_SESSION, validBaoName } from "./bao.js";
 
 export interface RouteCandidate {
   agent: string;
@@ -30,20 +30,20 @@ const MAX_PARTS = 6;
 /** 路由的系统提示词 = 固定开头 + 用户可改的分派规则（~/kiki-data/分派规则.md）+ 固定输出格式。
  *  判断标准放在规则文件里给用户改；输出格式是程序要解析的，留在代码里。 */
 export function buildRouteSystem(rules: string): string {
-  return `你是奇奇，个人助理 Kiki 的分诊台。用户的每句话要么由你直接答掉，要么放进某个宝的一段对话里。
-对话按"宝"分组，每个宝负责一个领域，下面有若干具名对话。没有合适的宝就新建一个。
+  return `你是奇奇，个人助理 Kiki 的分诊台。用户的每句话要么由你直接答掉，要么交出去。
+对话按"宝"分组，每个宝负责一个领域。每个宝有一段「${MAIN_SESSION}」，是这个宝的协调人，它会自己把具体的事开成讨论串；宝下面其他的对话就是讨论串。
+交出去时：明确属于某个已有讨论串的，直接交进那个讨论串；否则交给最贴近的宝的「${MAIN_SESSION}」；没有合适的宝就新建一个。
 一定要自己做决定，不要反问用户。
 
 下面是用户定的分派规则：
 ${rules.trim()}
 
-只输出一个 JSON 对象，不要任何别的文字。五种格式（mode 为 background 时加 "taskTitle"：10 个字以内的任务名）：
-接进已有对话：{"action":"continue","target":"宝名/对话名","mode":"chat","reason":"一句话理由"}
-在已有的宝下新开：{"action":"new","agent":"宝名","name":"对话短名","mode":"chat","reason":"一句话理由"}
-新建宝再新开：{"action":"new","agent":"新宝名","newBao":"这个宝负责什么，一句话","name":"对话短名","mode":"chat","reason":"一句话理由"}
+只输出一个 JSON 对象，不要任何别的文字。四种格式（mode 为 background 时加 "taskTitle"：10 个字以内的任务名）：
+交进宝的主对话或某个讨论串：{"action":"continue","target":"宝名/对话名","mode":"chat","reason":"一句话理由"}
+新建宝（交给它的主对话）：{"action":"new","agent":"新宝名","newBao":"这个宝负责什么，一句话","mode":"chat","reason":"一句话理由"}
 直接回答：{"action":"reply","text":"给用户的回答","reason":"一句话理由"}
 拆成几件分别交出去（parts 里每一项是上面 continue 或 new 的格式，再加 "text"：交给那边的话，自带上下文，那边看不到用户原话）：
-{"action":"split","parts":[{"action":"new","agent":"宝名","name":"对话短名","mode":"chat","text":"…"},{"action":"continue","target":"宝名/对话名","mode":"chat","text":"…"}],"reason":"一句话理由"}`;
+{"action":"split","parts":[{"action":"continue","target":"宝名/${MAIN_SESSION}","mode":"chat","text":"…"},{"action":"new","agent":"新宝名","newBao":"…","mode":"chat","text":"…"}],"reason":"一句话理由"}`;
 }
 
 export function buildRouteInput(opts: {
@@ -116,15 +116,17 @@ export function parseDecision(
 function parseOne(d: any, valid: { agents: string[]; targets: string[]; allowNewBao?: boolean }) {
   const mode: Mode = d.mode === "background" ? "background" : "chat";
   const taskTitle = mode === "background" && typeof d.taskTitle === "string" ? d.taskTitle.slice(0, 30) : undefined;
-  const cleanName = (n: unknown) => (typeof n === "string" ? n.replace(/[\/\n]/g, " ").trim().slice(0, 30) : "");
   if (d.action === "continue" && valid.targets.includes(d.target)) {
     return { action: "continue" as const, target: d.target as string, mode, taskTitle, reason: d.reason };
   }
-  if (d.action === "new" && valid.agents.includes(d.agent) && cleanName(d.name)) {
-    return { action: "new" as const, agent: d.agent as string, name: cleanName(d.name), mode, taskTitle, reason: d.reason };
+  // 交给已有的宝：进它的主对话（开讨论串是主对话的事）
+  if (d.action === "new" && valid.agents.includes(d.agent)) {
+    const main = `${d.agent}/${MAIN_SESSION}`;
+    if (valid.targets.includes(main)) return { action: "continue" as const, target: main, mode, taskTitle, reason: d.reason };
+    return { action: "new" as const, agent: d.agent as string, name: MAIN_SESSION, mode, taskTitle, reason: d.reason };
   }
-  if (d.action === "new" && valid.allowNewBao && validBaoName(d.agent) && typeof d.newBao === "string" && d.newBao.trim() && cleanName(d.name)) {
-    return { action: "new" as const, agent: d.agent, name: cleanName(d.name), mode, taskTitle, reason: d.reason, newBao: d.newBao.trim().slice(0, 100) };
+  if (d.action === "new" && valid.allowNewBao && validBaoName(d.agent) && typeof d.newBao === "string" && d.newBao.trim()) {
+    return { action: "new" as const, agent: d.agent, name: MAIN_SESSION, mode, taskTitle, reason: d.reason, newBao: d.newBao.trim().slice(0, 100) };
   }
   return undefined;
 }

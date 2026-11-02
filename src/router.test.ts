@@ -58,23 +58,22 @@ function setup() {
   return { router, reg, out, say, ctl };
 }
 
-test("路由模型不可用时，退回默认对话", async () => {
+test("路由模型不可用时，交给默认宝的主对话", async () => {
   const { out, say, reg } = setup();
   await say("你好");
-  assert.match(out[0], /^→ life\/默认 · 新开\n\n\[.*\] 你好$/);
-  assert.equal(reg.current("app")?.name, "默认");
+  assert.match(out[0], /^→ life\/主对话 · 交给宝\n\n\[.*\] 你好$/);
+  assert.equal(reg.current("app")?.name, "主对话");
   await say("还在吗");
-  assert.match(out[1], /^→ life\/默认 · 接着聊/);
+  assert.match(out[1], /^→ life\/主对话 · 交给宝/);
 });
 
-test("模型说新开：按它起的名字建对话，重名自动加序号", async () => {
+test("每个宝自动有主对话；模型说交给某个宝（旧的 new 写法）就进它的主对话，不由奇奇开讨论串", async () => {
   const { out, say, reg, ctl } = setup();
   ctl.routeAnswer = '好的：{"action":"new","agent":"dev","name":"路由器","mode":"chat"}';
   await say("帮我设计路由");
-  assert.match(out[0], /^→ dev\/路由器 · 新开/);
-  await say("又一个路由话题");
-  assert.match(out[1], /^→ dev\/路由器2 · 新开/);
-  assert.equal(reg.list("dev").length, 2);
+  assert.match(out[0], /^→ dev\/主对话 · 交给宝/);
+  assert.deepEqual(reg.list().map((x) => `${x.agent}/${x.name}`).sort(), ["dev/主对话", "life/主对话"]);
+  assert.match(ctl.routePrompts[0], /- dev\/主对话/);
 });
 
 test("模型说接着聊：进指定对话，提示词里标出当前对话", async () => {
@@ -98,18 +97,18 @@ test("模型给了不存在的对话：不乱建，退回当前对话", async ()
 test("模型给了选项也不反问用户：直接取第一个", async () => {
   const { out, say, ctl, reg } = setup();
   await say("/new dev 路由器");
-  ctl.routeAnswer = '{"action":"ask","options":[{"agent":"life","name":"买电脑"},{"target":"dev/路由器"}],"reason":"都沾边"}';
+  ctl.routeAnswer = '{"action":"ask","options":[{"target":"life/主对话"},{"target":"dev/路由器"}],"reason":"都沾边"}';
   await say("Mac mini 要不要升级内存");
-  assert.match(out.at(-1)!, /^→ life\/买电脑 · 新开\n\n\[.*\] Mac mini 要不要升级内存$/);
-  assert.equal(reg.current("app")?.name, "买电脑");
+  assert.match(out.at(-1)!, /^→ life\/主对话 · 交给宝\n\n\[.*\] Mac mini 要不要升级内存$/);
+  assert.equal(reg.current("app")?.agent, "life");
 });
 
-test("@宝名 只在这个宝下选，模型越界就退回该宝默认对话", async () => {
+test("@宝名 只在这个宝下选，模型越界就退回该宝主对话", async () => {
   const { out, say, ctl } = setup();
   await say("/new life 健身");
   ctl.routeAnswer = '{"action":"continue","target":"life/健身","mode":"chat"}';
   await say("@dev 看下这个报错");
-  assert.match(out.at(-1)!, /^→ dev\/默认 · 新开\n\n\[.*\] 看下这个报错$/);
+  assert.match(out.at(-1)!, /^→ dev\/主对话 · 交给宝\n\n\[.*\] 看下这个报错$/);
   assert.match(ctl.routePrompts.at(-1)!, /只能在它下面/);
 });
 
@@ -145,12 +144,12 @@ test("接着某段对话判成后台：分叉那段对话，后台带着上下�
   assert.match(out.at(-1)!, /✅ 后台任务「实现」完成（dev\/bg-实现）/);
 });
 
-test("新话题判成后台：不多开空对话，直接开任务", async () => {
+test("交给宝的活判成后台：不分叉主对话，直接开任务", async () => {
   const { out, say, reg, ctl } = setup();
   ctl.routeAnswer = '{"action":"new","agent":"dev","name":"周报","mode":"background","taskTitle":"写周报"}';
   await say("帮我写本周周报");
   await new Promise((r) => setTimeout(r, 10));
-  assert.deepEqual(reg.list().map((s) => s.name), ["bg-写周报"]);
+  assert.deepEqual(reg.list().map((s) => s.name).filter((n) => n !== "主对话"), ["bg-写周报"]);
   assert.deepEqual(ctl.forks, []);
   assert.match(out.at(-1)!, /✅ 后台任务「写周报」完成/);
   assert.equal(ctl.notes.length, 0);
@@ -207,7 +206,7 @@ test("/new /use /list 手动命令照常可用", async () => {
 });
 
 test("parseDecision 过滤非法输出", () => {
-  const valid = { agents: ["dev"], targets: ["dev/a"] };
+  const valid = { agents: ["dev"], targets: ["dev/a", "dev/主对话"] };
   assert.equal(parseDecision("不是 JSON", valid), undefined);
   assert.equal(parseDecision('{"action":"new","agent":"nope","name":"x"}', valid), undefined);
   assert.deepEqual(parseDecision('{"action":"ask","options":[{"target":"dev/a"},{"target":"dev/zz"}]}', valid), {
@@ -217,8 +216,8 @@ test("parseDecision 过滤非法输出", () => {
     taskTitle: undefined,
     reason: undefined,
   });
-  const d = parseDecision('{"action":"new","agent":"dev","name":"a/b\\nc","mode":"background","taskTitle":"t"}', valid);
-  assert.deepEqual(d, { action: "new", agent: "dev", name: "a b c", mode: "background", taskTitle: "t", reason: undefined });
+  const d = parseDecision('{"action":"new","agent":"dev","name":"x","mode":"background","taskTitle":"t"}', valid);
+  assert.deepEqual(d, { action: "continue", target: "dev/主对话", mode: "background", taskTitle: "t", reason: undefined });
 });
 
 test("交接（聊）：新开对话，第一条消息是交接说明，重名加序号", async () => {
@@ -306,12 +305,12 @@ test("能力开关：关掉自动路由就投进当前对话；关掉后台就�
   assert.match(r, /已交接到 life\/写脚本/);
 });
 
-test("没有合适的宝：路由直接新建宝再新开对话", async () => {
+test("没有合适的宝：路由直接新建宝，交给它的主对话", async () => {
   const { out, say, ctl, reg } = setup();
   ctl.routeAnswer = '{"action":"new","agent":"购物宝","newBao":"买东西：比价、选型","name":"选iPad","mode":"chat"}';
   await say("给我妈挑台 iPad");
   assert.deepEqual(ctl.duties, ["购物宝:买东西：比价、选型"]);
-  assert.match(out.at(-1)!, /^→ 购物宝\/选iPad · 新建宝并新开/);
+  assert.match(out.at(-1)!, /^→ 购物宝\/主对话 · 新建宝/);
   assert.equal(reg.current("app")?.agent, "购物宝");
 });
 
@@ -320,7 +319,7 @@ test("新宝名不合法或 @ 了宝：不新建，退回默认", async () => {
   ctl.routeAnswer = '{"action":"new","agent":"a/b","newBao":"x","name":"y","mode":"chat"}';
   await say("随便");
   assert.deepEqual(ctl.duties, []);
-  assert.match(out.at(-1)!, /^→ life\/默认/);
+  assert.match(out.at(-1)!, /^→ life\/主对话/);
   ctl.routeAnswer = '{"action":"new","agent":"购物宝","newBao":"x","name":"y","mode":"chat"}';
   await say("@dev 随便");
   assert.deepEqual(ctl.duties, []);
@@ -344,7 +343,7 @@ test("交接到还不存在的宝：带 duty 就新建，不带就报错", async
   assert.deepEqual(ctl.duties, ["生活宝:日常生活"]);
 });
 
-test("一段话拆成几件：各自建宝/开对话，交过去的是各自的说明，奇奇回一张清单带卡片", async () => {
+test("一段话拆成几件：一件进已有讨论串，一件新建宝交给主对话，交过去的是各自的说明，奇奇回一张清单带卡片", async () => {
   const { out, say, ctl, reg } = setup();
   await say("/new dev 路由器");
   ctl.routeAnswer = JSON.stringify({
@@ -359,7 +358,7 @@ test("一段话拆成几件：各自建宝/开对话，交过去的是各自的�
   await new Promise((r) => setTimeout(r, 10));
   assert.equal(
     out.at(-1),
-    "奇奇 · 拆成 2 件事，分别交出去了\n\n- [路由器](kiki:dev/路由器)：接着聊\n- [选iPad](kiki:生活宝/选iPad)：新建宝，新开",
+    "奇奇 · 拆成 2 件事，分别交出去了\n\n- [路由器](kiki:dev/路由器)：接着聊\n- [生活宝](kiki:生活宝/主对话)：新建宝",
   );
   assert.deepEqual(ctl.duties, ["生活宝:日常生活"]);
   assert.deepEqual(ctl.sends.slice(-2).sort(), ["给妈妈选 iPad，预算 3000", "路由要支持拆分"]);
@@ -377,6 +376,6 @@ test("拆分只剩一件合法的：当普通分派，交过去的是用户原�
     ],
   });
   await say("帮我列个买菜单");
-  assert.match(out.at(-1)!, /^→ life\/买菜 · 新开\n\n\[.*\] 帮我列个买菜单$/);
+  assert.match(out.at(-1)!, /^→ life\/主对话 · 交给宝\n\n\[.*\] 帮我列个买菜单$/);
   assert.equal(ctl.sends.at(-1), "帮我列个买菜单");
 });
