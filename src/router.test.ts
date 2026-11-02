@@ -343,3 +343,40 @@ test("交接到还不存在的宝：带 duty 就新建，不带就报错", async
   assert.match(r, /^新建了宝「生活宝」，已交接到 生活宝\/买iPad/);
   assert.deepEqual(ctl.duties, ["生活宝:日常生活"]);
 });
+
+test("一段话拆成几件：各自建宝/开对话，交过去的是各自的说明，奇奇回一张清单带卡片", async () => {
+  const { out, say, ctl, reg } = setup();
+  await say("/new dev 路由器");
+  ctl.routeAnswer = JSON.stringify({
+    action: "split",
+    parts: [
+      { action: "continue", target: "dev/路由器", mode: "chat", text: "路由要支持拆分" },
+      { action: "new", agent: "生活宝", newBao: "日常生活", name: "选iPad", mode: "chat", text: "给妈妈选 iPad，预算 3000" },
+      { action: "new", agent: "瞎编", name: "x", mode: "chat", text: "不合法，丢掉" },
+    ],
+  });
+  await say("路由要支持拆分；另外帮我给妈妈选个 iPad，预算 3000");
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(
+    out.at(-1),
+    "奇奇 · 拆成 2 件事，分别交出去了\n\n- [路由器](kiki:dev/路由器)：接着聊\n- [选iPad](kiki:生活宝/选iPad)：新建宝，新开",
+  );
+  assert.deepEqual(ctl.duties, ["生活宝:日常生活"]);
+  assert.deepEqual(ctl.sends.slice(-2).sort(), ["给妈妈选 iPad，预算 3000", "路由要支持拆分"]);
+  assert.equal(ctl.announced.length, 2);
+  assert.equal(reg.current("app")?.name, "路由器");
+});
+
+test("拆分只剩一件合法的：当普通分派，交过去的是用户原话", async () => {
+  const { out, say, ctl } = setup();
+  ctl.routeAnswer = JSON.stringify({
+    action: "split",
+    parts: [
+      { action: "new", agent: "life", name: "买菜", mode: "chat", text: "买菜" },
+      { action: "continue", target: "dev/不存在", mode: "chat", text: "x" },
+    ],
+  });
+  await say("帮我列个买菜单");
+  assert.match(out.at(-1)!, /^→ life\/买菜 · 新开\n\n\[.*\] 帮我列个买菜单$/);
+  assert.equal(ctl.sends.at(-1), "帮我列个买菜单");
+});

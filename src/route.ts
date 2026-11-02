@@ -17,7 +17,14 @@ export type Decision =
   /** newBao：宝还不存在，先新建，值是这个宝负责什么 */
   | { action: "new"; agent: string; name: string; mode: Mode; taskTitle?: string; reason?: string; newBao?: string }
   /** 一句话就能答完的，奇奇直接回答，不进任何对话 */
-  | { action: "reply"; text: string; mode: "chat"; reason?: string };
+  | { action: "reply"; text: string; mode: "chat"; reason?: string }
+  /** 一段话里有几件互不相干的事：拆开，每件带着自己的说明分别交出去 */
+  | { action: "split"; parts: Part[]; mode: "chat"; reason?: string };
+
+/** 拆出来的一件事：去处（接进已有对话 / 新开）+ 交过去的话（自带上下文） */
+export type Part = (Extract<Decision, { action: "continue" }> | Extract<Decision, { action: "new" }>) & { text: string };
+
+const MAX_PARTS = 6;
 
 
 /** 路由的系统提示词 = 固定开头 + 用户可改的分派规则（~/kiki-data/分派规则.md）+ 固定输出格式。
@@ -30,11 +37,13 @@ export function buildRouteSystem(rules: string): string {
 下面是用户定的分派规则：
 ${rules.trim()}
 
-只输出一个 JSON 对象，不要任何别的文字。四种格式（mode 为 background 时加 "taskTitle"：10 个字以内的任务名）：
+只输出一个 JSON 对象，不要任何别的文字。五种格式（mode 为 background 时加 "taskTitle"：10 个字以内的任务名）：
 接进已有对话：{"action":"continue","target":"宝名/对话名","mode":"chat","reason":"一句话理由"}
 在已有的宝下新开：{"action":"new","agent":"宝名","name":"对话短名","mode":"chat","reason":"一句话理由"}
 新建宝再新开：{"action":"new","agent":"新宝名","newBao":"这个宝负责什么，一句话","name":"对话短名","mode":"chat","reason":"一句话理由"}
-直接回答：{"action":"reply","text":"给用户的回答","reason":"一句话理由"}`;
+直接回答：{"action":"reply","text":"给用户的回答","reason":"一句话理由"}
+拆成几件分别交出去（parts 里每一项是上面 continue 或 new 的格式，再加 "text"：交给那边的话，自带上下文，那边看不到用户原话）：
+{"action":"split","parts":[{"action":"new","agent":"宝名","name":"对话短名","mode":"chat","text":"…"},{"action":"continue","target":"宝名/对话名","mode":"chat","text":"…"}],"reason":"一句话理由"}`;
 }
 
 export function buildRouteInput(opts: {
@@ -75,28 +84,47 @@ export function parseDecision(
   } catch {
     return undefined;
   }
-  const mode: Mode = d.mode === "background" ? "background" : "chat";
-  const taskTitle = mode === "background" && typeof d.taskTitle === "string" ? d.taskTitle.slice(0, 30) : undefined;
-  const cleanName = (n: unknown) => (typeof n === "string" ? n.replace(/[\/\n]/g, " ").trim().slice(0, 30) : "");
-
-  if (d.action === "continue" && valid.targets.includes(d.target)) {
-    return { action: "continue", target: d.target, mode, taskTitle, reason: d.reason };
-  }
-  if (d.action === "new" && valid.agents.includes(d.agent) && cleanName(d.name)) {
-    return { action: "new", agent: d.agent, name: cleanName(d.name), mode, taskTitle, reason: d.reason };
-  }
-  if (d.action === "new" && valid.allowNewBao && validBaoName(d.agent) && typeof d.newBao === "string" && d.newBao.trim() && cleanName(d.name)) {
-    return { action: "new", agent: d.agent, name: cleanName(d.name), mode, taskTitle, reason: d.reason, newBao: d.newBao.trim().slice(0, 100) };
-  }
+  const one = parseOne(d, valid);
+  if (one) return one;
   if (d.action === "reply" && valid.allowReply && typeof d.text === "string" && d.text.trim()) {
     return { action: "reply", text: d.text.trim(), mode: "chat", reason: d.reason };
+  }
+  if (d.action === "split" && Array.isArray(d.parts)) {
+    const parts: Part[] = [];
+    for (const p of d.parts.slice(0, MAX_PARTS)) {
+      const x = p && typeof p === "object" ? parseOne(p, valid) : undefined;
+      const text = typeof p?.text === "string" ? p.text.trim() : "";
+      if (x && text) parts.push({ ...x, text });
+    }
+    if (parts.length >= 2) return { action: "split", parts, mode: "chat", reason: d.reason };
+    if (parts.length === 1) {
+      const { text: _t, ...only } = parts[0]; // 只剩一件就当普通分派，交过去的是用户原话
+      return only;
+    }
   }
   // 模型若还是给了选项（旧习惯），直接取第一个合法的，不把问题抛回给用户
   if (Array.isArray(d.options)) {
     for (const o of d.options) {
-      if (o?.target && valid.targets.includes(o.target)) return { action: "continue", target: o.target, mode, taskTitle, reason: d.reason };
-      if (o?.agent && valid.agents.includes(o.agent) && cleanName(o.name)) return { action: "new", agent: o.agent, name: cleanName(o.name), mode, taskTitle, reason: d.reason };
+      const x = o && typeof o === "object" ? parseOne({ ...o, action: o.target ? "continue" : "new", mode: d.mode, taskTitle: d.taskTitle, reason: d.reason }, valid) : undefined;
+      if (x) return x;
     }
+  }
+  return undefined;
+}
+
+/** 解析一个 continue / new 去处，不合法返回 undefined。 */
+function parseOne(d: any, valid: { agents: string[]; targets: string[]; allowNewBao?: boolean }) {
+  const mode: Mode = d.mode === "background" ? "background" : "chat";
+  const taskTitle = mode === "background" && typeof d.taskTitle === "string" ? d.taskTitle.slice(0, 30) : undefined;
+  const cleanName = (n: unknown) => (typeof n === "string" ? n.replace(/[\/\n]/g, " ").trim().slice(0, 30) : "");
+  if (d.action === "continue" && valid.targets.includes(d.target)) {
+    return { action: "continue" as const, target: d.target as string, mode, taskTitle, reason: d.reason };
+  }
+  if (d.action === "new" && valid.agents.includes(d.agent) && cleanName(d.name)) {
+    return { action: "new" as const, agent: d.agent as string, name: cleanName(d.name), mode, taskTitle, reason: d.reason };
+  }
+  if (d.action === "new" && valid.allowNewBao && validBaoName(d.agent) && typeof d.newBao === "string" && d.newBao.trim() && cleanName(d.name)) {
+    return { action: "new" as const, agent: d.agent, name: cleanName(d.name), mode, taskTitle, reason: d.reason, newBao: d.newBao.trim().slice(0, 100) };
   }
   return undefined;
 }

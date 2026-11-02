@@ -4,7 +4,7 @@
 import { briefMessage, type HandoffRequest } from "./handoff.js";
 import type { Registry, SessionRecord } from "./registry.js";
 import { MemoryTaskStore, STATUS_LABEL, type Task, Tasks, type TaskStore } from "./tasks.js";
-import { buildRouteInput, buildRouteSystem, type Decision, parseDecision, type RouteCandidate } from "./route.js";
+import { buildRouteInput, buildRouteSystem, type Decision, type Part, parseDecision, type RouteCandidate } from "./route.js";
 
 /** 路由器对 pi 那一层的全部要求，测试时可以换成假的。 */
 export interface AgentBackend {
@@ -203,6 +203,7 @@ export class Router {
       release();
       return reply(`奇奇 · 直接回答\n\n${d.text}`);
     }
+    if (d.action === "split") return this.deliverSplit(chatId, d.parts, reply, release);
     let made = "";
     if (d.action === "new" && d.newBao && !this.agents.exists(d.agent)) {
       try {
@@ -240,6 +241,57 @@ export class Router {
     release();
     const answer = await pending;
     await reply(`→ ${label(rec)} · ${how}\n\n${answer}`);
+  }
+
+  /** 一段话拆成几件：每件建好宝和对话（按顺序，免得撞名），再同时交出去；奇奇立刻回一张清单，每件一张卡片。
+   *  各段的回答直接出现在各自的对话里，不等它们答完。 */
+  private async deliverSplit(chatId: string, parts: Part[], reply: Reply, release: () => void) {
+    const lines: string[] = [];
+    const jobs: (() => void)[] = [];
+    let first: SessionRecord | undefined;
+    for (const p of parts) {
+      let agent = p.action === "continue" ? this.registry.find(p.target)[0]?.agent ?? this.defaultAgent : p.agent;
+      let made = "";
+      if (p.action === "new" && p.newBao && !this.agents.exists(agent)) {
+        try {
+          this.agents.createBao!(agent, p.newBao);
+          made = "新建宝，";
+        } catch (e) {
+          console.warn("[route] 新建宝失败，用默认的宝：", (e as Error).message);
+          agent = this.defaultAgent;
+        }
+      }
+      const origin = p.action === "continue" ? this.registry.find(p.target)[0] : undefined;
+      if (p.mode === "background" && this.isOn("background")) {
+        const title = p.taskTitle ?? (p.action === "new" ? p.name : stamp());
+        this.tasks.start({ agent, title, prompt: p.text, origin: origin?.path, chatId }, this.notifier(reply));
+        lines.push(`- 后台任务「${title}」（${agent}）：${made}做完回报到这里`);
+        continue;
+      }
+      let rec: SessionRecord;
+      if (origin) rec = origin;
+      else {
+        const base = p.action === "new" ? p.name : stamp();
+        let name = base;
+        for (let i = 2; this.registry.get(agent, name); i++) name = `${base}${i}`;
+        rec = await this.newSession(agent, name);
+      }
+      first ??= rec;
+      lines.push(`- ${link(rec)}：${made}${origin ? "接着聊" : "新开"}`);
+      jobs.push(() =>
+        this.agents
+          .send(rec.agent, rec.path, p.text)
+          .then((r) => this.agents.announce?.(rec.path, r))
+          .catch((e) => this.agents.announce?.(rec.path, `出错了：${(e as Error).message}`)),
+      );
+    }
+    if (first) {
+      this.registry.setCurrent(chatId, first.path);
+      this.progress(chatId, { status: `已拆成 ${parts.length} 件`, path: first.path });
+    }
+    for (const run of jobs) run(); // 排进各自对话的队列
+    release();
+    await reply(`奇奇 · 拆成 ${parts.length} 件事，分别交出去了\n\n${lines.join("\n")}`);
   }
 
   /** /to：上一句分错了，改投到别处。参数是"宝/对话名"，或"宝 新对话名"。 */
