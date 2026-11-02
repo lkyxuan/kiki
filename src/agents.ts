@@ -3,7 +3,7 @@
 // DATA_DIR/AGENTS.md（关于我）在上级目录，pi 会自动一起读进来。
 import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import {
   type AgentSession,
   type ExtensionFactory,
@@ -42,6 +42,7 @@ export class Agents extends EventEmitter {
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
   private runs = new Map<string, Live>(); // path -> 正在干活的这一轮的进度
+  private gone = new Set<string>(); // 已删掉 / 清空的对话：排在后面的消息不再跑
   private labelCache?: Record<string, string>;
 
   constructor(
@@ -220,6 +221,7 @@ export class Agents extends EventEmitter {
   }
 
   private async get(agent: string, path: string): Promise<AgentSession> {
+    if (this.gone.has(path)) throw new Error("这段对话已经删掉了");
     let s = this.live.get(path);
     if (!s) {
       s = await this.open(agent, SessionManager.open(path));
@@ -260,6 +262,7 @@ export class Agents extends EventEmitter {
 
   /** 关掉一段对话：停下手上的活、放开内存，JSONL 挪进 数据目录/trash/<宝>/（不真删，需要时还能找回）。 */
   async discard(agent: string, path: string, name: string) {
+    this.gone.add(path); // 先标记：排在队里的消息拿到会话前就会出错退出，不会重新打开
     const s = this.live.get(path);
     if (s) {
       await s.abort().catch(() => {});
@@ -272,7 +275,8 @@ export class Agents extends EventEmitter {
     const dir = join(this.dataDir, "trash", agent);
     mkdirSync(dir, { recursive: true });
     const safe = name.replace(/[\\/:*?"<>|]/g, "_").slice(0, 60);
-    renameSync(path, join(dir, `${trashStamp()}-${safe}.jsonl`));
+    // 带上原文件名（里面有 pi 给的唯一 id），同一秒删两段同名对话也不会互相覆盖
+    renameSync(path, join(dir, `${trashStamp()}-${safe}-${basename(path)}`));
   }
 
   /** 停掉正在跑的对话（后台任务超时用）。 */
