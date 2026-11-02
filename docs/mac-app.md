@@ -51,7 +51,7 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 ### 怎么发布新版本（开发者）
 
-把 `package.json` 里的版本号改大（比如 `npm version patch --no-git-tag-version`），合进 main。GitHub Actions 会检查、测试、打 arm64 和 x64 两个包，建好 Release。各台机器上的 Kiki 会在一小时内自己装上（等不及就在设置 → 更新里点「检查更新」）。
+把 `package.json` 里的版本号改大（比如 `npm version patch --no-git-tag-version`），合进 main。GitHub Actions 会检查、测试、打 arm64 和 x64 两个包，建好 Release。各台机器上的 Kiki 会在一小时内自己装上（等不及就点设置左下角的「检查更新」）。
 
 ## 在别的电脑上用 Kiki 的 App（前后端分离）
 
