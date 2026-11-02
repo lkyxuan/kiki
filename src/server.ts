@@ -2,7 +2,7 @@
 // 网页是 public/index.html；数据走下面几个接口，实时更新走 SSE。
 //
 // 通道边界：任何"通道"（这个网页、以后的微信插件……）都只需要调 router.handle(chatId, text, reply)。
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { Agents, ChatLine } from "./agents.js";
@@ -10,7 +10,10 @@ import type { Approvals, Decision } from "./approval.js";
 import { rejectReason } from "./guard.js";
 import type { Registry } from "./registry.js";
 import type { Router } from "./router.js";
-import { baoLook, settingsApi } from "./settings.js";
+import { Logins } from "./login.js";
+import { setProviderModels, setProviderOn } from "./modelprefs.js";
+import { imageMime, saveImage, uploadsDir, validImageName } from "./images.js";
+import { baoLook, setEnvLine, settingsApi } from "./settings.js";
 import { type Updater, VERSION } from "./update.js";
 
 const MAIN = "main"; // 主 bot 在网页里的 path
@@ -43,6 +46,27 @@ export function startServer(opts: {
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
   const clients = new Set<ServerResponse>();
   const settings = settingsApi({ dataDir: opts.dataDir, port: opts.port });
+  const logins = new Logins(() => agents.modelRuntime(), opts.dataDir, agents.engineDir);
+  // 模型菜单：现在用的、能选的、ChatGPT 登没登录
+  const modelInfo = async () => {
+    const models = await agents.modelChoices();
+    return {
+      current: agents.currentModel,
+      models,
+      vision: (await agents.visionChoice(models))?.spec ?? null, // 现在的模型看不了图时，先交给它看
+      chatgpt: { loggedIn: await logins.loggedIn("openai").catch(() => false), login: logins.state.provider === "openai" ? logins.state : { status: "idle" } },
+      login: logins.state, // 正在进行的登录（任何一家）
+    };
+  };
+  const saveEnv = (key: string, value: string) => {
+    const envFile = join(opts.dataDir, ".env");
+    try {
+      writeFileSync(envFile, setEnvLine(existsSync(envFile) ? readFileSync(envFile, "utf8") : "", key, value), { mode: 0o600 });
+    } catch (e) {
+      console.warn(`${key} 写回 .env 失败：`, (e as Error).message);
+    }
+    process.env[key] = value;
+  };
 
   const push = (event: string, data: unknown) => {
     const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -141,6 +165,92 @@ export function startServer(opts: {
         return json({ error: (e as Error).message }, 400);
       }
       return json({ ok: true });
+    }
+
+    // 模型：GET 看菜单；POST /api/models/use {spec} 换模型（写回 .env，重启后还是它）
+    if (url.pathname === "/api/models") return json(await modelInfo());
+    if (url.pathname === "/api/models/use" && req.method === "POST") {
+      const { spec } = await body();
+      if (typeof spec !== "string" || !/^[\w.-]+\/[\w.:/-]+$/.test(spec)) return json({ error: "模型名不对" }, 400);
+      try {
+        await agents.useModel(spec);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      saveEnv("MODEL", spec);
+      push("model", { current: spec });
+      return json(await modelInfo());
+    }
+    // 看图模型：POST /api/models/vision {spec}
+    if (url.pathname === "/api/models/vision" && req.method === "POST") {
+      const { spec } = await body();
+      const pick = (await agents.modelChoices()).find((c) => c.spec === spec && c.image);
+      if (!pick) return json({ error: "这个模型看不了图，或者还没登录" }, 400);
+      agents.visionSpec = pick.spec;
+      saveEnv("VISION_MODEL", pick.spec);
+      push("model", { vision: pick.spec });
+      return json(await modelInfo());
+    }
+    // 用 ChatGPT 订阅登录：start 拿登录网址，code 远程时粘回跳转后的网址，cancel / logout
+    if (url.pathname.startsWith("/api/models/chatgpt/") && req.method === "POST") {
+      const action = url.pathname.slice("/api/models/chatgpt/".length);
+      try {
+        if (action === "start") await logins.start("openai", "oauth");
+        else if (action === "code") await logins.answer(String((await body()).input ?? ""));
+        else if (action === "cancel") logins.cancel();
+        else if (action === "logout") await logins.logout("openai");
+        else return json({ error: "not found" }, 404);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      return json(await modelInfo());
+    }
+    // 各家服务商：GET 列表；POST /api/models/login/start {provider, type: api_key|oauth}、answer {value}、cancel、logout {provider}
+    if (url.pathname === "/api/models/providers") return json({ providers: await logins.providers(), login: logins.state });
+    // 设置里的开关和勾选：GET /api/models/provider?id= 看这家的模型；POST /api/models/prefs {provider, on?, models?}
+    if (url.pathname === "/api/models/provider") return json({ models: await agents.providerModels(url.searchParams.get("id") ?? "") });
+    if (url.pathname === "/api/models/prefs" && req.method === "POST") {
+      const b = await body();
+      const id = String(b.provider ?? "");
+      if (!(await logins.providers()).some((p) => p.id === id)) return json({ error: "没有这家服务商" }, 400);
+      if (typeof b.on === "boolean") setProviderOn(opts.dataDir, id, b.on);
+      if (Array.isArray(b.models)) setProviderModels(opts.dataDir, id, b.models);
+      push("model", {});
+      return json({ providers: await logins.providers(), login: logins.state });
+    }
+    if (url.pathname.startsWith("/api/models/login/") && req.method === "POST") {
+      const action = url.pathname.slice("/api/models/login/".length);
+      const b = await body();
+      try {
+        if (action === "start") {
+          if (b.type !== "api_key" && b.type !== "oauth") return json({ error: "type 要是 api_key 或 oauth" }, 400);
+          await logins.start(String(b.provider ?? ""), b.type);
+        } else if (action === "answer") await logins.answer(String(b.value ?? ""));
+        else if (action === "cancel") logins.cancel();
+        else if (action === "logout") await logins.logout(String(b.provider ?? ""));
+        else return json({ error: "not found" }, 404);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      push("model", {});
+      return json({ providers: await logins.providers(), login: logins.state });
+    }
+
+    // 图片：POST /api/image {data: data:URL} 存起来，返回放进消息里的标记；GET /api/image/<名字> 看图
+    if (url.pathname === "/api/image" && req.method === "POST") {
+      try {
+        return json({ mark: saveImage(opts.dataDir, String((await body()).data ?? "")) });
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+    }
+    if (url.pathname.startsWith("/api/image/")) {
+      const name = url.pathname.slice("/api/image/".length);
+      const f = join(uploadsDir(opts.dataDir), name);
+      if (!validImageName(name) || !existsSync(f)) return json({ error: "没有这张图" }, 404);
+      res.writeHead(200, { "content-type": imageMime(name), "cache-control": "private, max-age=31536000, immutable" });
+      res.end(readFileSync(f));
+      return;
     }
 
     if (url.pathname === "/api/history") {

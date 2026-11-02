@@ -191,6 +191,38 @@
   .send:active { transform: scale(.94); }
   .send:disabled { opacity: .3; }
   .send svg { width: 18px; height: 18px; }
+  /* 图片附件和模型按钮 */
+  .box .attach { align-self: flex-end; margin-left: -9px; }
+  .atts { max-width: 740px; margin: 0 auto 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .atts:empty { display: none; }
+  .atts .att { position: relative; width: 64px; height: 64px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--fill); }
+  .atts .att img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .atts .att.loading img { opacity: .4; }
+  .atts .att button { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; line-height: 18px; text-align: center; }
+  .composer.drop .box { border-color: var(--accent); box-shadow: var(--shadow), 0 0 0 3px var(--accent-soft); }
+  .msg .seen { display: block; font-size: 11.5px; opacity: .7; margin-top: 4px; }
+  .msg img.pic { display: block; max-width: min(320px, 100%); max-height: 320px; border-radius: 10px; margin: 2px 0 6px; cursor: zoom-in; }
+  .model-wrap { position: relative; align-self: flex-end; flex: none; }
+  #model-btn { height: 32px; padding: 0 10px; border-radius: 16px; font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 4px; max-width: 180px; }
+  #model-btn:hover { background: var(--hover); color: var(--text); }
+  #model-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #model-menu { position: absolute; right: 0; bottom: 40px; width: 320px; max-height: 70vh; overflow: auto; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: var(--shadow); padding: 6px; z-index: 20; font-size: 13.5px; }
+  #model-menu .opt { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; text-align: left; }
+  #model-menu .opt:hover { background: var(--hover); }
+  #model-menu .opt .n { flex: 1; }
+  #model-menu .opt .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; }
+  #model-menu .opt .ok { width: 14px; color: var(--accent); }
+  #model-menu .opts { max-height: 340px; overflow: auto; }
+  #model-menu .grp { padding: 8px 10px 2px; font-size: 11.5px; font-weight: 600; }
+  #model-menu .sep { height: 1px; background: var(--divider); margin: 6px 4px; }
+  #model-menu .sub { padding: 4px 10px 6px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+  #model-menu .sub a { color: var(--accent); }
+  #model-menu .row { display: flex; gap: 6px; padding: 0 10px 6px; }
+  #model-menu select { flex: 1; min-width: 0; font: inherit; font-size: 12.5px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+  #model-menu input { flex: 1; min-width: 0; font: inherit; font-size: 12.5px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; outline: none; }
+  #model-menu .row button, #model-menu .link { font-size: 12.5px; color: var(--accent); padding: 4px 6px; border-radius: 6px; }
+  #model-menu .row button:hover, #model-menu .link:hover { background: var(--hover); }
+  #model-menu .err { color: #e0475f; }
 
   /* 最右一列：这个宝的长期情况（等你点头、出问题、正在跑、定时任务、后台任务），和短期对话分开，一直在 */
   #panel { width: 280px; flex: none; border-left: 1px solid var(--divider); background: var(--side); overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 18px; }
@@ -277,9 +309,15 @@
   </header>
   <div id="log"><div class="msgs" id="msgs"></div></div>
   <div id="asks" aria-live="polite"></div>
-  <div class="composer">
+  <div class="composer" data-for="input">
+    <div class="atts" id="input-atts"></div>
     <div class="box">
+      <button class="icon-btn attach" data-attach="input" aria-label="添加图片" title="添加图片（也可以直接粘贴或拖进来）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5 12.6 19.9a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></svg></button>
       <textarea id="input" rows="1" aria-label="消息" placeholder="说点什么… Enter 发送，Shift+Enter 换行"></textarea>
+      <div class="model-wrap">
+        <button id="model-btn" aria-haspopup="true" aria-expanded="false" title="现在用的模型，点了可以换"><span id="model-name">模型</span><svg class="i" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
+        <div id="model-menu" role="menu" hidden></div>
+      </div>
       <button class="send" id="send" aria-label="发送" title="发送（Enter）" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button>
     </div>
   </div>
@@ -292,8 +330,10 @@
     <button id="peek-close" class="icon-btn" aria-label="关掉右边的对话，回到总览" title="关掉，回到总览"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
   <div id="peek-log"><div class="msgs" id="peek-msgs"></div></div>
-  <div class="composer">
+  <div class="composer" data-for="peek-input">
+    <div class="atts" id="peek-input-atts"></div>
     <div class="box">
+      <button class="icon-btn attach" data-attach="peek-input" aria-label="添加图片" title="添加图片（也可以直接粘贴或拖进来）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5 12.6 19.9a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></svg></button>
       <textarea id="peek-input" rows="1" aria-label="在这段对话里说" placeholder="在这段对话里接着说…"></textarea>
       <button class="send" id="peek-send" aria-label="发送" title="发送（Enter）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button>
     </div>
@@ -353,6 +393,11 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 // 对话引用 [名字](kiki:宝/对话) → 行内小卡片，点了在右栏打开那段对话（参数都已经转义过）
 const CHAT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>';
 const chip = (to, title) => `<button class="chip" data-peek="${to}" title="在右边打开 ${to}">${CHAT_ICON}<span>${title}</span></button>`;
+// 用户消息：原样显示文字，图片标记 ![图片](/api/image/名字) 画成缩略图
+const PIC = /!\[图片\]\(\/api\/image\/([a-f0-9]{32}\.(?:png|jpg|gif|webp))\)\n*/g;
+// 当前模型看不了图时，后台附上的「看图模型读到的内容」：网页上收起来，只留一行小字
+const NOTE = /\n*&lt;kiki-image-note&gt;[\s\S]*?&lt;\/kiki-image-note&gt;/g;
+const userHtml = (text) => esc(text).replace(NOTE, '<span class="seen">图片已先交给看图模型读过</span>').replace(PIC, (_, n) => `<img class="pic" src="/api/image/${n}" alt="图片" data-full="/api/image/${n}">`);
 // 极简 Markdown：代码块、行内代码、粗体、链接、段落
 function md(src) {
   const parts = src.split(/```(?:\w*)\n?([\s\S]*?)```/g);
@@ -514,7 +559,7 @@ function addMsg(role, text, steps) {
   if (steps?.length) $("#msgs").appendChild(stepsBox(steps, false));
   const el = document.createElement("div");
   el.className = `msg ${role}`;
-  if (role === "user") el.textContent = text; else el.innerHTML = render(text);
+  if (role === "user") el.innerHTML = userHtml(text); else el.innerHTML = render(text);
   $("#msgs").appendChild(el);
   $("#log").scrollTop = $("#log").scrollHeight;
   return el;
@@ -546,9 +591,10 @@ async function open(path) {
 }
 
 async function send() {
-  const text = $("#input").value.trim();
+  const text = withImages("input");
   if (!text) return;
   $("#input").value = "";
+  clearAtts("input");
   autosize();
   syncSend();
   $(".hint")?.remove();
@@ -604,7 +650,7 @@ async function refreshPeek(expect) {
   const log = $("#peek-log"), atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
   const keep = peekStream; // 请求发出后才流进来的字，快照里没有，不能丢
   const lastA = [...hist].reverse().find((m) => m.role === "assistant")?.text.trim();
-  $("#peek-msgs").innerHTML = hist.length ? hist.map((m) => `<div class="msg ${m.role}">${m.role === "user" ? esc(m.text) : render(m.text)}</div>`).join("") : '<div class="hint">这段对话还没有消息。</div>';
+  $("#peek-msgs").innerHTML = hist.length ? hist.map((m) => `<div class="msg ${m.role}">${m.role === "user" ? userHtml(m.text) : render(m.text)}</div>`).join("") : '<div class="hint">这段对话还没有消息。</div>';
   peekStream = null;
   if (keep && keep.dataset.raw.trim() && keep.dataset.raw.trim() !== lastA && live[path]) { $("#peek-msgs").appendChild(keep); peekStream = keep; }
   if (expect && expect.trim() !== lastA && !(keep && keep.dataset.raw.trim() === expect.trim())) $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg assistant">${render(expect)}</div>`);
@@ -612,10 +658,13 @@ async function refreshPeek(expect) {
   log.dataset.seen = "1";
 }
 async function sendPeek() {
-  const t = $("#peek-input"), text = t.value.trim();
-  if (!text || !peek) return;
+  const t = $("#peek-input");
+  if (!peek) return;
+  const text = withImages("peek-input");
+  if (!text) return;
   t.value = "";
-  $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg user">${esc(text)}</div>`);
+  clearAtts("peek-input");
+  $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg user">${userHtml(text)}</div>`);
   $("#peek-log").scrollTop = $("#peek-log").scrollHeight;
   const r = await fetch("/api/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: peek, text }) });
   if (!r.ok) $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg assistant">${esc("出错了：" + (await r.json()).error)}</div>`);
@@ -895,13 +944,183 @@ $("#add-bao").onclick = newBao;
 $("aside").addEventListener("keydown", (e) => { const bh = e.target.closest?.("[data-bao]"); if (bh && e.target === bh && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openBao(bh.dataset.bao); } });
 $("#panel-toggle").onclick = togglePanel;
 $("#send").onclick = send;
-const syncSend = () => { $("#send").disabled = !$("#input").value.trim(); };
+const syncSend = () => { $("#send").disabled = !$("#input").value.trim() && !(atts.input || []).length; };
 $("#input").addEventListener("input", () => { autosize(); syncSend(); });
 $("#input").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
 });
 
+// ===== 图片附件：点回形针选、粘贴、拖进来。先传到后台存好，发送时把标记放在消息前面 =====
+const atts = { input: [], "peek-input": [] }; // 每个输入框：[{mark, url, loading}]
+const pick = Object.assign(document.createElement("input"), { type: "file", accept: "image/png,image/jpeg,image/gif,image/webp", multiple: true, hidden: true });
+document.body.appendChild(pick);
+let pickFor = "input";
+document.querySelectorAll("[data-attach]").forEach((b) => (b.onclick = () => { pickFor = b.dataset.attach; pick.click(); }));
+pick.onchange = () => { addFiles(pickFor, pick.files); pick.value = ""; };
+function renderAtts(id) {
+  const box = document.getElementById(id + "-atts");
+  box.innerHTML = atts[id].map((a, i) => `<div class="att${a.loading ? " loading" : ""}"><img src="${a.url}" alt="图片"><button data-del="${i}" aria-label="去掉这张图" title="去掉">×</button></div>`).join("");
+  box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => { atts[id].splice(+b.dataset.del, 1); renderAtts(id); if (id === "input") syncSend(); }));
+  if (id === "input") syncSend();
+}
+function clearAtts(id) { atts[id] = []; renderAtts(id); }
+const readUrl = (f) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f); });
+async function addFiles(id, files) {
+  for (const f of files) {
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(f.type)) { addMsg("assistant", "只支持 PNG、JPG、GIF、WebP 图片。"); continue; }
+    if (f.size > 10 * 1024 * 1024) { addMsg("assistant", "图片太大了，最多 10MB。"); continue; }
+    const data = await readUrl(f);
+    const a = { url: data, loading: true };
+    atts[id].push(a); renderAtts(id);
+    const r = await fetch("/api/image", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ data }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { atts[id] = atts[id].filter((x) => x !== a); renderAtts(id); addMsg("assistant", `图片没传上去：${j.error || r.status}`); continue; }
+    a.mark = j.mark; a.loading = false; renderAtts(id);
+  }
+  if (atts[id].length && !canTakeImages()) openModelMenu(NO_EYES);
+}
+// 发送前：拼上图片标记；还在上传、或者模型看不了图就先不发
+function withImages(id) {
+  const text = document.getElementById(id).value.trim(), list = atts[id];
+  if (!list.length) return text;
+  if (list.some((a) => a.loading)) { addMsg("assistant", "图片还在上传，稍等一下再发。"); return ""; }
+  if (!canTakeImages()) { openModelMenu(NO_EYES); return ""; }
+  // 图片标记放在文字后面：/bg、@宝名 这类开头的命令要留在最前面
+  return (text ? text + "\n\n" : "") + list.map((a) => a.mark).join("\n");
+}
+document.querySelectorAll(".composer[data-for]").forEach((c) => {
+  const id = c.dataset.for;
+  c.addEventListener("paste", (e) => {
+    const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith("image/"));
+    if (files.length) { e.preventDefault(); addFiles(id, files); }
+  });
+  c.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); c.classList.add("drop"); } });
+  c.addEventListener("dragleave", () => c.classList.remove("drop"));
+  c.addEventListener("drop", (e) => { c.classList.remove("drop"); if (e.dataTransfer.files.length) { e.preventDefault(); addFiles(id, e.dataTransfer.files); } });
+});
+// 点消息里的图片看原图
+document.addEventListener("click", (e) => { const img = e.target.closest?.("img.pic"); if (img) window.open(img.dataset.full, "_blank"); });
+
+// ===== 模型按钮：显示现在用的模型，点开可以换，也可以用 ChatGPT 订阅登录 =====
+let models = { current: "", models: [], chatgpt: { loggedIn: false, login: { status: "idle" } } };
+let modelNote = "", loginPoll = null, modelQuery = "";
+const modelName = () => models.models.find((m) => m.spec === models.current)?.name || models.current.split("/").pop() || "模型";
+const canSee = () => !!models.models.find((m) => m.spec === models.current)?.image;
+const visionName = () => models.models.find((m) => m.spec === models.vision)?.name;
+const canTakeImages = () => canSee() || !!models.vision; // 现在的模型看不了图时，有看图模型帮它先看也行
+const NO_EYES = "还没有能看图的模型。用 ChatGPT 订阅登录一下，DeepSeek 收到的图就会先交给 GPT 看。";
+async function loadModels() {
+  const r = await fetch("/api/models");
+  if (r.ok) models = await r.json();
+  renderModels();
+}
+function renderModels() {
+  $("#model-name").textContent = modelName();
+  $("#model-btn").title = `现在用的模型：${modelName()}${canSee() ? "（能看图）" : visionName() ? `（图片先交给 ${visionName()} 看）` : "（只看文字）"}，点了可以换`;
+  const menu = $("#model-menu");
+  if (menu.hidden) return;
+  const g = models.chatgpt, L = g.login || {};
+  let h = modelNote ? `<div class="sub">${esc(modelNote)}</div><div class="sep"></div>` : "";
+  // 模型多了按服务商分组，超过 12 个给个搜索框
+  const many = models.models.length > 12, mq = (modelQuery || "").toLowerCase();
+  if (many) h += `<div class="row"><input id="model-q" placeholder="搜索模型" value="${esc(modelQuery)}"></div>`;
+  // 现在用的那家排最前；列哪些模型由设置里的勾选决定，这里不再截断
+  const curP = models.current.split("/")[0];
+  const all = models.models.filter((m) => !mq || (m.name + " " + m.spec + " " + (m.providerName || "")).toLowerCase().includes(mq));
+  const order = [...new Set([curP, ...all.map((m) => m.provider)])].filter((p) => all.some((m) => m.provider === p));
+  const groups = order.length > 1;
+  let shown = [];
+  for (const p of order) {
+    const ms = all.filter((m) => m.provider === p);
+    shown.push(...ms);
+  }
+  let last = "";
+  h += '<div class="opts">' + shown.map((m) => {
+    const head = groups && m.provider !== last ? `<div class="sub grp">${esc(m.providerName || m.provider)}</div>` : "";
+    last = m.provider;
+    return head + `<button class="opt" role="menuitemradio" aria-checked="${m.spec === models.current}" data-model="${esc(m.spec)}"><span class="ok">${m.spec === models.current ? "✓" : ""}</span><span class="n">${esc(m.name)}</span>${m.image ? '<span class="tag">能看图</span>' : ""}</button>`;
+  }).join("") + "</div>";
+  const eyes = models.models.filter((m) => m.image);
+  if (!canSee() && eyes.length) { // 现在的模型看不了图：选谁先帮它看
+    h += `<div class="sep"></div><div class="sub">${esc(modelName())} 看不了图。你发的图先交给这个模型读成文字：</div>`;
+    h += `<div class="row"><select id="vision-pick" aria-label="看图用的模型">${eyes.map((m) => `<option value="${esc(m.spec)}"${m.spec === models.vision ? " selected" : ""}>${esc((m.providerName ? m.providerName + " · " : "") + m.name)}</option>`).join("")}</select></div>`;
+  }
+  h += '<div class="sep"></div>';
+  if (g.loggedIn) h += '<div class="sub">已用 ChatGPT 订阅登录。<button class="link" data-gpt="logout">退出登录</button></div>';
+  else if (L.status === "waiting" && L.url) h += `<div class="sub">1. <a href="${esc(L.url)}" target="_blank" rel="noopener">打开 ChatGPT 登录页</a>，登录并同意。<br>2. 在 Mac mini 上登的，会自动连上。<br>在别的电脑上登的，最后会跳到一个打不开的 localhost 页面，把它地址栏里的网址整段粘到下面。</div><div class="row"><input id="gpt-code" placeholder="http://127.0.0.1:1455/auth/callback?code=…"><button data-gpt="code">确定</button></div><div class="sub"><button class="link" data-gpt="cancel">取消登录</button></div>`;
+  else h += `<button class="opt" data-gpt="start"><span class="ok"></span><span class="n">用 ChatGPT 订阅登录…</span><span class="tag">能看图</span></button>${L.status === "error" ? `<div class="sub err">登录失败：${esc(L.error || "")}</div>` : ""}`;
+  // 登录中每 2 秒刷新一次菜单：别把正在粘的网址和光标弄丢
+  const old = $("#gpt-code"), val = old?.value, focused = old && document.activeElement === old;
+  const mqFocus = document.activeElement?.id === "model-q", mqPos = mqFocus ? document.activeElement.selectionStart : 0;
+  h += '<button class="opt" data-more><span class="ok"></span><span class="n">配置更多模型（Claude、Gemini、OpenRouter…）</span></button>';
+  menu.innerHTML = h;
+  const now = $("#gpt-code");
+  if (now && val) now.value = val;
+  if (now && focused) now.focus();
+  const vp = $("#vision-pick");
+  if (vp) vp.onchange = async () => {
+    const r = await fetch("/api/models/vision", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ spec: vp.value }) });
+    const j = await r.json();
+    if (!r.ok) modelNote = j.error; else models = j;
+    renderModels();
+  };
+  const mqIn = $("#model-q");
+  if (mqIn) {
+    mqIn.oninput = () => { modelQuery = mqIn.value; renderModels(); };
+    if (mqFocus) { mqIn.focus(); mqIn.setSelectionRange(mqPos, mqPos); }
+  }
+}
+function openModelMenu(note = "") {
+  modelNote = note;
+  $("#model-menu").hidden = false; $("#model-btn").setAttribute("aria-expanded", "true");
+  renderModels(); loadModels();
+}
+function closeModelMenu() {
+  $("#model-menu").hidden = true; $("#model-btn").setAttribute("aria-expanded", "false");
+  modelNote = "";
+}
+$("#model-btn").onclick = (e) => { e.stopPropagation(); $("#model-menu").hidden ? openModelMenu() : closeModelMenu(); };
+document.addEventListener("click", (e) => { if (!e.target.closest?.(".model-wrap")) closeModelMenu(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#model-menu").hidden) closeModelMenu(); });
+$("#model-menu").addEventListener("click", async (e) => {
+  const opt = e.target.closest("[data-model]"), gpt = e.target.closest("[data-gpt]"), eye = e.target.closest("[data-vision]");
+  if (e.target.closest("[data-more]")) { closeModelMenu(); openSettings("model"); return; }
+  if (eye) {
+    const r = await fetch("/api/models/vision", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ spec: eye.dataset.vision }) });
+    const j = await r.json();
+    if (!r.ok) { modelNote = j.error; renderModels(); return; }
+    models = j; modelNote = ""; renderModels();
+    return;
+  }
+  if (opt) {
+    const r = await fetch("/api/models/use", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ spec: opt.dataset.model }) });
+    const j = await r.json();
+    if (!r.ok) { modelNote = `换不了：${j.error}`; renderModels(); return; }
+    models = j; closeModelMenu(); renderModels();
+    return;
+  }
+  if (!gpt) return;
+  const action = gpt.dataset.gpt;
+  const body = action === "code" ? JSON.stringify({ input: $("#gpt-code").value }) : "{}";
+  if (action === "code" && !$("#gpt-code").value.trim()) return;
+  const r = await fetch(`/api/models/chatgpt/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body });
+  const j = await r.json();
+  if (!r.ok) { modelNote = j.error; renderModels(); return; }
+  models = j; modelNote = ""; renderModels();
+  clearInterval(loginPoll);
+  if (action === "start" || action === "code") loginPoll = setInterval(async () => { // 等登录完成（本机浏览器跳回来时是后台自己接住的）
+    await loadModels();
+    if (models.chatgpt.loggedIn || models.chatgpt.login?.status !== "waiting") {
+      clearInterval(loginPoll);
+      if (models.chatgpt.loggedIn) modelNote = "登录好了。现在可以直接发图片：DeepSeek 收到的图会先交给 GPT 看；也可以直接换成 GPT。";
+      renderModels();
+    }
+  }, 2000);
+});
+loadModels();
+
 const es = new EventSource("/api/events");
+es.addEventListener("model", () => loadModels()); // 别的窗口换了模型
 es.addEventListener("message", (e) => {
   const m = JSON.parse(e.data);
   if (m.path === peek) refreshPeek(m.role === "assistant" ? m.text : undefined);
