@@ -19,6 +19,23 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { type Live, type Step, describeTool, stepsFromMessages } from "./activity.js";
 import { baoFile, createBao } from "./bao.js";
+import { loadImages } from "./images.js";
+
+/** 模型菜单里一项 */
+export interface ModelChoice {
+  spec: string; // provider/model
+  name: string;
+  image: boolean; // 能不能看图
+  provider: string;
+}
+
+/**
+ * pi 的模型表说能看图、但 Kiki 当成只收文字的服务商。
+ * DeepSeek 官方接口发图会报错；当成只收文字后，切回 DeepSeek 时前面聊过的图会被 pi 换成一句“这里有张图”，不会把对话弄坏。
+ */
+const TEXT_ONLY = new Set(["deepseek"]);
+/** 菜单里列哪些服务商的模型（ChatGPT 订阅只列 Codex 那几个，免得一长串老模型）。 */
+const MENU_PROVIDERS = ["deepseek", "openai"];
 
 export interface ChatLine {
   role: "user" | "assistant";
@@ -46,7 +63,7 @@ export class Agents extends EventEmitter {
 
   constructor(
     private dataDir: string,
-    private modelSpec: string, // "provider/model"，比如 deepseek/deepseek-flash
+    private modelSpec: string, // "provider/model"，比如 deepseek/deepseek-flash；模型菜单可以换
   ) {
     super();
     this.engineDir = join(dataDir, "engine");
@@ -81,7 +98,58 @@ export class Agents extends EventEmitter {
     const [provider, ...rest] = spec.split("/");
     const m = (await this.runtime).getModel(provider, rest.join("/"));
     if (!m) throw new Error(`找不到模型 ${spec}`);
-    return m;
+    return TEXT_ONLY.has(m.provider) ? { ...m, input: m.input.filter((x) => x !== "image") } : m;
+  }
+
+  /** pi 的模型运行时（登录 ChatGPT 用）。 */
+  modelRuntime(): Promise<ModelRuntime> {
+    return this.runtime;
+  }
+
+  /** 现在用的模型 */
+  get currentModel() {
+    return this.modelSpec;
+  }
+
+  /** 模型菜单：已经能用（有密钥或已登录）的模型，加上现在用的那个。 */
+  async modelChoices(): Promise<ModelChoice[]> {
+    const rt = await this.runtime;
+    const codex = new Set(rt.getModels("openai-codex").map((m) => m.id)); // ChatGPT 订阅能用的那几个
+    const list: ModelChoice[] = [];
+    for (const provider of MENU_PROVIDERS) {
+      let avail: readonly any[] = [];
+      try {
+        avail = await rt.getAvailable(provider);
+      } catch {}
+      for (const m of avail) {
+        if (provider === "openai" && rt.isUsingOAuth("openai") && !codex.has(m.id)) continue;
+        list.push(this.choice(m));
+      }
+    }
+    if (!list.some((c) => c.spec === this.modelSpec)) {
+      try {
+        list.unshift(this.choice(await this.model()));
+      } catch {}
+    }
+    return list;
+  }
+
+  private choice(m: any): ModelChoice {
+    return {
+      spec: `${m.provider}/${m.id}`,
+      name: m.name ?? m.id,
+      image: !TEXT_ONLY.has(m.provider) && m.input.includes("image"),
+      provider: m.provider,
+    };
+  }
+
+  /** 换模型：之后所有对话（包括已经打开的）都用它。没登录 / 没密钥会报错。 */
+  async useModel(spec: string) {
+    const m = await this.model(spec);
+    const rt = await this.runtime;
+    if (!(await rt.checkAuth(m.provider))) throw new Error(`${m.provider} 还没登录或没填密钥`);
+    this.modelSpec = spec;
+    for (const s of this.live.values()) await s.setModel(m as any);
   }
 
   private async open(agent: string, sm: SessionManager): Promise<AgentSession> {
@@ -234,7 +302,9 @@ export class Agents extends EventEmitter {
     const prev = this.queues.get(path) ?? Promise.resolve();
     const run = prev.catch(() => {}).then(async () => {
       const s = await this.get(agent, path);
-      await s.prompt(text);
+      // 消息里的图片标记换成图片本身；现在的模型不能看图时，pi 会把图换成一句提示
+      const images = loadImages(this.dataDir, text);
+      await s.prompt(text, images.length ? { images } : undefined);
       return lastReply(s);
     });
     this.queues.set(path, run);
