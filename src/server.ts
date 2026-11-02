@@ -10,7 +10,7 @@ import type { Approvals, Decision } from "./approval.js";
 import { rejectReason } from "./guard.js";
 import type { Registry } from "./registry.js";
 import type { Router } from "./router.js";
-import { settingsApi } from "./settings.js";
+import { baoLook, settingsApi } from "./settings.js";
 import { type Updater, VERSION } from "./update.js";
 
 const MAIN = "main"; // 主 bot 在网页里的 path
@@ -85,6 +85,7 @@ export function startServer(opts: {
     main: mainLive, // 奇奇正在分派的进度，没有就是 null
     agents: agents.listAgents().map((name) => ({
       name,
+      ...baoLook(opts.dataDir, name), // 头像 emoji
       sessions: registry.list(name).map((s) => ({ ...s, busy: agents.isBusy(s.path), live: agents.progress(s.path) ?? null })),
     })),
   });

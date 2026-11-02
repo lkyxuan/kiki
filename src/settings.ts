@@ -59,6 +59,20 @@ export function setEnvLine(src: string, key: string, value: string | undefined):
   return lines.join("\n");
 }
 
+/** 宝的头像：一个 emoji（最多几个字符），不合法就不要 */
+export const baoEmoji = (e: unknown) =>
+  typeof e === "string" && e.trim() && [...e.trim()].length <= 8 && !/[<>&"'\s]/.test(e.trim()) ? e.trim() : "";
+
+/** 读宝的外观设置（agents/<名字>/bao.json），没有就是空 */
+export function baoLook(dataDir: string, name: string): { emoji?: string } {
+  try {
+    const emoji = baoEmoji(JSON.parse(readFileSync(join(dataDir, "agents", name, "bao.json"), "utf8")).emoji);
+    return emoji ? { emoji } : {};
+  } catch {
+    return {};
+  }
+}
+
 export const validName = (n: unknown): n is string =>
   typeof n === "string" && /^[\p{L}\p{N}_-]{1,40}$/u.test(n);
 
@@ -197,13 +211,17 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
         const f = agentFile(name);
         return json({ name, path: f, text: existsSync(f) ? readFileSync(f, "utf8") : "" });
       }
-      const { name, text, create } = await body();
+      const { name, text, create, about, emoji } = await body();
       if (!validName(name)) return json({ error: "名字只能用字母、数字、汉字、- 和 _，最多 40 个字" }, 400);
       const exists = listAgents().includes(name);
       if (create) {
         if (exists) return json({ error: "已经有这个宝了" }, 400);
         mkdirSync(join(agentsDir, name), { recursive: true });
-        writeFileSync(agentFile(name), typeof text === "string" && text ? text : `# ${name}\n\n你是我的${name}。\n`);
+        // 新建弹窗里填的「我负责什么」写进 AGENTS.md，以后在「编辑说明」里改
+        const duty = typeof about === "string" ? about.trim().slice(0, 500) : "";
+        writeFileSync(agentFile(name), typeof text === "string" && text ? text : `# ${name}\n\n${duty || `你是我的${name}。`}\n`);
+        const face = baoEmoji(emoji);
+        if (face) writeFileSync(join(agentsDir, name, "bao.json"), JSON.stringify({ emoji: face }) + "\n");
         return json({ ok: true });
       }
       if (!exists) return json({ error: "没有这个宝" }, 404);
