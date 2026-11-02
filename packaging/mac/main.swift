@@ -527,6 +527,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 
     func runClientUpdate() {
+        // 本机后台活着就交给它更新：它会等手上的对话、后台任务跑完再换，界面上也有进度
+        if !isRemote && loaded {
+            post("api/update/check") { _ in self.post("api/update/apply") { ok in
+                if !ok { DispatchQueue.main.async { self.info("后台没能开始更新", "到「设置 → 更新」里看详情和日志。") } }
+            } }
+            return
+        }
+        runStandaloneUpdate()
+    }
+
+    func post(_ path: String, done: @escaping (Bool) -> Void) {
+        var req = URLRequest(url: base.appendingPathComponent(path))
+        req.httpMethod = "POST"
+        req.timeoutInterval = 30
+        URLSession.shared.dataTask(with: req) { _, res, _ in
+            done((res as? HTTPURLResponse).map { $0.statusCode < 400 } ?? false)
+        }.resume()
+    }
+
+    // 后台不在（连远程，或本机后台起不来）：自己下载新 App 换上
+    func runStandaloneUpdate() {
         guard let src = Bundle.main.resourceURL?.appendingPathComponent("client-update.sh"),
               FileManager.default.fileExists(atPath: src.path) else {
             info("没法自动更新", "这个版本里缺少更新脚本，请重新下载安装一次。")
