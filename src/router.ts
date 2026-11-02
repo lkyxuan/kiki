@@ -50,6 +50,7 @@ const HELP = `我是 Kiki。直接说话，我会判断该接进哪段对话，�
 export class Router {
   readonly tasks: Tasks;
   private reserved = new Set<string>(); // 正在建的对话名（宝/名），交接时防重名
+  private creating = new Map<string, Promise<SessionRecord>>(); // 正在建的对话（宝/名），防并发重复建
   /** 分派规则（用户可改的 Markdown），每次路由现读，改完不用重启。main.ts 里接到 ~/kiki-data/分派规则.md。 */
   rules: () => string = () => "判断完就直接做，做完告诉用户。";
   /** 设置页的能力开关（features.ts），main.ts 接上；默认全开。 */
@@ -269,8 +270,9 @@ export class Router {
       }
       const origin = p.action === "continue" ? this.registry.find(p.target)[0] : undefined;
       if (p.mode === "background" && this.isOn("background")) {
-        const title = p.taskTitle ?? (p.action === "new" ? p.name : stamp());
-        this.tasks.start({ agent, title, prompt: p.text, origin: origin?.path, chatId }, this.notifier(reply));
+        const title = p.taskTitle ?? (p.action === "new" && p.name !== MAIN_SESSION ? p.name : stamp());
+        const fork = origin?.name === MAIN_SESSION ? undefined : origin; // 主对话不分叉，后台任务从干净的上下文开始
+        this.tasks.start({ agent, title, prompt: p.text, origin: fork?.path, chatId }, this.notifier(reply));
         lines.push(`- 后台任务「${title}」（${agent}）：${made ? "新建宝，" : ""}做完回报到这里`);
         continue;
       }
@@ -502,10 +504,22 @@ export class Router {
   async newSession(agent: string, name: string, background = false): Promise<SessionRecord> {
     const existing = this.registry.get(agent, name);
     if (existing) return existing;
-    const path = await this.agents.create(agent, name);
-    const rec: SessionRecord = { agent, name, path, created: new Date().toISOString(), background: background || undefined };
-    this.registry.add(rec);
-    return rec;
+    // 同名的正在建就等它，免得并发时建出两段同名对话（比如启动补主对话和第一条消息撞上）
+    const key = `${agent}/${name}`;
+    const busy = this.creating.get(key);
+    if (busy) return busy;
+    const run = (async () => {
+      const path = await this.agents.create(agent, name);
+      const rec: SessionRecord = { agent, name, path, created: new Date().toISOString(), background: background || undefined };
+      this.registry.add(rec);
+      return rec;
+    })();
+    this.creating.set(key, run);
+    try {
+      return await run;
+    } finally {
+      this.creating.delete(key);
+    }
   }
 }
 

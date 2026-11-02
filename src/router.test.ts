@@ -379,3 +379,23 @@ test("拆分只剩一件合法的：当普通分派，交过去的是用户原�
   assert.match(out.at(-1)!, /^→ life\/主对话 · 交给宝\n\n\[.*\] 帮我列个买菜单$/);
   assert.equal(ctl.sends.at(-1), "帮我列个买菜单");
 });
+
+test("并发补主对话不会建出两段同名的", async () => {
+  const { router, reg } = setup();
+  await Promise.all([router.ensureMains(), router.ensureMains(), router.ensureMain("dev")]);
+  assert.deepEqual(reg.list().map((x) => `${x.agent}/${x.name}`).sort(), ["dev/主对话", "life/主对话"]);
+});
+
+test("拆分里交给主对话的后台活不分叉主对话", async () => {
+  const { say, ctl } = setup();
+  ctl.routeAnswer = JSON.stringify({
+    action: "split",
+    parts: [
+      { action: "continue", target: "dev/主对话", mode: "background", taskTitle: "跑测试", text: "跑一遍测试" },
+      { action: "continue", target: "life/主对话", mode: "chat", text: "买菜" },
+    ],
+  });
+  await say("跑测试；顺便买菜");
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(ctl.forks, []);
+});
