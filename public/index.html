@@ -112,6 +112,26 @@
   .receipt b { font-weight: 600; font-size: 14px; }
   .receipt button { border-radius: 999px; padding: 4px 14px; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-soft); }
   .receipt button:hover { filter: brightness(.96); }
+  /* 对话引用的小卡片：嵌在文字里，点了在右栏打开那段对话 */
+  .chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; vertical-align: baseline; margin: 0 2px; padding: 0 8px 0 6px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: .95em; font-weight: 500; line-height: 1.6; cursor: pointer; }
+  .chip svg { width: 13px; height: 13px; flex: none; }
+  .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip:hover { filter: brightness(.95); }
+  .chip.on { box-shadow: 0 0 0 1.5px var(--accent); }
+  .via { color: var(--muted); }
+  .via .how { margin-left: 6px; font-size: 12px; color: var(--faint); }
+  /* 右栏里打开的对话（点小卡片打开）：能看、能接着说，也能挪到中间 */
+  #peek { width: 440px; flex: none; border-left: 1px solid var(--line); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+  #peek[hidden] { display: none; }
+  body.peeking #panel { display: none; }
+  #peek .peek-head { display: flex; align-items: center; gap: 8px; padding: 12px 10px 12px 16px; border-bottom: 1px solid var(--line); }
+  #peek .peek-head .t { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #peek .peek-head .t .crumb { color: var(--muted); font-weight: 500; }
+  #peek .peek-head button { font-size: 13px; color: var(--muted); padding: 4px 8px; border-radius: 6px; }
+  #peek .peek-head button:hover { background: var(--hover); color: var(--text); }
+  #peek-log { flex: 1; overflow: auto; padding: 14px 16px; }
+  #peek-log .msg { font-size: 14px; }
+  #peek .composer { padding: 8px 12px 14px; }
   /* 捎话的回复：折叠成卡片，样式跟回执一致 */
   .relay-back { border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px 10px 14px; max-width: 520px; }
   .relay-back summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
@@ -177,6 +197,7 @@
   #sheet .close:hover { color: var(--text); background: var(--active); }
   #sheet iframe { flex: 1; border: 0; width: 100%; background: var(--grouped); }
 
+  @media (max-width: 1100px) { #peek:not([hidden]) { position: fixed; right: 0; top: 0; bottom: 0; z-index: 6; width: min(440px, 100%); box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 1100px) { #panel { display: none; } body.show-panel #panel { display: flex; position: fixed; right: 0; top: 0; bottom: 0; z-index: 5; box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 700px) { aside { width: 200px; } #log, .composer, #asks { padding-left: 16px; padding-right: 16px; } #sheet .win { width: 100%; height: 100%; border-radius: 0; } }
   /* Kiki.app：没有单独的标题栏，三栏颜色铺到顶；左上角给红绿灯让位，顶部空白处可以拖动窗口 */
@@ -210,6 +231,20 @@
   </div>
 </main>
 <section id="panel" aria-label="右栏"></section>
+<section id="peek" aria-label="右边打开的对话" hidden>
+  <div class="peek-head">
+    <span class="t" id="peek-title"></span>
+    <button id="peek-full" title="在中间打开这段对话">在中间打开</button>
+    <button id="peek-close" class="icon-btn" aria-label="关掉右边的对话" title="关掉"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div id="peek-log"><div class="msgs" id="peek-msgs"></div></div>
+  <div class="composer">
+    <div class="box">
+      <textarea id="peek-input" rows="1" aria-label="在这段对话里说" placeholder="在这段对话里接着说…"></textarea>
+      <button class="send" id="peek-send" aria-label="发送" title="发送（Enter）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button>
+    </div>
+  </div>
+</section>
 <div id="sheet" role="dialog" aria-modal="true" aria-label="设置" hidden>
   <div class="win">
     <button class="close" id="sheet-close" aria-label="关闭设置" title="关闭（Esc）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -241,6 +276,9 @@ const aboutCache = {}; // 宝名 -> AGENTS.md 开头几行
 let asks = []; // 等你点头的卡片
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// 对话引用 [名字](kiki:宝/对话) → 行内小卡片，点了在右栏打开那段对话（参数都已经转义过）
+const CHAT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>';
+const chip = (to, title) => `<button class="chip" data-peek="${to}" title="在右边打开 ${to}">${CHAT_ICON}<span>${title}</span></button>`;
 // 极简 Markdown：代码块、行内代码、粗体、链接、段落
 function md(src) {
   const parts = src.split(/```(?:\w*)\n?([\s\S]*?)```/g);
@@ -250,6 +288,7 @@ function md(src) {
       "<p>" + para
         .replace(/`([^`]+)`/g, "<code>$1</code>")
         .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+        .replace(/\[([^\]]+)\]\(kiki:([^)\n]+)\)/g, (_, t, to) => chip(to, t))
         .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank">$1</a>')
         .replace(/\n/g, "<br>") + "</p>").join("");
   }).join("");
@@ -347,7 +386,7 @@ async function loadAbout(name) {
 // 奇奇的回执："→ 奇奇/周报 · 接着聊" 第一行渲染成卡片；拿不准时的 "1. …" 渲染成按钮
 function render(text) {
   const r = text.match(/^→ (\S+?)\/(.+?) · (\S+)\n\n([\s\S]*)$/);
-  if (r) return `<div class="receipt">${avatar(r[1])}<span class="where"><span class="how">${esc(r[3])}</span><b>${esc(r[1])} › ${esc(r[2])}</b></span><button data-goto="${esc(r[1] + "/" + r[2])}">打开对话</button></div>` + md(r[4]);
+  if (r) return `<p class="via">已交给 ${chip(esc(r[1] + "/" + r[2]), esc(r[2]))}<span class="how">${esc(r[1])} · ${esc(r[3])}</span></p>` + md(r[4]);
   // 捎话的回复（kiki_relay 记回来的）：完整内容在那段对话里已经有了，这里折叠成一张卡片，免得两段对话看起来一模一样
   const back = text.match(/^【(\S+?)\/(.+?) (回复|出错)】\s*([\s\S]*)$/);
   if (back) {
@@ -409,6 +448,70 @@ async function send() {
   }
   if (!r.ok) addMsg("assistant", `出错了：${(await r.json()).error}`);
 }
+
+// 右栏打开一段对话（点对话小卡片）：像 Claude Desktop 那样，主对话不动，旁边看那段、也能接着说
+let peek = null, peekStream = null;
+function byLabel(lbl) {
+  const i = lbl.indexOf("/");
+  return tree.agents.find((a) => a.name === lbl.slice(0, i))?.sessions.find((x) => x.name === lbl.slice(i + 1));
+}
+async function openPeek(lbl) {
+  let s = byLabel(lbl);
+  if (!s) { await loadTree(); s = byLabel(lbl); } // 刚交接出来的对话，左栏可能还没刷新
+  if (!s) return;
+  peek = s.path; peekStream = null;
+  $("#peek-title").innerHTML = `<span class="crumb">${esc(s.agent)} › </span>${esc(s.name)}`;
+  $("#peek").hidden = false;
+  document.body.classList.add("peeking");
+  markChips();
+  await refreshPeek();
+  $("#peek-input").focus();
+}
+function closePeek() {
+  peek = null; peekStream = null;
+  $("#peek").hidden = true;
+  document.body.classList.remove("peeking");
+  markChips();
+}
+// 正在右边打开的那段，对应的小卡片加个框
+function markChips() {
+  const s = peek && find(peek);
+  const lbl = s ? `${s.agent}/${s.name}` : null;
+  document.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.peek === lbl));
+}
+// expect：刚收到的一条回答。历史里还没有它（比如没进记录的报错）就补在最后
+async function refreshPeek(expect) {
+  const path = peek;
+  if (!path) return;
+  const r = await fetch(`/api/history?path=${encodeURIComponent(path)}`);
+  if (path !== peek || !r.ok) return;
+  const hist = await r.json();
+  const log = $("#peek-log"), atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  const keep = peekStream; // 请求发出后才流进来的字，快照里没有，不能丢
+  const lastA = [...hist].reverse().find((m) => m.role === "assistant")?.text.trim();
+  $("#peek-msgs").innerHTML = hist.length ? hist.map((m) => `<div class="msg ${m.role}">${m.role === "user" ? esc(m.text) : render(m.text)}</div>`).join("") : '<div class="hint">这段对话还没有消息。</div>';
+  peekStream = null;
+  if (keep && keep.dataset.raw.trim() && keep.dataset.raw.trim() !== lastA && live[path]) { $("#peek-msgs").appendChild(keep); peekStream = keep; }
+  if (expect && expect.trim() !== lastA && !(keep && keep.dataset.raw.trim() === expect.trim())) $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg assistant">${render(expect)}</div>`);
+  if (atBottom || !log.dataset.seen) log.scrollTop = log.scrollHeight;
+  log.dataset.seen = "1";
+}
+async function sendPeek() {
+  const t = $("#peek-input"), text = t.value.trim();
+  if (!text || !peek) return;
+  t.value = "";
+  $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg user">${esc(text)}</div>`);
+  $("#peek-log").scrollTop = $("#peek-log").scrollHeight;
+  const r = await fetch("/api/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: peek, text }) });
+  if (!r.ok) $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg assistant">${esc("出错了：" + (await r.json()).error)}</div>`);
+}
+$("#peek-close").onclick = closePeek;
+$("#peek-full").onclick = () => { const p = peek; closePeek(); if (p) open(p); };
+$("#peek-send").onclick = sendPeek;
+$("#peek-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendPeek(); }
+  if (e.key === "Escape") closePeek();
+});
 
 // 左栏里的小输入框：回车确定，Esc 或点别处取消
 function inlineInput(after, cls, placeholder, onEnter) {
@@ -508,6 +611,8 @@ document.body.addEventListener("click", (e) => {
   if (dc) return decide(dc.dataset.id, dc.dataset.decide);
   const st = e.target.closest("[data-settings]");
   if (st && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); return openSettings(st.dataset.settings); }
+  const pk = e.target.closest("[data-peek]");
+  if (pk) { e.preventDefault(); return openPeek(pk.dataset.peek); }
   const nb = e.target.closest("[data-new]");
   if (nb) return newSession(nb.dataset.new, nb);
   const it = e.target.closest("[data-path]");
@@ -534,9 +639,10 @@ $("#input").addEventListener("keydown", (e) => {
 const es = new EventSource("/api/events");
 es.addEventListener("message", (e) => {
   const m = JSON.parse(e.data);
+  if (m.path === peek) refreshPeek(m.role === "assistant" ? m.text : undefined);
   if (m.path === "main" && m.role === "assistant" && mainBusy) { mainBusy = false; live.main = null; thinkEyes(); }
   if (m.path === current && m.role === "assistant") finishLive();
-  if (m.path !== current) { if (m.role === "assistant") { unread.add(m.path); renderSide(); } return; }
+  if (m.path !== current) { if (m.role === "assistant" && m.path !== peek) { unread.add(m.path); renderSide(); } return; }
   if (m.role === "assistant" && streaming) { streaming.innerHTML = render(m.text); streaming = null; lastStreamed = null; return; }
   if (m.role === "assistant" && lastStreamed && lastStreamed.dataset.raw.trim() === m.text.trim()) { lastStreamed.innerHTML = render(m.text); lastStreamed = null; return; }
   $(".hint")?.remove();
@@ -546,6 +652,12 @@ es.addEventListener("message", (e) => {
 });
 es.addEventListener("delta", (e) => {
   const d = JSON.parse(e.data);
+  if (d.path === peek) { // 右边打开的那段也跟着流式显示
+    if (!peekStream) { peekStream = document.createElement("div"); peekStream.className = "msg assistant"; peekStream.dataset.raw = ""; $("#peek-msgs").appendChild(peekStream); }
+    peekStream.dataset.raw += d.text;
+    peekStream.innerHTML = md(peekStream.dataset.raw);
+    $("#peek-log").scrollTop = $("#peek-log").scrollHeight;
+  }
   if (d.path !== current) return;
   const atBottom = nearBottom();
   if (!streaming) {
@@ -563,6 +675,7 @@ es.addEventListener("busy", (e) => {
   if (s) { s.busy = d.busy; renderSide(); } else loadTree(); // 不认识的对话（比如刚交接出来的）就刷新左栏
   if (d.busy && !live[d.path]) live[d.path] = { since: Date.now(), status: "正在思考…", steps: [] };
   if (!d.busy) live[d.path] = null;
+  if (!d.busy && d.path === peek) refreshPeek(); // 那段答完了，拿一遍完整记录
   if (d.path === current || (current === "main" && live.main?.follow === d.path)) renderLive();
 });
 // 进度：正在想 / 正在调用哪个工具 / 做过哪些步骤（服务端从 pi 的事件里来，见 src/agents.ts）

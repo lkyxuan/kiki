@@ -361,7 +361,7 @@ export class Router {
       .send(rec.agent, rec.path, msg)
       .then((r) => this.agents.announce?.(rec.path, r))
       .catch((e) => this.agents.announce?.(rec.path, `出错了：${(e as Error).message}`));
-    return `${made}已交接到 ${label(rec)}，新对话已收到交接说明。用户在左边栏点「${name}」就能过去。`;
+    return `${made}已交接到 ${label(rec)}，新对话已收到交接说明。告诉用户时把对话写成 ${link(rec)}，界面上会变成能点开的卡片。`;
   }
 
   /** 找一段对话：宝名/对话名。 */
@@ -419,7 +419,7 @@ export class Router {
       .catch(async (e) => {
         if (from) await this.agents.note(from.agent, from.path, `【${label(to)} 出错】${(e as Error).message}`).catch(() => {});
       });
-    return `已捎给 ${label(to)}，那边回答后会记回这段对话。`;
+    return `已捎给 ${label(to)}，那边回答后会记回这段对话。告诉用户时把对话写成 ${link(to)}。`;
   }
 
   private async forkSession(agent: string, fromPath: string, name: string): Promise<SessionRecord> {
@@ -447,6 +447,8 @@ function nowText(d = new Date()) {
 }
 
 const label = (s: SessionRecord) => `${s.agent}/${s.name}`;
+/** 对话引用：网页把 [名字](kiki:宝/对话) 显示成能点开的小卡片，点了在右栏打开那段对话。 */
+const link = (s: SessionRecord) => `[${s.name}](kiki:${label(s)})`;
 
 function stamp() {
   const d = new Date();
