@@ -200,6 +200,9 @@
   @media (max-width: 1100px) { #peek:not([hidden]) { position: fixed; right: 0; top: 0; bottom: 0; z-index: 6; width: min(440px, 100%); box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 1100px) { #panel { display: none; } body.show-panel #panel { display: flex; position: fixed; right: 0; top: 0; bottom: 0; z-index: 5; box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 700px) { aside { width: 200px; } #log, .composer, #asks { padding-left: 16px; padding-right: 16px; } #sheet .win { width: 100%; height: 100%; border-radius: 0; } }
+  /* Kiki.app：没有单独的标题栏，三栏颜色铺到顶；左上角给红绿灯让位，顶部空白处可以拖动窗口 */
+  .kiki-fullsize aside { padding-top: 40px; }
+  .kiki-fullsize header, .kiki-fullsize #panel h3 { -webkit-user-select: none; user-select: none; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation-duration: .01ms !important; } }
 </style>
 </head>
@@ -565,6 +568,15 @@ function togglePanel() {
   try { localStorage.setItem("kiki.panel", off ? "off" : "on"); } catch {}
 }
 try { if (localStorage.getItem("kiki.panel") === "off") document.body.classList.add("no-panel"); } catch {}
+
+// Kiki.app 的窗口没有标题栏：顶部 28px 和聊天标题这一行的空白处，按住能拖动窗口、双击放大
+if (document.documentElement.classList.contains("kiki-fullsize")) {
+  const winMsg = (m) => { try { window.webkit.messageHandlers.kikiWindow.postMessage(m); } catch {} };
+  const dragZone = (e) => e.button === 0 && (e.clientY < 28 || e.target.closest("header"))
+    && !e.target.closest("button, a, input, textarea, select, [data-path], #sheet");
+  document.addEventListener("mousedown", (e) => { if (e.detail === 1 && dragZone(e)) winMsg("drag"); });
+  document.addEventListener("dblclick", (e) => { if (dragZone(e)) winMsg("zoom"); });
+}
 
 // 设置：弹窗打开，不离开聊天页
 function openSettings(pane) {
