@@ -8,6 +8,7 @@
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="stylesheet" href="/theme.css">
 <script src="/theme.js"></script>
+<script src="/bots.js"></script>
 <script>if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add("embed");</script>
 <style>
   * { box-sizing: border-box; }
@@ -78,6 +79,7 @@
   p.msg { margin: 12px 0 0; line-height: 1.6; }
   .mono { font-family: var(--mono); font-size: 12px; word-break: break-all; }
   .bao { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .bao .avatar.bot { background: none; } .bao .avatar.bot svg { width: 100%; height: 100%; display: block; }
   .bao .avatar { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
   .bao .name { font-weight: 500; flex: 1; }
   .editor { padding: 4px 0 12px; }
@@ -406,7 +408,7 @@ async function load() {
 function renderBaos() {
   $("#baos").innerHTML = S.agents.map((n) => `
     <div class="bao-wrap" data-name="${esc(n)}">
-      <div class="bao"><span class="avatar">${esc(n.slice(0, 1).toUpperCase())}</span><span class="name">${esc(n)}</span>
+      <div class="bao"><span class="avatar bot">${kikiBot(n)}</span><span class="name">${esc(n)}</span>
         <button class="btn edit">编辑说明</button></div>
       <div class="editor" hidden><textarea aria-label="${esc(n)} 的说明"></textarea>
         <div class="row"><button class="btn primary save">保存</button><span class="msg"></span></div></div>
