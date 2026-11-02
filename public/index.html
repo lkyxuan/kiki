@@ -133,6 +133,13 @@
   #peek .peek-head .t .crumb { color: var(--muted); font-weight: 500; }
   #peek .peek-head button { font-size: 13px; color: var(--muted); padding: 4px 8px; border-radius: 6px; }
   #peek .peek-head button:hover { background: var(--hover); color: var(--text); }
+  /* 右键菜单：删讨论串、清空主对话 */
+  #ctx { position: fixed; z-index: 30; min-width: 168px; padding: 5px; background: var(--material); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow-lg); }
+  #ctx[hidden] { display: none; }
+  #ctx button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 9px; border-radius: 5px; font-size: 13px; text-align: left; }
+  #ctx button:hover, #ctx button:focus-visible { background: var(--accent); color: var(--on-accent); outline: none; }
+  #ctx button.danger { color: var(--err); }
+  #ctx button.danger:hover, #ctx button.danger:focus-visible { background: var(--err); color: #fff; }
   #peek-log { flex: 1; overflow: auto; padding: 14px 16px; }
   #peek-log .msg { font-size: 14px; }
   #peek .composer { padding: 8px 12px 14px; }
@@ -266,9 +273,11 @@
     </div>
   </div>
 </main>
+<div id="ctx" role="menu" hidden></div>
 <section id="peek" aria-label="右边打开的对话" hidden>
   <div class="peek-head">
     <span class="t" id="peek-title"></span>
+    <button id="peek-del" class="icon-btn" aria-label="删除这段讨论串" title="删除这段讨论串"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>
     <button id="peek-close" class="icon-btn" aria-label="关掉右边的对话，回到总览" title="关掉，回到总览"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
   <div id="peek-log"><div class="msgs" id="peek-msgs"></div></div>
@@ -779,6 +788,70 @@ document.body.addEventListener("click", (e) => {
   const ch = e.target.closest("[data-choose]");
   if (ch) { $("#input").value = ch.dataset.choose; send(); }
 });
+// 删除和清空：讨论串可以删，宝的主对话和奇奇只能清空。记录都挪进 kiki-data/trash/，不会真删
+async function post(url, data) {
+  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(j.error || "没成功"); return null; }
+  return j;
+}
+async function deleteThread(path) {
+  const s = find(path);
+  if (!s || s.name === MAIN_SESSION) return;
+  const busy = s.busy ? "它正在干活，会先停下来。\n" : "";
+  if (!confirm(`删除讨论串「${s.name}」？\n${busy}删掉后列表里不再显示，聊天记录挪到 kiki-data/trash，需要时还能找回。`)) return;
+  if (!(await post("/api/delete", { path }))) return;
+  forget(path);
+  await loadTree();
+}
+// 一段对话没了：右边开着就关掉，「刚才看的」、未读都清掉
+function forget(path) {
+  if (peek === path) closePeek();
+  if (lastPeek === path) lastPeek = null;
+  unread.delete(path); delete live[path];
+}
+async function clearMain(path) {
+  const s = path === "main" ? null : find(path);
+  if (path !== "main" && (!s || s.name !== MAIN_SESSION)) return;
+  const who = s ? `${s.agent}的主对话` : "和奇奇的聊天记录";
+  if (!confirm(`清空${who}？\n之后从空白开始，${s ? "它会忘掉之前聊过的内容；讨论串不受影响。" : "宝和讨论串都不受影响。"}\n旧记录挪到 kiki-data/trash，需要时还能找回。`)) return;
+  const r = await post("/api/clear", { path });
+  if (!r) return;
+  await loadTree();
+  if (current === path) { forget(path); open(r.path || "main"); }
+}
+const ctx = $("#ctx");
+function hideCtx() { ctx.hidden = true; }
+function showCtx(x, y, items) {
+  ctx.innerHTML = items.map((it, i) => `<button role="menuitem" class="${it.danger ? "danger" : ""}" data-i="${i}">${esc(it.label)}</button>`).join("");
+  ctx.querySelectorAll("button").forEach((b) => { b.onclick = () => { hideCtx(); items[+b.dataset.i].run(); }; });
+  ctx.hidden = false;
+  const w = ctx.offsetWidth, h = ctx.offsetHeight;
+  ctx.style.left = `${Math.min(x, innerWidth - w - 8)}px`;
+  ctx.style.top = `${Math.min(y, innerHeight - h - 8)}px`;
+  ctx.querySelector("button")?.focus();
+}
+// 右键：讨论串 → 删除；宝名 → 清空主对话；奇奇 → 清空聊天记录
+document.addEventListener("contextmenu", (e) => {
+  const th = e.target.closest("aside [data-thread], #panel [data-thread]");
+  const s = th && find(th.dataset.thread);
+  const bh = !th && e.target.closest("[data-bao]");
+  const kk = !th && !bh && e.target.closest(".kiki");
+  let items = null;
+  if (s && s.name !== MAIN_SESSION) items = [{ label: "在右边打开", run: () => openPeek(s.path, true) }, { label: "删除讨论串…", danger: true, run: () => deleteThread(s.path) }];
+  else if (bh) {
+    const m = mainOf(tree.agents.find((a) => a.name === bh.dataset.bao) || { sessions: [] });
+    if (m) items = [{ label: "清空主对话…", danger: true, run: () => clearMain(m.path) }];
+  } else if (kk) items = [{ label: "清空聊天记录…", danger: true, run: () => clearMain("main") }];
+  if (!items) return hideCtx();
+  e.preventDefault();
+  showCtx(e.clientX, e.clientY, items);
+});
+document.addEventListener("pointerdown", (e) => { if (!ctx.hidden && !ctx.contains(e.target)) hideCtx(); }, true);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !ctx.hidden) { e.preventDefault(); hideCtx(); } });
+addEventListener("blur", hideCtx);
+addEventListener("resize", hideCtx);
+$("#peek-del").onclick = () => peek && deleteThread(peek);
 $("#add-bao").onclick = newBao;
 $("aside").addEventListener("keydown", (e) => { const bh = e.target.closest?.("[data-bao]"); if (bh && e.target === bh && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openBao(bh.dataset.bao); } });
 $("#panel-toggle").onclick = togglePanel;
@@ -932,7 +1005,16 @@ function sideStatus(path) {
   const btn = [...document.querySelectorAll("aside .sess")].find((b) => b.dataset.thread === path);
   if (btn) btn.title = s?.live?.status || "";
 }
-es.addEventListener("tree", (e) => { tree = JSON.parse(e.data); syncLive(); renderSide(); });
+es.addEventListener("tree", (e) => {
+  tree = JSON.parse(e.data);
+  if (peek && !find(peek)) forget(peek); // 在别处删掉了
+  syncLive(); renderSide();
+});
+// 别的窗口（比如远程打开的）清空了主对话：正开着就换到新的那段
+es.addEventListener("cleared", (e) => {
+  const d = JSON.parse(e.data);
+  if (current === d.path) open(d.fresh || "main");
+});
 // 从列表里同步进度（刷新页面、重连、打开一段已经在干活的对话时用）
 function syncLive() {
   if (tree.main !== undefined) live.main = tree.main || (mainBusy ? live.main : null);
