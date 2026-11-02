@@ -135,7 +135,11 @@ export class MailboxAgent implements ExternalAgent {
     if (wake)
       try {
         // 刚写的文件要等它写完（SETTLE_MS）才拿，所以晚一点再收
-        this.watcher = fsWatch(join(dir, TO_KIKI), () => setTimeout(wake, SETTLE_MS + 200).unref());
+        // 再补一次：系统通知可能来得早或晚（macOS 会攒一会儿），文件那时可能还没“写完”
+        this.watcher = fsWatch(join(dir, TO_KIKI), () => {
+          setTimeout(wake, SETTLE_MS + 200).unref();
+          setTimeout(wake, SETTLE_MS * 2 + 500).unref();
+        });
         this.watcher.unref(); // 不因为盯着文件夹就让进程退不出去
       } catch {} // 有的同步盘不支持盯，靠每分钟巡视
   }
