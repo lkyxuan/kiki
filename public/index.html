@@ -126,7 +126,7 @@
   .via { color: var(--muted); }
   .via .how { margin-left: 6px; font-size: 12px; color: var(--faint); }
   /* 右栏里打开的对话（点小卡片打开）：能看、能接着说，也能挪到中间 */
-  #peek { width: 420px; flex: none; border-left: 1px solid var(--divider); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+  #peek { flex: 1; min-width: 360px; /* 拉宽窗口时和中间的主对话一起变宽，各占一半；左栏和最右的情况栏宽度不变 */ border-left: 1px solid var(--divider); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
   #peek[hidden] { display: none; }
   #peek .peek-head { display: flex; align-items: center; gap: 8px; padding: 12px 10px 12px 16px; border-bottom: 1px solid var(--line); }
   #peek .peek-head .t { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -268,7 +268,7 @@
   #sheet .close:hover { color: var(--text); background: var(--active); }
   #sheet iframe { flex: 1; border: 0; width: 100%; background: var(--grouped); }
 
-  @media (max-width: 1400px) { #peek:not([hidden]) { position: fixed; right: 0; top: 0; bottom: 0; z-index: 6; width: min(440px, 100%); box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
+  @media (max-width: 1400px) { #peek:not([hidden]) { position: fixed; right: 0; top: 0; bottom: 0; z-index: 6; width: min(440px, 100%); min-width: 0; box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 1100px) { #panel { display: none; } body.show-panel #panel { display: flex; position: fixed; right: 0; top: 0; bottom: 0; z-index: 5; box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 700px) { aside { width: 200px; } #log, .composer, #asks { padding-left: 16px; padding-right: 16px; } #sheet .win { width: 100%; height: 100%; border-radius: 0; } }
   /* Kiki.app：没有单独的标题栏，三栏颜色铺到顶；左上角给红绿灯让位，顶部空白处可以拖动窗口 */
