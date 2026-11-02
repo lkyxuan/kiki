@@ -206,7 +206,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     func normalizedRemote(_ raw: String) -> URL? {
         var text = raw.trimmingCharacters(in: .whitespaces)
-        if !text.isEmpty && !text.contains("://") { text = "https://" + text }
+        // 只填了 IP（比如 Tailscale 的 100.x.x.x:8889）就用 http：HTTPS 证书只认 .ts.net 名字，IP 用不了；Tailscale 本身已经加密
+        if !text.isEmpty && !text.contains("://") {
+            let host = text.split(separator: "/").first.map(String.init) ?? text
+            let isIp = host.first == "[" || host.split(separator: ":").first.map { $0.allSatisfy { $0.isNumber || $0 == "." } } == true
+            text = (isIp ? "http://" : "https://") + text
+        }
         while text.hasSuffix("/") { text.removeLast() }
         guard let url = URL(string: text), url.host != nil, ["http", "https"].contains(url.scheme ?? "") else { return nil }
         return url
