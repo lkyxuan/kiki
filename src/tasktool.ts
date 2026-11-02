@@ -13,8 +13,16 @@ export function taskLine(t: Task, now = new Date()): string {
   return `[${t.repeat ? "定时" : STATUS_LABEL[t.status]}] ${t.title} · ${t.agent}${extra ? ` · ${extra}` : ""} · ${t.id}`;
 }
 
+/** 关注清单（收发室管，每个宝一份，在 agents/<宝>/ 下）：任务做完后还要盯的事，写进任务所属那个宝的清单。有相关新消息时收发室调 tasks.followUp(taskId, 消息)。 */
+export interface WatchList {
+  add(w: { taskId: string; title: string; about: string; match: string; until?: string; agent: string; session?: string }): Promise<string> | string;
+  remove(taskId: string, agent: string): Promise<void> | void;
+}
+
 export function taskTools(opts: {
   tasks: Tasks;
+  /** 收发室的关注清单；没接上时 kiki_watch 会说一声 */
+  watch?: () => WatchList | undefined;
   listBaos: () => string[];
   /** 这段对话属于哪个宝（不填宝时用） */
   baoOf: (sessionPath: string | undefined) => string | undefined;
@@ -134,5 +142,45 @@ export function taskTools(opts: {
     },
   };
 
-  return [task, ask];
+  const watch: ToolDefinition = {
+    name: "kiki_watch",
+    label: "盯着后续",
+    description:
+      "只在后台任务里用：这件事做完了但还有后续要等（比如报了名等对方回邮件、提交了申请等审核结果、下单了等发货），就记进关注清单。" +
+      "之后有相关的新消息（邮件等）进来，会回到这段对话里交给你，你在原来的上下文里接着办。action=add 记下（填 about 和 match），action=stop 不用再盯了。",
+    promptSnippet: "kiki_watch：任务做完还有后续要等时，记进关注清单，新消息来了回到这里接着办",
+    promptGuidelines: [
+      "后台任务做完时想一想：这件事之后还会有对方的回复、通知或截止日期吗？有就用 kiki_watch 记一条，about 写清在等什么、等到了要做什么，match 写几个用顿号隔开的短词（发件人、项目名、关键词），收发室先用它们筛消息。",
+      "收到关注的新消息后，事情彻底办完了就 kiki_watch action=stop。",
+    ],
+    parameters: Type.Object({
+      action: Type.Optional(Type.Union([Type.Literal("add"), Type.Literal("stop")], { description: "默认 add" })),
+      about: Type.Optional(Type.String({ description: "在等什么、等到了要做什么，一两句，比如：等 XX 项目的报名审核结果，通过后要按邮件交材料" })),
+      match: Type.Optional(Type.String({ description: "怎么认出相关消息：写几个短词，用顿号隔开（发件人、项目名、关键词），比如：XX 基金会、报名、审核" })),
+      until: Type.Optional(Type.String({ description: "盯到什么时候（可选），比如 2026-12-01 或 +30d" })),
+    }),
+    async execute(_id, p: any, _signal, _onUpdate, ctx) {
+      const from: string | undefined = ctx?.sessionManager?.getSessionFile?.();
+      const t = from ? opts.tasks.bySession(from) : undefined;
+      if (!t) return text("kiki_watch 只在后台任务里用。", true);
+      const list = opts.watch?.();
+      if (!list) return text("关注清单还没接上（收发室没开），先在结果里写清楚之后要留意什么。", true);
+      try {
+        if (p.action === "stop") {
+          await list.remove(t.id, t.agent);
+          opts.tasks.setWatching(t.id, undefined);
+          return text("已经不再盯这件事了。");
+        }
+        if (!p.about?.trim() || !p.match?.trim()) return text("add 需要 about 和 match。", true);
+        const about = p.about.trim();
+        await list.add({ taskId: t.id, title: t.title, about, match: p.match.trim(), until: p.until?.trim() || undefined, agent: t.agent, session: t.session });
+        opts.tasks.setWatching(t.id, about);
+        return text(`已记进关注清单：${about}。有相关新消息会回到这段对话交给你。`);
+      } catch (e) {
+        return text(`没记上：${(e as Error).message}`, true);
+      }
+    },
+  };
+
+  return [task, ask, watch];
 }

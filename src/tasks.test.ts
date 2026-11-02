@@ -458,3 +458,25 @@ test("外部执行者：按名字现查；停任务时 signal 被 abort，任务
   assert.equal(seen?.aborted, true);
   assert.equal(t.status, "cancelled");
 });
+
+test("关注的事有新消息：回到原对话接着办，做完重新回报；取消的、不认识的不接", async () => {
+  const sent: string[] = [];
+  const { backend, notes } = fakeBackend(async (text) => (sent.push(text), `处理了：${text.slice(0, 12)}`));
+  const tasks = new Tasks(new MemoryTaskStore(), backend);
+  const t = tasks.start({ agent: "dev", title: "报名", prompt: "帮我报名 X 项目", reportTo: "/r.jsonl" });
+  await tick();
+  const session = t.session!;
+  tasks.setWatching(t.id, "等主办方审核结果");
+  assert.equal(tasks.bySession(session)?.id, t.id);
+  assert.equal(tasks.followUp(t.id, "邮件：审核通过，请 11/10 前交材料"), "已回到原来的对话里接着办");
+  await tick();
+  assert.equal(t.status, "done");
+  assert.equal(t.session, session);
+  assert.match(sent[1], /你在盯的事有新消息（等主办方审核结果）：\n\n邮件：审核通过/);
+  assert.equal(notes.length, 2, "办完重新回报");
+  assert.equal(t.watching, "等主办方审核结果", "还接着盯，等 agent 自己说不用了");
+  assert.equal(tasks.followUp("没这个", "新消息"), undefined);
+  const u = tasks.start({ agent: "dev", title: "x", prompt: "p", hold: true });
+  tasks.cancel(u.id);
+  assert.equal(tasks.followUp(u.id, "新消息"), undefined, "取消的不接");
+});

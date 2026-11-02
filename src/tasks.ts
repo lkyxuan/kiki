@@ -45,6 +45,7 @@ export interface Task {
   hold?: boolean; // 只记下来：不管到没到点、等的任务做没做完，都等用户点开始
   doneWhen?: string; // 完成标准：做到什么算完
   executor?: string; // 谁来做：不填是 Kiki 自己开后台对话；填外部 bot 的名字就交给收发室注册的执行者
+  watching?: string; // 做完后还在盯的事（关注清单里的一条），有相关新消息时回到这个任务的对话里接着办
 }
 
 // ---------- 存储 ----------
@@ -102,7 +103,7 @@ export class MemoryTaskStore implements TaskStore {
 
 const RESULT_MARK = "<!-- kiki:result -->";
 const FIELDS = [
-  "id", "title", "status", "agent", "when", "after", "repeat", "parent", "question", "hold", "doneWhen", "executor",
+  "id", "title", "status", "agent", "when", "after", "repeat", "parent", "question", "hold", "doneWhen", "executor", "watching",
   "session", "origin", "reportTo", "chatId", "created", "started", "finished",
 ] as const;
 
@@ -314,6 +315,43 @@ export class Tasks extends EventEmitter {
   }
 
   /** 正在等你回答、由这段对话执行的任务。 */
+  /** 这段对话是哪个任务的（最近的那个） */
+  bySession(sessionPath: string): Task | undefined {
+    return this.list((x) => x.session === sessionPath).at(-1);
+  }
+
+  /** 记下 / 清掉任务在盯的事（kiki_watch 用） */
+  setWatching(id: string, about: string | undefined) {
+    const t = this.all.get(id);
+    if (t) this.update(t, { watching: about });
+  }
+
+  /** 关注的事有新消息（收发室匹配到后调）：回到这个任务原来的对话里接着办，做完重新回报。
+   *  进行中的插话进去；等你的、已结束的带着新消息接着做；还没开跑的补进任务内容。 */
+  followUp(id: string, message: string, notify?: Notify): string | undefined {
+    const t = this.all.get(id);
+    const msg = message.trim();
+    if (!t || !msg) return undefined;
+    const say = `你在盯的事有新消息（${t.watching ?? t.title}）：\n\n${msg}\n\n看看现在需要做什么：能自己办的就办；要用户做决定或亲自操作的，用 kiki_ask_user 问，或者在结果里写清楚要用户做什么；这件事不用再盯了就用 kiki_watch action=stop。`;
+    if (notify) this.notifiers.set(t.id, notify);
+    switch (t.status) {
+      case "todo":
+      case "queued":
+        this.update(t, { prompt: `${t.prompt}\n\n${say}` });
+        return "已补进任务内容";
+      case "running":
+        if (t.executor || !t.session || !this.backend.steer) return undefined;
+        void this.backend.steer(t.session, say).catch((e) => console.warn(`[tasks] 插话失败：${(e as Error).message}`));
+        return "已插话进正在跑的任务";
+      default:
+        if (t.executor || !t.session || t.status === "cancelled") return undefined;
+        this.resumes.set(t.id, say);
+        this.update(t, { finished: undefined, result: undefined, question: undefined });
+        this.enqueue(t);
+        return "已回到原来的对话里接着办";
+    }
+  }
+
   blockedBySession(sessionPath: string): Task | undefined {
     return this.list((x) => x.session === sessionPath && x.status === "blocked")[0];
   }
