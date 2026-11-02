@@ -375,7 +375,7 @@ function renderSide() {
   if (unread.has("main")) k.insertAdjacentHTML("beforeend", '<span class="dot"></span>');
   // 两层：每个宝有一段「主对话」（点宝名打开，在中间），其余是讨论串（列在宝下面，点了在右栏打开）
   const sessRows = (a) => { const th = threads(a); return (th.length ? "" : '<div class="empty">还没有讨论串</div>') + th.map((s) => `
-        <button class="item sess ${s.path === current || s.path === peek ? "on" : ""}" data-thread="${esc(s.path)}"${s.live ? ` title="${esc(s.live.status)}"` : ""}>
+        <button class="item sess ${s.path === current || s.path === peek ? "on" : ""}" data-thread="${esc(s.path)}"${s.live ? ` title="${esc(s.live.status)}"` : s.summary ? ` title="${esc(s.summary)}"` : ""}>
           <span class="name">${esc(s.name)}</span>
           ${s.background ? '<span class="tag">后台</span>' : ""}
           ${s.busy ? '<span class="spin"></span>' : unread.has(s.path) ? '<span class="dot"></span>' : ""}
