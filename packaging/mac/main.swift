@@ -135,6 +135,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         } else {
             connect()
         }
+        // 连远程时后台的自动更新管不到这里：打开后查一次，之后每 6 小时查一次
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { if self.isRemote { self.checkClientUpdate(manual: false) } }
+        Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { _ in
+            if self.isRemote { self.checkClientUpdate(manual: false) }
+        }
     }
 
     func connect() {
@@ -473,6 +478,105 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         NSWorkspace.shared.open(base)
     }
 
+    // MARK: 客户端自己更新
+    // 连远程时本机不跑后台，后台的自动更新管不到这个窗口程序；本机后台起不来时也一样。
+    // 所以窗口程序自己查 GitHub 最新版，有新版就问一声，换成新 App 再打开。
+
+    var clientVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0" }
+    var askedClientUpdate = false  // 这次打开已经问过了，就不再自动弹
+
+    func newer(_ a: String, than b: String) -> Bool {
+        let x = a.split(separator: ".").map { Int($0) ?? 0 }, y = b.split(separator: ".").map { Int($0) ?? 0 }
+        for i in 0..<max(x.count, y.count) {
+            let p = i < x.count ? x[i] : 0, q = i < y.count ? y[i] : 0
+            if p != q { return p > q }
+        }
+        return false
+    }
+
+    @objc func checkClientUpdateMenu(_ sender: Any?) { checkClientUpdate(manual: true) }
+
+    func checkClientUpdate(manual: Bool) {
+        var req = URLRequest(url: URL(string: "https://api.github.com/repos/lkyxuan/kiki/releases/latest")!)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 20
+        URLSession.shared.dataTask(with: req) { data, _, error in
+            let tag = (data.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any])?["tag_name"] as? String
+            DispatchQueue.main.async {
+                guard let tag = tag else {
+                    if manual { self.info("查不到新版本", "连不上 GitHub：\(error?.localizedDescription ?? "返回的内容不对")") }
+                    return
+                }
+                let latest = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+                if !self.newer(latest, than: self.clientVersion) {
+                    if manual { self.info("已经是最新版", "这个 Kiki 窗口程序是 \(self.clientVersion)。") }
+                    return
+                }
+                if !manual && self.askedClientUpdate { return }
+                self.askedClientUpdate = true
+                NSApp.activate(ignoringOtherApps: true)
+                let a = NSAlert()
+                a.messageText = "Kiki 有新版本 \(latest)"
+                a.informativeText = "这台电脑上的 Kiki 是 \(self.clientVersion)。现在更新会关掉窗口，下载新版，换好后自动重新打开，大约一两分钟。" +
+                    (self.isRemote ? "\n\n只更新这台电脑上的程序；远程那台 Kiki 在它的设置里更新。" : "")
+                a.addButton(withTitle: "现在更新")
+                a.addButton(withTitle: "以后")
+                if a.runModal() == .alertFirstButtonReturn { self.runClientUpdate() }
+            }
+        }.resume()
+    }
+
+    func runClientUpdate() {
+        // 本机后台活着就交给它更新：它会等手上的对话、后台任务跑完再换，界面上也有进度
+        if !isRemote && loaded {
+            post("api/update/check") { _ in self.post("api/update/apply") { ok in
+                if !ok { DispatchQueue.main.async { self.info("后台没能开始更新", "到「设置 → 更新」里看详情和日志。") } }
+            } }
+            return
+        }
+        runStandaloneUpdate()
+    }
+
+    func post(_ path: String, done: @escaping (Bool) -> Void) {
+        var req = URLRequest(url: base.appendingPathComponent(path))
+        req.httpMethod = "POST"
+        req.timeoutInterval = 30
+        URLSession.shared.dataTask(with: req) { _, res, _ in
+            done((res as? HTTPURLResponse).map { $0.statusCode < 400 } ?? false)
+        }.resume()
+    }
+
+    // 后台不在（连远程，或本机后台起不来）：自己下载新 App 换上
+    func runStandaloneUpdate() {
+        guard let src = Bundle.main.resourceURL?.appendingPathComponent("client-update.sh"),
+              FileManager.default.fileExists(atPath: src.path) else {
+            info("没法自动更新", "这个版本里缺少更新脚本，请重新下载安装一次。")
+            return
+        }
+        // 先把脚本拷出去：更新时整个 App 会被换掉
+        let script = FileManager.default.temporaryDirectory.appendingPathComponent("kiki-client-update.sh")
+        try? FileManager.default.removeItem(at: script)
+        do { try FileManager.default.copyItem(at: src, to: script) } catch {
+            info("没法自动更新", error.localizedDescription)
+            return
+        }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/bash")
+        p.arguments = [script.path, Bundle.main.bundlePath, String(ProcessInfo.processInfo.processIdentifier), isRemote ? "remote" : "local"]
+        do { try p.run() } catch {
+            info("没法自动更新", error.localizedDescription)
+            return
+        }
+        NSApp.terminate(nil)
+    }
+
+    func info(_ title: String, _ text: String) {
+        let a = NSAlert()
+        a.messageText = title
+        a.informativeText = text
+        a.runModal()
+    }
+
     @objc func showLogs(_ sender: Any?) {
         let logs = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/Kiki")
         NSWorkspace.shared.open(logs)
@@ -494,6 +598,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         let appItem = NSMenuItem()
         let app = NSMenu()
         app.addItem(withTitle: "关于 Kiki", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(withTitle: "检查 App 更新…", action: #selector(checkClientUpdateMenu(_:)), keyEquivalent: "")
         app.addItem(.separator())
         app.addItem(withTitle: "设置…", action: #selector(openSettings(_:)), keyEquivalent: ",")
         let conn = app.addItem(withTitle: "连接到…", action: #selector(changeServer(_:)), keyEquivalent: "k")
