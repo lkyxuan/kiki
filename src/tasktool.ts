@@ -83,7 +83,9 @@ export function taskTools(opts: {
         const how = t.repeat
           ? `定时任务，${t.repeat}，第一次 ${showTime(t.when!, now())}`
           : t.status === "todo"
-            ? t.when
+            ? t.hold
+              ? "已放进待办，等你点开始"
+              : t.when
               ? `${showTime(t.when, now())} 开始`
               : t.after
                 ? `等任务「${opts.tasks.get(t.after)?.title ?? t.after}」做完再开始`

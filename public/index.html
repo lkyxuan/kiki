@@ -551,6 +551,7 @@ function showTime(iso) {
   return diff === 0 ? `今天 ${t}` : diff === 1 ? `明天 ${t}` : diff === 2 ? `后天 ${t}` : `${d.getMonth() + 1}月${d.getDate()}日 ${t}`;
 }
 function todoWhen(t) {
+  if (t.hold) return "等你点开始";
   if (t.repeat) return `${t.repeat}${t.when ? ` · 下次 ${showTime(t.when)}` : ""}`;
   if (t.when) return `${showTime(t.when)} 开始`;
   if (t.after) { const a = (tree.tasks || []).find((x) => x.id === t.after); return `等「${a ? a.title : t.after}」做完`; }

@@ -42,6 +42,7 @@ export interface Task {
   repeat?: string; // 重复规则，比如"每天 09:00"（见 schedule.ts）。有它的是"定时任务"本身，每次到点另开一个任务去跑
   parent?: string; // 由哪个定时任务开出来的
   question?: string; // 等你：卡在哪、要你回答什么
+  hold?: boolean; // 只记下来：不管到没到点、等的任务做没做完，都等用户点开始
 }
 
 // ---------- 存储 ----------
@@ -99,7 +100,7 @@ export class MemoryTaskStore implements TaskStore {
 
 const RESULT_MARK = "<!-- kiki:result -->";
 const FIELDS = [
-  "id", "title", "status", "agent", "when", "after", "repeat", "parent", "question",
+  "id", "title", "status", "agent", "when", "after", "repeat", "parent", "question", "hold",
   "session", "origin", "reportTo", "chatId", "created", "started", "finished",
 ] as const;
 
@@ -175,6 +176,7 @@ export class Tasks extends EventEmitter {
   private waiting: string[] = [];
   private notifiers = new Map<string, Notify>();
   private asked = new Map<string, string>(); // 任务 id -> 这一轮里 agent 提的问题
+  private resumes = new Map<string, string>(); // 任务 id -> 用户的回答（排队等着在原对话里接着干）
   private timer?: NodeJS.Timeout;
   /** 没有专门回报对象的任务（定时开出来的、重启后的、agent 用工具记的）做完/卡住时找它，server 接到收件箱。 */
   defaultNotify?: Notify;
@@ -216,17 +218,18 @@ export class Tasks extends EventEmitter {
 
   /** 派一个任务。马上返回：能跑就排队/开跑，有时间、要等别的任务、或只是记下来的进待办。 */
   start(input: StartInput, notify?: Notify): Task {
-    const { hold, ...rest } = input;
+    const { hold: holdIn, ...rest } = input;
+    const hold = holdIn || undefined;
     if (rest.after && !this.all.has(rest.after)) throw new Error(`没有任务 ${rest.after}`);
     if (rest.repeat) {
       const first = rest.when ? new Date(rest.when) : nextRun(rest.repeat, this.now());
       if (!first) throw new Error(`看不懂重复规则「${rest.repeat}」，可以写：每天 09:00、工作日 09:00、每周一 09:00、每小时`);
       rest.when = iso(first);
     }
-    const t: Task = { id: newId(), status: "todo", created: iso(this.now()), ...rest };
+    const t: Task = { id: newId(), status: "todo", created: iso(this.now()), ...rest, ...(hold ? { hold } : {}) };
     this.all.set(t.id, t);
     if (notify) this.notifiers.set(t.id, notify);
-    if (!t.repeat && !hold && this.ready(t)) this.enqueue(t);
+    if (!t.repeat && this.ready(t)) this.enqueue(t);
     else this.update(t, {});
     this.arm();
     return t;
@@ -245,7 +248,7 @@ export class Tasks extends EventEmitter {
     if (!t || t.status !== "todo") return undefined;
     if (notify) this.notifiers.set(t.id, notify);
     if (t.repeat) return this.spawnRun(t);
-    this.update(t, { when: undefined, after: undefined });
+    this.update(t, { when: undefined, after: undefined, hold: undefined });
     this.enqueue(t);
     this.arm();
     return t;
@@ -256,6 +259,7 @@ export class Tasks extends EventEmitter {
     const t = this.all.get(id);
     if (!t || !["todo", "queued", "blocked"].includes(t.status)) return undefined;
     this.waiting = this.waiting.filter((x) => x !== id);
+    this.resumes.delete(id);
     this.update(t, { status: "cancelled", finished: iso(this.now()) });
     this.notifiers.delete(id);
     this.settleDependents(t);
@@ -280,9 +284,9 @@ export class Tasks extends EventEmitter {
     const t = this.all.get(id);
     if (!t || t.status !== "blocked" || !t.session) return undefined;
     if (notify) this.notifiers.set(t.id, notify);
-    this.running++;
-    this.update(t, { status: "running", question: undefined });
-    void this.run(t, () => this.backend.send(t.agent, t.session!, text));
+    this.resumes.set(t.id, text); // 和别的任务一样排队，不超过同时跑的上限
+    this.update(t, { question: undefined });
+    this.enqueue(t);
     return t;
   }
 
@@ -290,6 +294,7 @@ export class Tasks extends EventEmitter {
 
   /** 待办能开跑了吗：到点了，要等的任务也做完了。 */
   private ready(t: Task): boolean {
+    if (t.hold) return false;
     if (t.when && new Date(t.when) > this.now()) return false;
     if (t.after && this.all.get(t.after)?.status !== "done") return false;
     return true;
@@ -354,8 +359,12 @@ export class Tasks extends EventEmitter {
     for (const d of this.all.values()) {
       if (d.status !== "todo" || d.after !== t.id) continue;
       if (t.status === "done") {
-        if (this.ready(d)) this.enqueue(d);
-      } else this.update(d, { status: "failed", finished: iso(this.now()), result: `等的任务「${t.title}」${STATUS_LABEL[t.status]}了，这个就没开始。` });
+        // 定时任务交给闹钟（tick）去开子任务，不能把它本身放去跑
+        if (!d.repeat && this.ready(d)) this.enqueue(d);
+      } else {
+        this.update(d, { status: "failed", finished: iso(this.now()), result: `等的任务「${t.title}」${STATUS_LABEL[t.status]}了，这个就没开始。` });
+        this.settleDependents(d); // 一路往下传：等它的也开始不了
+      }
     }
   }
 
@@ -365,8 +374,15 @@ export class Tasks extends EventEmitter {
       const t = this.all.get(this.waiting.shift()!);
       if (!t || t.status !== "queued") continue;
       this.running++;
-      this.update(t, { status: "running", started: iso(this.now()) });
-      void this.run(t);
+      const reply = this.resumes.get(t.id);
+      this.resumes.delete(t.id);
+      if (reply !== undefined) {
+        this.update(t, { status: "running" });
+        void this.run(t, () => this.backend.send(t.agent, t.session!, reply));
+      } else {
+        this.update(t, { status: "running", started: iso(this.now()) });
+        void this.run(t);
+      }
     }
   }
 
