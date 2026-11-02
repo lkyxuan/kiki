@@ -16,9 +16,9 @@
   <img src="https://img.shields.io/badge/data-100%25%20local-5b6cf0?style=flat-square" alt="Local first">
 </p>
 
-**一个收件箱，多个专属 Bot，无限具名对话。你的数据永远留在你自己的机器上。**
+**跟奇奇说一句，它替你分给对的宝。每个宝管一摊事，每件事一段对话。数据永远留在你自己的电脑上。**
 
-[安装 Mac App](#-安装成-mac-app) · [快速开始](#-快速开始) · [核心特性](#-核心特性) · [架构](#️-架构) · [路线图](#️-路线图) · [参与贡献](#-参与贡献)
+[下载安装](#-下载安装) · [核心特性](#-核心特性) · [怎么用](#-怎么用) · [架构](#️-架构) · [路线图](#️-路线图) · [参与贡献](#-参与贡献)
 
 </div>
 
@@ -26,209 +26,206 @@
 
 ## 📖 简介
 
-**Kiki（奇奇）** 是一个开源、本地优先的个人 AI 助理，专为常开的 Mac mini 设计。它借鉴了 Grok Bot 的交互：你只和一个**主 Bot** 说话，它像收件箱一样把每件事分派给对应的**专属 Bot**，每个专属 Bot 下面又按主题保存着多段**具名对话**。
+**Kiki（奇奇）** 是一个开源、本地优先的个人 AI 助理，专为常开的 Mac mini 设计，打包成原生 Mac App。
 
-和云端助理不同，Kiki 跑在你自己的电脑上：模型随你选，对话记录是本地文件，"关于我"和所有笔记都是普通 Markdown。哪天不想用 Kiki 了，带走文件夹就行。
+你只需要跟**奇奇**说话。奇奇是你的收件箱：一句话能答完的直接回答；需要干活的，交给负责那摊事的**宝**；一段话里有好几件事，就拆开分给几个宝；没有合适的宝，就新建一个。每个宝有一段**主对话**，负责统筹，具体的事再开成**讨论串**，互不干扰。
 
-Kiki 内核负责建对话、续对话、调用模型和工具，轻量、可扩展，随 Kiki 一起锁版本发布。
+和云端助理不同，Kiki 跑在你自己的电脑上：模型随你选，对话记录是本地文件，"关于我"和每个宝的说明都是普通 Markdown。哪天不想用 Kiki 了，带走文件夹就行。
 
-> [!NOTE]
-> 项目处于早期阶段，已提供可一键安装、自动更新的 Mac App，欢迎 Star 关注进展。
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-dark.png">
+    <img src="docs/assets/screenshot-light.png" alt="Kiki 四栏界面：宝列表、宝的主对话、讨论串、这个宝的情况" width="100%">
+  </picture>
+  <p><sub>四栏界面：左边是奇奇和你的宝，中间是宝的主对话，右边打开讨论串，最右边是这个宝的情况。</sub></p>
+</div>
 
 ## ✨ 核心特性
 
 | | 特性 | 说明 |
 |:---:|---|---|
-| 📥 | **主 Bot 即收件箱** | 随手丢一句话，主 Bot 只负责分诊和转发，具体工作全部交给专属 Bot |
-| 🤖 | **多个专属 Bot** | 开发、生活、学习……每个 Bot 一个文件夹、一份 `AGENTS.md`，新增 Bot 无需改代码、无需重启 |
-| 💬 | **具名对话** | 每个 Bot 下可开多段有名字的对话，随时切换、随时续聊，上下文互不干扰 |
-| ⚡ | **前台聊天，后台干活** | 讨论在对话里直接聊；真要干活就 `/bg` 丢到后台，完成后结果自动送回 |
-| 🔒 | **本地优先** | 网页只监听 `127.0.0.1`；对话是 JSONL、资料是 Markdown，全部存在你的硬盘上 |
-| 🔌 | **模型自由** | 默认 DeepSeek，Anthropic、OpenAI、Google 等主流模型改一行配置即可切换 |
-| 🧩 | **可替换的外壳** | 编排层与数据彻底分离，界面、通道、模型都可以替换，不被任何一家锁定 |
+| 📥 | **奇奇只做分派** | 随手丢一句话，奇奇判断交给哪个宝、接进哪段对话；简单问题直接答，一段话里几件事就拆开分 |
+| 🤖 | **宝 = 一摊事** | 旅行、开发、健身……每个宝自带头像、主对话和说明，新建一个只要填名字和"负责什么" |
+| 💬 | **主对话 + 讨论串** | 宝的主对话负责统筹，具体的事开成讨论串；对话里的卡片点开就在右栏看，还能接着说 |
+| ⚡ | **前台聊，后台干** | 真要干活就丢到后台，做完回报到原对话；任务可排队、可重跑，重启不丢 |
+| 🧠 | **会记事的宝** | 每段对话有一句话摘要；宝能看别的对话、给别的对话捎话，把要紧的事记进"关于我" |
+| 🛡️ | **先问再动手** | 永久删除、强推、对外发送、花钱这四类收不回来的动作，做之前先问你一句 |
+| 🖼️ | **看图、换模型** | 直接粘贴或拖进图片；输入框旁一键换模型，支持各家 API 密钥和订阅登录（ChatGPT、Claude、GitHub Copilot 等） |
+| 🔒 | **本地优先** | 只监听本机，远程通过 Tailscale 加密访问；对话是 JSONL、资料是 Markdown，删掉的进回收站 |
+| 🧩 | **可扩展** | 兼容 pi 扩展生态，设置里可加 MCP 服务器，格式和 Claude、Cursor 一样 |
 
-## 🖼️ 界面预览
+## 📦 下载安装
 
-<div align="center">
-  <img src="docs/assets/screenshot.png" alt="Kiki 本机聊天网页" width="90%">
-  <p><sub>左侧是主 Bot 与各专属 Bot 的对话列表，右侧聊天，回答流式输出。</sub></p>
-</div>
+推荐用法：Kiki 装在常开的 Mac mini 上，你在 MacBook、iPhone 上远程用。需要 macOS 12 或以上。
 
-## 🏗️ 架构
-
-```mermaid
-flowchart LR
-    U([你]) -->|一句话| W[本机聊天网页<br/>localhost:4567]
-    W --> M{{奇奇<br/>收件箱 · 路由}}
-    M -->|接进已有对话| S1
-    M -->|新开具名对话| S3
-    M -.->|/bg 后台任务| S2
-
-    subgraph DEV[默认的宝：奇奇]
-        S1[对话：周报]
-        S2[对话：后台任务]
-    end
-    subgraph LIFE[从奇奇分出去的宝：工作宝]
-        S3[对话：Kiki 开发]
-        S4[对话：竞品调研]
-    end
-
-    DEV & LIFE --> PI[(Kiki 内核)]
-    PI --> LLM[DeepSeek / Claude / GPT / ...]
-    S2 -.->|完成后回报| M
-```
-
-**三层结构**
-
-1. **主 Bot**：做得很薄。只判断一句话该接进哪段已有对话，还是在哪个 Bot 下新开一段，再把结果转回给你。
-2. **专属 Bot**：`~/kiki-data/agents/<名字>/` 下的一个文件夹，`AGENTS.md` 写清楚它负责什么、怎么干、交回什么。
-3. **具名对话**：Bot 下的 session，以 JSONL 格式保存在本地，可读、可备份、可迁移。
-
-## 🍎 安装成 Mac App
-
-需要 macOS 12 或以上，Apple 芯片和 Intel 都支持。任何一台 Mac 都能装；想在手机上也能用，就装在一台常开的 Mac（比如 Mac mini）上。两种装法任选一种：
-
-**方法一：终端里跑一行（推荐）**。自动下载、核对、装好、启动，不会被系统拦：
+**方式一：终端一行安装**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash
 ```
 
-**方法二：下载安装包**。到 [发布页](https://github.com/lkyxuan/kiki/releases/latest) 下载 `.dmg`（Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`），打开后把 Kiki 拖进「应用程序」，再从「应用程序」里打开。Kiki 还没有苹果开发者签名，第一次打开会提示无法验证开发者：点「完成」，到「系统设置 → 隐私与安全性」拉到最下面，点「仍要打开」。
+**方式二：下载安装包**
 
-- **开箱即用**：Kiki.app 自带运行环境和 Kiki 内核，不用另装 Node，登录后自动在后台启动，崩溃自动拉起。
-- **自动更新**：有新版本时网页右上角会提示，默认在没有对话运行时自动安装，失败自动回滚。
-- **安全远程**：Kiki 只监听本机，远程访问通过 [Tailscale](https://tailscale.com) 加密连接，只有你自己的设备能连上。
+到 [发布页](https://github.com/lkyxuan/kiki/releases/latest) 下载 `.dmg`（Apple 芯片选 arm64，Intel 选 x64），把 Kiki 拖进「应用程序」，**从「应用程序」里**打开。Kiki 还没有苹果签名，第一次打开会提示无法验证开发者：点「完成」，到「系统设置 → 隐私与安全性」拉到最下面点「仍要打开」。
 
-第一次打开时选「在这台电脑上运行」，然后点左下角「设置 → 模型与密钥」，粘贴 [DeepSeek API 密钥](https://platform.deepseek.com/api_keys)，保存后就能开始聊。完整的安装、更新、远程使用和卸载说明见 **[Mac App 指南](docs/mac-app.md)**。
+装好后打开 Kiki，按引导在设置里填一个模型密钥就能开始聊。
 
-## 🚀 快速开始
+- **开箱即用**：Kiki.app 自带运行环境和 Kiki 内核，登录后自动在后台启动，崩溃自动拉起。
+- **自动更新**：每小时查一次新版本，空闲时自动安装，起不来就自动回滚。
+- **多台设备**：其他 Mac 上装个 Kiki.app 选"连接远程地址"，只当界面用；iPhone 用浏览器加到主屏幕。
+- **安全远程**：Kiki 只监听本机，远程通过 [Tailscale](https://tailscale.com) 加密连接，只有你自己的设备能连上。
 
-想从源码运行或参与开发，按下面的步骤来。
+完整说明见 **[Mac App 指南](docs/mac-app.md)**。
 
-### 环境要求
+## 💡 怎么用
 
-- macOS（推荐常开的 Mac mini）
-- [Node.js](https://nodejs.org) 22.19 或以上：`brew install node`
-- 一个模型 API Key（默认 [DeepSeek](https://platform.deepseek.com)）
+1. **跟奇奇说话**：比如"12 月想去东京玩 5 天"。奇奇会交给"旅行"宝（没有就新建一个），你在旅行的主对话里接着聊。
+2. **指定宝**：用 `@宝名` 直接交给某个宝。
+3. **开讨论串**：点宝旁边的 **+**，或让宝自己把新话题开成讨论串。讨论串在右栏打开，看完关掉回到总览。
+4. **管理宝**：点宝旁边的齿轮，改名字、头像和"负责什么"；分派规则写在 `~/kiki-data/分派规则.md`，随时可改。
 
-### 安装与启动
-
-```bash
-git clone https://github.com/lkyxuan/kiki.git ~/kiki
-cd ~/kiki
-npm install
-cp .env.example .env     # 填入模型的 API Key
-npm start
-```
-
-打开 **<http://localhost:4567>** 即可开始对话。
-
-第一次启动会自动在 `~/kiki-data` 生成数据目录（含一个默认的宝“奇奇”，别的宝以后从它分出去），建议先编辑其中的 `AGENTS.md`，写下你希望每个 Bot 都知道的关于你的事。
-
-> Kiki 内核随 `npm install` 一起装好，不需要单独安装。打包成 Mac App 时也会一起封进 `.app`，内核升级经测试后随 Kiki 版本发布。
-
-### 配置项
-
-| 变量 | 默认值 | 说明 |
-|---|---|---|
-| `DEEPSEEK_API_KEY` | — | 模型 API Key |
-| `MODEL` | `deepseek/deepseek-flash` | 模型，格式 `provider/model` |
-| `DATA_DIR` | `~/kiki-data` | 数据目录 |
-| `DEFAULT_AGENT` | `奇奇` | 未选择对话时，消息默认落到哪个 Bot |
-| `PORT` | `4567` | 网页端口 |
-| `TASK_CONCURRENCY` | `2` | 后台任务最多同时跑几个，其余排队 |
-| `TASK_TIMEOUT_MIN` | `30` | 单个后台任务超过多少分钟没做完就停下，标成失败 |
-
-## 💡 使用指南
-
-在左侧点任意对话即可直接聊天；点 Bot 名旁的 **+** 新建对话。在主 Bot 里也可以用命令：
+<details>
+<summary><b>命令一览</b></summary>
 
 | 命令 | 作用 |
 |---|---|
-| `/new <bot> <名字>` | 在指定 Bot 下新开一段具名对话并切换过去 |
-| `/use <名字>` | 切换到已有对话（重名时写 `bot/名字`） |
-| `/list [bot]` | 列出全部或某个 Bot 的对话 |
-| `/bg <任务>` | 把任务交给后台：分叉当前对话去做，完成后回报到主 Bot 和原对话 |
-| `/tasks [all]` | 查看后台任务（默认只看没做完的和最近 10 个） |
+| `@宝名 <内容>` | 直接交给某个宝 |
+| `/new <宝> <名字>` | 在指定宝下新开一段讨论串 |
+| `/use <名字>` | 切到已有对话（重名时写 `宝/名字`） |
+| `/list [宝]` | 列出全部或某个宝的对话 |
+| `/bg <任务>` | 交给后台去做，完成后回报到原对话 |
+| `/tasks [all]` | 查看后台任务 |
 | `/retry <任务id>` | 重跑失败或中断的任务 |
 | `/run <任务id>` | 待办马上开始（定时任务就是马上多跑一次） |
 | `/cancel <任务id>` | 取消待办、定时任务，或不做了的“等你回答”任务 |
 | `/answer <任务id> <话>` | 回答卡住的后台任务（也可以直接在那段后台对话里回） |
+| `/agents` | 查看所有宝 |
+| `/where` | 查看当前在哪段对话 |
+| `/help` | 帮助 |
 
-### 待办、定时和任务看板
+**待办、定时和任务看板**
 
 - 跟宝说“明天 9 点帮我…”“每个工作日早上整理…”“等 A 做完再做 B”“先记下，回头做”，它会用 `kiki_task` 记成待办或定时任务。到点、或者前一个任务做完，就自动开到后台去做，做完回报到原对话和奇奇。
 - 后台任务缺了关键信息时会停在“等你”，奇奇里会出一条提醒；直接在那段后台对话里回一句，它就接着干。
 - 右栏“待办和定时”旁点 **看板**，按 待办 › 进行中 › 等你 › 完成 看所有任务，可以开始、取消、重跑。
 - 时间支持：`+30m`、`21:00`、`明天 09:00`、`周五 18:00`、`下周一 10:00`、`2026-11-05 09:00`；重复支持：`每天 09:00`、`工作日 09:00`、`每周一 09:00`、`每小时`。
-| `/agents` | 查看所有 Bot |
-| `/where` | 查看当前所在的对话 |
-| `/help` | 帮助 |
 
-### 新增一个专属 Bot
+</details>
 
-```bash
-mkdir -p ~/kiki-data/agents/study
-$EDITOR ~/kiki-data/agents/study/AGENTS.md   # 写清楚：负责什么、怎么干、交回什么
+## 🏗️ 架构
+
+```mermaid
+flowchart LR
+    U([你]) -->|一句话| Q{{奇奇<br/>收件箱 · 分派}}
+    Q -->|简单问题| A([直接回答])
+    Q -->|交给对的宝| M1
+    Q -->|一段话拆给几个宝| M2
+    Q -.->|没有合适的宝| NEW[自动新建一个宝]
+
+    subgraph TRAVEL[宝：旅行]
+        M1[主对话] --> T1[讨论串：东京五日游]
+        M1 --> T2[讨论串：机票比价]
+    end
+    subgraph DEV[宝：Kiki开发]
+        M2[主对话] --> T3[讨论串：README 重写]
+        M2 -.->|后台任务| BG[讨论串：发版]
+    end
+
+    TRAVEL & DEV --> K[(Kiki 内核)]
+    K --> LLM[DeepSeek / Claude / GPT / Gemini ...]
+    BG -.->|做完回报| M2
 ```
 
-刷新网页就能看到新 Bot，无需重启。
+**三层分派**
+
+1. **奇奇**：做得很薄，只负责分诊和转发，自己不接具体的事。分派时参考每个宝"负责什么"和每段对话的一句话摘要。
+2. **宝**：`~/kiki-data/agents/<宝名>/` 下的一个文件夹，`AGENTS.md` 写清楚它负责什么、怎么干活。每个宝有一段固定的主对话。
+3. **讨论串**：宝下面的具体对话，以 JSONL 保存在本地，可读、可备份、可迁移。
 
 ## 📂 数据目录
 
 ```text
 ~/kiki-data/
-├── AGENTS.md              # 关于我：所有 Bot 共享
-├── registry.json          # 对话名册：有哪些具名对话、各属于哪个 Bot
-├── main.jsonl             # 主 Bot 的收件记录
-├── tasks/                 # 后台任务、待办、定时任务：一个任务一个 .md（YAML 写状态和时间，正文写任务和结果）
+├── AGENTS.md              # 关于我：所有宝共享
+├── 分派规则.md             # 奇奇怎么分派，随时可改，不用重启
+├── .env                   # 模型密钥等配置（只有你能读）
+├── registry.json          # 对话名册和一句话摘要
+├── tasks/                 # 后台任务：一个任务一个 .md
+├── trash/                 # 回收站：删掉的讨论串在这里，不真删
+├── engine/                # Kiki 内核的扩展和 MCP 配置
 └── agents/
-    ├── 奇奇/              # 默认的宝
-    │   ├── AGENTS.md      # 它的职责说明
-    │   └── sessions/      # 它的对话记录（JSONL）
-    └── 工作宝/            # 你自己新建的宝
-        └── ...
+    ├── 奇奇/               # 默认的宝，负责分派
+    └── 旅行/
+        ├── AGENTS.md      # 旅行负责什么、怎么干活
+        └── sessions/      # 主对话和讨论串（JSONL）
 ```
 
 建议把 `~/kiki-data` 纳入 Time Machine 或私有 Git 仓库备份。
 
-## 🧩 推荐扩展
+## 🗺️ 路线图
 
-Kiki 内核兼容 pi 扩展生态。扩展装在 Kiki 自己的内核目录（`~/kiki-data/engine`），和你电脑上另装的 pi 互不影响。在仓库目录里运行：
+- [x] 奇奇分派：自动选宝、新建宝、一段话拆给多个宝
+- [x] 宝的主对话 + 讨论串，四栏界面
+- [x] 后台任务：排队、重跑、回报原对话
+- [x] 对话摘要、跨对话捎话、交接
+- [x] 审批：收不回来的动作先问
+- [x] 看图、手动选模型、订阅登录
+- [x] Mac App：一键安装、`.dmg`、自动更新、开场动画
+- [x] 通过 Tailscale 安全远程使用，多台设备共用一个后台
+- [ ] 待办、定时任务和任务看板 *（进行中）*
+- [ ] 收发室：接入外部 Agent 和消息通道 *（进行中）*
+- [ ] 苹果签名和公证
+
+## 🚀 从源码运行
+
+想参与开发，按下面的步骤来。需要 [Node.js](https://nodejs.org) 22.19 或以上。
 
 ```bash
-npm run pi -- install npm:pi-web-access   # 装扩展
+git clone https://github.com/lkyxuan/kiki.git ~/kiki
+cd ~/kiki
+npm install
+cp .env.example .env     # 填入模型的 API Key，也可以启动后在设置里填
+npm start
+```
+
+打开 **<http://localhost:4567>** 即可开始对话。
+
+<details>
+<summary><b>配置项</b></summary>
+
+这些写在 `~/kiki-data/.env`（源码运行时是仓库里的 `.env`），大部分也能在设置里改。
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | — | DeepSeek 密钥；其他服务商在设置里配置 |
+| `MODEL` | `deepseek/deepseek-flash` | 默认模型，格式 `provider/model` |
+| `SUMMARY_MODEL` | 同 `MODEL` | 写对话摘要、做分派用的模型，可以换便宜的 |
+| `VISION_MODEL` | 自动挑 | 当前模型看不了图时，用它来读图 |
+| `DATA_DIR` | `~/kiki-data` | 数据目录 |
+| `DEFAULT_AGENT` | `奇奇` | 没选对话时，消息落到哪个宝 |
+| `PORT` | `4567` | 网页端口 |
+| `TASK_CONCURRENCY` | `2` | 后台任务最多同时跑几个 |
+| `TASK_TIMEOUT_MIN` | `30` | 单个后台任务超时分钟数 |
+| `KIKI_AUTO_UPDATE` | `1` | 设成 `0` 就不自动安装更新，只提示 |
+
+</details>
+
+<details>
+<summary><b>扩展与 MCP</b></summary>
+
+Kiki 内核兼容 pi 扩展生态，扩展装在 `~/kiki-data/engine`，和你电脑上另装的 pi 互不影响。可以在设置的「扩展」里装，也可以在仓库目录里运行：
+
+```bash
+npm run pi -- install npm:pi-web-access   # 联网搜索、读网页
 npm run pi -- list                        # 看已装的扩展
 ```
 
-装完重启 Kiki 生效。
+MCP 服务器在设置的「MCP 服务器」里添加，格式和 Claude、Cursor 的 `mcpServers` 一样。
 
-| 扩展 | 作用 | 安装 |
-|---|---|---|
-| [pi-web-access](https://www.npmjs.com/package/pi-web-access) | 联网搜索、读取网页、PDF、GitHub 仓库 | `npm run pi -- install npm:pi-web-access` |
-| [cc-safety-net](https://ccsafetynet.com/docs/installation/pi) | 拦截 `rm -rf` 等危险命令与密钥文件读取 | 见[官方说明](https://ccsafetynet.com/docs/installation/pi) |
+</details>
 
-### MCP 服务器
-
-Kiki 支持 MCP（和 Claude、Cursor 同一种工具接口）。在 **设置 → 扩展 → MCP 服务器** 里添加：本机命令填一行（比如 `cua-driver mcp`，让 Bot 操作 Mac 上的 App），远程服务器填 https:// 网址，也可以直接粘贴别的软件里的 `mcpServers` JSON。配置存在 `~/kiki-data/engine/mcp.json`，新开的对话就能用，工具名形如 `mcp__cua-driver__click`。
-
-> [!WARNING]
-> Bot 可以读写文件、执行命令，在你的电脑上拥有真实权限。强烈建议安装 cc-safety-net。
-
-## 🗺️ 路线图
-
-- [x] Kiki 内核：多 Bot、多具名对话
-- [x] 后台任务与结果回报
-- [x] 本机聊天网页（流式输出）
-- [ ] 主 Bot 自动路由：用轻量模型判断该接哪段对话
-- [ ] Kiki 自带扩展（`extensions/`）
-- [x] Mac App：一键安装、开机自启、自动更新
-- [x] 通过 Tailscale 安全远程使用
-- [ ] 消息通道插件接口（微信等）
-- [ ] 定时任务
-
-## 🛠️ 技术栈
+<details>
+<summary><b>技术栈与代码结构</b></summary>
 
 | 层 | 选型 |
 |---|---|
@@ -237,18 +234,21 @@ Kiki 支持 MCP（和 Claude、Cursor 同一种工具接口）。在 **设置 �
 | 界面 | 本机网页（SSE 流式输出），封装为 Mac App |
 | 存储 | 本地文件：Markdown + JSONL，无数据库 |
 
-<details>
-<summary><b>代码结构</b></summary>
-
 ```text
 src/
 ├── main.ts       # 入口：读取配置，连接网页、路由与内核
-├── server.ts     # 本机网页与 API，也是未来接入其他通道的边界
-├── router.ts     # 主 Bot：命令解析与分派
-├── registry.ts   # 对话名册
-└── agents.ts     # 内核封装：建对话、续对话、流式事件、读取历史
-public/
-└── index.html    # 聊天网页
+├── server.ts     # 本机网页与 API
+├── router.ts     # 奇奇：分派、命令、转发
+├── route.ts      # 自动分派的判断逻辑
+├── agents.ts     # 内核封装：建对话、续对话、流式事件
+├── tasks.ts      # 后台任务
+├── summary.ts    # 对话摘要
+├── tools.ts      # 宝的工具：看别的对话、捎话、记事
+├── approval.ts   # 审批
+├── update.ts     # 自动更新
+└── ...
+public/           # 聊天界面、设置页、开场动画
+packaging/        # Mac App 打包与安装脚本
 ```
 
 ```bash
@@ -268,50 +268,10 @@ npm run check     # 类型检查
 
 ## 🙏 致谢
 
-Kiki 站在许多优秀项目的肩膀上。感谢下面这些个人 Agent 和编程 Agent，它们的开源代码、产品设计和公开分享给了 Kiki 很多启发。
-
-**Kiki 直接依赖的**
-
-- [pi](https://pi.dev)（[pi-mono](https://github.com/badlogic/pi-mono)）：Kiki 内核所基于的开源 Agent 框架
-- [DeepSeek](https://www.deepseek.com)：Kiki 默认使用的大模型
-- [cua](https://github.com/trycua/cua)：电脑操控（Computer-Use Agent）的开源基础设施，cua-driver 开关来自这里
-
-**个人 Agent 与 Agent 网关**
-
-- [OpenClaw](https://github.com/openclaw/openclaw)：本地运行的个人 AI 助手，session 工具设计的灵感来源
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent)：Nous Research 的自我成长型个人 Agent，Kiki 的前身就是在它之上起步的
+- [pi](https://pi.dev)：Kiki 内核所基于的开源 Agent 框架
+- OpenClaw：后台任务和跨对话工具的设计灵感
+- Hermes：自动更新和看图的设计灵感
 - Grok Bot：交互形态的灵感来源
-- [Letta](https://github.com/letta-ai/letta)（原 MemGPT）：有长期记忆的有状态 Agent
-- [Open Interpreter](https://github.com/openinterpreter/open-interpreter)：让大模型在本机跑代码、操作电脑
-- [AutoGPT](https://github.com/Significant-Gravitas/AutoGPT)：自主 Agent 的早期开创者
-- [Manus](https://manus.im)：通用型自主 Agent
-- [browser-use](https://github.com/browser-use/browser-use)：让 Agent 操作浏览器
-
-**编程 Agent**
-
-- [Claude Code](https://github.com/anthropics/claude-code)：Anthropic 的终端编程 Agent
-- [Codex](https://github.com/openai/codex)：OpenAI 的开源终端编程 Agent
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli)：Google 的开源终端 Agent
-- [Qwen Code](https://github.com/QwenLM/qwen-code)：通义千问的终端编程 Agent
-- [Kimi CLI](https://github.com/MoonshotAI/kimi-cli)：月之暗面的终端 Agent
-- [opencode](https://github.com/sst/opencode)：开源、可接任意模型的终端编程 Agent
-- [Crush](https://github.com/charmbracelet/crush)：Charm 出品的终端编程 Agent
-- [Aider](https://github.com/Aider-AI/aider)：终端里的 AI 结对编程，git 原生
-- [Goose](https://github.com/block/goose)：Block 开源的本地可扩展 Agent
-- [OpenHands](https://github.com/All-Hands-AI/OpenHands)：开源的 AI 软件工程师平台
-- [SWE-agent](https://github.com/SWE-agent/SWE-agent)：让大模型自动修 GitHub issue 的研究型 Agent
-- [Cline](https://github.com/cline/cline)：VS Code 里的自主编程 Agent，每一步都可审批
-- [Roo Code](https://github.com/RooCodeInc/Roo-Code)：多角色模式的编辑器内 Agent
-- [Kilo Code](https://github.com/Kilo-Org/kilocode)：开源的编辑器内编程 Agent
-- [Continue](https://github.com/continuedev/continue)：开源的 IDE 编程助手
-- [Cursor](https://cursor.com)、[Windsurf](https://windsurf.com)、[Zed](https://zed.dev)、[Amp](https://ampcode.com)、[Devin](https://devin.ai)、[GitHub Copilot](https://github.com/features/copilot)：把 Agent 带进日常开发的产品
-
-**开放标准**
-
-- [Model Context Protocol](https://modelcontextprotocol.io)：Agent 连接工具和数据的开放协议
-- [AGENTS.md](https://agents.md)：给 Agent 看的项目说明约定，每个宝的 AGENTS.md 沿用了它
-
-以上项目的名称和商标归各自所有者所有，列在这里只为致谢，不代表任何合作或背书。
 
 ## 📄 许可证
 
