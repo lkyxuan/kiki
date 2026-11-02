@@ -101,7 +101,10 @@ export function startServer(opts: {
       return JSON.parse(s || "{}");
     };
 
-    if (url.pathname === "/api/tree") return json(tree());
+    if (url.pathname === "/api/tree") {
+      await router.ensureMains().catch(() => {}); // 刚在设置页新建的宝，也马上带上主对话
+      return json(tree());
+    }
     if (url.pathname.startsWith("/api/settings")) return settings(req, res, url); // 设置页，见 settings.ts
 
     // 健康检查：自动更新换完版本后靠它确认新版本起来了
