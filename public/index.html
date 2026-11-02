@@ -642,6 +642,7 @@ function baoDialog(editing, info = {}) {
   f.querySelector(".primary").textContent = editing ? "保存" : "创建";
   f.name.readOnly = !!editing;
   f.name.title = editing ? "宝的名字暂时不能改" : "";
+  f.about.maxLength = editing ? 2000 : 500;
   if (editing) { f.name.value = editing; f.about.value = info.about || ""; }
   drawFaces();
   box.hidden = false;
@@ -665,7 +666,7 @@ function baoDialog(editing, info = {}) {
     btn.disabled = true; err.textContent = "";
     if (editing) {
       try {
-        const r = await fetch("/api/settings/agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, edit: true, about: f.about.value.trim(), emoji: face }) });
+        const r = await fetch("/api/settings/agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, edit: true, emoji: face, ...(f.about.value.trim() !== (info.about || "").trim() ? { about: f.about.value.trim() } : {}) }) }); // 没改的不发，免得动到原文
         const data = await r.json().catch(() => ({}));
         if (!r.ok) { err.textContent = data.error || "没存上，再试一次"; return; }
         delete aboutCache[name]; // 右栏里宝的介绍要重新读

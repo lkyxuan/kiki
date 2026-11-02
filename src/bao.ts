@@ -32,7 +32,8 @@ export function baoDoc(name: string, duty: string): string {
   return `# ${name}\n\n## 我负责什么\n${what}\n\n## 我怎么干活\n- 回答简短，结论在前。\n- 需要记下来的东西，写进这个文件夹下的 notes/ 里（一个主题一个 .md）。\n`;
 }
 
-const DUTY_RE = /(^|\n)##[ \t]*我负责什么[ \t]*\n([\s\S]*?)(?=\n##?[ \t]|$)/;
+// 「## 我负责什么」这一行，加上它下面直到下一个 # / ## 标题之前的每一行（标题紧挨着也算）
+const DUTY_RE = /(^|\n)##[ \t]*我负责什么[ \t]*(?:\n|$)((?:(?!#{1,2}[ \t])[^\n]*(?:\n|$))*)/;
 
 /** 从 AGENTS.md 里取「我负责什么」这一段的内容，没有就是空。 */
 export function readDuty(md: string): string {
@@ -43,7 +44,11 @@ export function readDuty(md: string): string {
 export function setDuty(md: string, name: string, duty: string): string {
   // 可以写几行，但不留空行，也不能写成小标题（不然这一段就断了）
   const what = duty.split("\n").map((l) => l.trim().replace(/^#+\s*/, "")).filter(Boolean).join("\n") || `${name}相关的事`;
-  if (DUTY_RE.test(md)) return md.replace(DUTY_RE, (_m, lead) => `${lead}## 我负责什么\n${what}\n`);
+  const m = md.match(DUTY_RE);
+  if (m && m.index !== undefined) {
+    const end = m.index + m[0].length;
+    return `${md.slice(0, m.index)}${m[1]}## 我负责什么\n${what}\n${end < md.length ? `\n${md.slice(end)}` : ""}`;
+  }
   const title = md.match(/^#[ \t]+[^\n]*\n?/);
   if (!title) return `# ${name}\n\n## 我负责什么\n${what}\n${md.trim() ? `\n${md}` : ""}`;
   const rest = md.slice(title[0].length).replace(/^\n+/, "");

@@ -36,4 +36,9 @@ test("宝设置：只改「我负责什么」这一段，别的原样留着", as
   assert.equal(next.replace("管会议\n和邮件", "管项目"), md);
   assert.equal(setDuty("# 工作\n\n## 我怎么干活\n- x\n", "工作", "a"), "# 工作\n\n## 我负责什么\na\n\n## 我怎么干活\n- x\n");
   assert.equal(readDuty(setDuty("", "工作", "")), "工作相关的事");
+  // 「我负责什么」是空的、下一个标题紧挨着：不能把后面那段吞掉
+  const tight = "# 工作\n\n## 我负责什么\n## 我怎么干活\n- 保留规则\n";
+  assert.equal(readDuty(tight), "");
+  assert.equal(setDuty(tight, "工作", "管项目"), "# 工作\n\n## 我负责什么\n管项目\n\n## 我怎么干活\n- 保留规则\n");
+  assert.equal(setDuty("# 工作\n\n## 我负责什么", "工作", "x"), "# 工作\n\n## 我负责什么\nx\n");
 });

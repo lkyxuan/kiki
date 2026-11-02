@@ -239,8 +239,9 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
       if (!exists) return json({ error: "没有这个宝" }, 404);
       if (edit) {
         if (typeof about === "string") {
+          if (about.length > 2000) return json({ error: "「我负责什么」太长了，最多 2000 个字，更多的写进完整说明" }, 400);
           const f = agentFile(name);
-          writeFileSync(f, setDuty(existsSync(f) ? readFileSync(f, "utf8") : "", name, about.slice(0, 500)));
+          writeFileSync(f, setDuty(existsSync(f) ? readFileSync(f, "utf8") : "", name, about));
         }
         if (emoji !== undefined) writeLook(name, { emoji: baoEmoji(emoji) || undefined });
         return json({ ok: true });
