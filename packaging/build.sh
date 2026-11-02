@@ -48,8 +48,9 @@ else
 fi
 chmod +x "$APP/Contents/MacOS/"* "$RES/kiki-setup" "$RES/swap.sh" "$RES/node/bin/node"
 
-# 在 Mac 上打包时顺手做个本地签名（没有开发者证书也行）
-if command -v codesign >/dev/null; then codesign --force --deep --sign - "$APP" 2>/dev/null || true; fi
+# 签名：配了开发者证书（KIKI_SIGN_IDENTITY）就正式签名并交给苹果公证，没配就照旧本地签名。见 docs/signing.md
+packaging/sign.sh app "$APP"
+packaging/sign.sh notarize-app "$APP"
 
 # 5. 压缩（保留符号链接和执行权限）+ 校验和
 ZIP="Kiki-mac-$ARCH.zip"
@@ -72,6 +73,7 @@ if command -v hdiutil >/dev/null; then
   ln -s /Applications "$STAGE/应用程序"
   hdiutil create -quiet -volname "Kiki ${VERSION}" -srcfolder "$STAGE" -ov -format UDZO "$OUT/$DMG"
   rm -rf "$STAGE"
+  packaging/sign.sh dmg "$OUT/$DMG"
   (cd "$OUT" && shasum -a 256 "$DMG") > "$OUT/$DMG.sha256"
   echo "完成：$OUT/${DMG}（$(du -h "$OUT/$DMG" | cut -f1)）"
 fi

@@ -286,6 +286,17 @@ export class Updater extends EventEmitter {
       mkdirSync(staging, { recursive: true });
       await run("/usr/bin/ditto", ["-x", "-k", zip, staging]);
       const staged = join(staging, "Kiki.app");
+      // 正在用的是开发者签名版，就只接受同一个开发者（团队 ID）签名、签名完整的新版本，别人冒充不了。
+      // 现在的本地签名版没有团队 ID，不查，这样才能顺利升到第一个签名版。
+      const mine = await signedTeam(app);
+      if (mine) {
+        await run("/usr/bin/codesign", ["--verify", "--deep", "--strict", staged]).catch(() => {
+          throw new Error("新版本的签名不完整，已放弃");
+        });
+        const theirs = await signedTeam(staged);
+        if (theirs !== mine) throw new Error(`新版本不是同一个开发者签的（${theirs ?? "没有开发者签名"}，应为 ${mine}），已放弃`);
+        this.log(`签名核对通过（团队 ${mine}）`);
+      }
       const res2 = join(staged, "Contents", "Resources");
       const { stdout } = await run(join(res2, "node", "bin", "node"), [join(res2, "app", "dist", "main.js"), "--selftest"], {
         timeout: 60_000,
@@ -347,5 +358,21 @@ export class Updater extends EventEmitter {
     // 只留最近 5 份
     const all = readdirSync(dir).sort();
     for (const old of all.slice(0, Math.max(0, all.length - 5))) rmSync(join(dir, old), { recursive: true, force: true });
+  }
+}
+
+/** 从 `codesign -dv` 的输出里取团队 ID；本地签名（ad-hoc）是 "not set"，返回 undefined。 */
+export function teamIdFrom(codesignOutput: string): string | undefined {
+  const m = /^TeamIdentifier=(\S+)\s*$/m.exec(codesignOutput);
+  return m && m[1] !== "not" ? m[1] : undefined;
+}
+
+/** App 的开发者团队 ID；没签名、本地签名或不在 Mac 上都返回 undefined。 */
+async function signedTeam(app: string): Promise<string | undefined> {
+  try {
+    const { stdout, stderr } = await run("/usr/bin/codesign", ["-dv", "--verbose=2", app]);
+    return teamIdFrom(stderr + stdout);
+  } catch {
+    return undefined;
   }
 }
