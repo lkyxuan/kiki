@@ -9,6 +9,7 @@ import { Approvals } from "./approval.js";
 import { handoffTool } from "./handoff.js";
 import { loadRules } from "./rules.js";
 import { kikiTools } from "./tools.js";
+import { lookTool } from "./look.js";
 import { type FeatureId, isOn } from "./features.js";
 import { Summaries } from "./summary.js";
 import { MAIN_SESSION } from "./bao.js";
@@ -89,6 +90,7 @@ agents.toolsFor = () =>
   [
     handoffTool({ listBaos: () => agents.listAgents(), describe: (b) => agents.describe(b), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
     ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
+    lookTool((name, q) => agents.look(name, q)), // 看不了图的模型再看一眼图
   ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
 
 // 每个宝一段主对话，老对话都当讨论串。放在扩展和工具都挂好之后，启动时补建的主对话也带着它们
