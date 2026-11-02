@@ -290,12 +290,11 @@ export class Updater extends EventEmitter {
       // 现在的本地签名版没有团队 ID，不查，这样才能顺利升到第一个签名版。
       const mine = await signedTeam(app);
       if (mine) {
-        await run("/usr/bin/codesign", ["--verify", "--deep", "--strict", staged]).catch(() => {
-          throw new Error("新版本的签名不完整，已放弃");
+        // 不能只比显示出来的团队 ID（自签证书也能填同样的字）：要求证书链通到苹果、是 Developer ID、团队一致
+        await run("/usr/bin/codesign", ["--verify", "--deep", "--strict", `-R=${developerIdRequirement(mine)}`, staged]).catch(() => {
+          throw new Error(`新版本不是团队 ${mine} 用苹果颁发的 Developer ID 证书签的，或者签名不完整，已放弃`);
         });
-        const theirs = await signedTeam(staged);
-        if (theirs !== mine) throw new Error(`新版本不是同一个开发者签的（${theirs ?? "没有开发者签名"}，应为 ${mine}），已放弃`);
-        this.log(`签名核对通过（团队 ${mine}）`);
+        this.log(`签名核对通过（团队 ${mine}，苹果颁发的 Developer ID）`);
       }
       const res2 = join(staged, "Contents", "Resources");
       const { stdout } = await run(join(res2, "node", "bin", "node"), [join(res2, "app", "dist", "main.js"), "--selftest"], {
@@ -365,6 +364,15 @@ export class Updater extends EventEmitter {
 export function teamIdFrom(codesignOutput: string): string | undefined {
   const m = /^TeamIdentifier=(\S+)\s*$/m.exec(codesignOutput);
   return m && m[1] !== "not" ? m[1] : undefined;
+}
+
+/** 只认苹果颁发的 Developer ID Application 证书、且属于这个团队的签名要求（codesign -R 用）。 */
+export function developerIdRequirement(team: string): string {
+  if (!/^[A-Z0-9]{10}$/.test(team)) throw new Error(`团队 ID 格式不对：${team}`);
+  return (
+    "anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists" +
+    ` and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = "${team}"`
+  );
 }
 
 /** App 的开发者团队 ID；没签名、本地签名或不在 Mac 上都返回 undefined。 */
