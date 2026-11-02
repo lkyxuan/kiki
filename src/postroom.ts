@@ -43,6 +43,8 @@ export interface Incoming {
   re?: string; // 回复的是哪次派活（outbox 里的 id）
   attention?: boolean; // 对方说这条要你亲自看
   bao?: string; // 对方指定交给哪个宝
+  /** 收发室把这条落盘后调用：这时对方那边才算“已取走”（信箱就是把文件挪进 done/） */
+  ack?: () => void;
 }
 
 /** 派给外部 agent 的一件事。 */
@@ -59,7 +61,7 @@ export interface ExternalAgent {
   readonly kind: string;
   status(): Promise<AgentStatus>;
   dispatch(task: Outgoing): Promise<void>;
-  /** 拿新到的消息和结果；拿走的下次不会再给 */
+  /** 拿新到的消息和结果；调过 ack 的下次不会再给，没调的下次还会给 */
   collect(): Promise<Incoming[]>;
 }
 
@@ -123,10 +125,20 @@ export class MailboxAgent implements ExternalAgent {
       const file = join(inbox, f);
       const st = statSync(file);
       if (!st.isFile() || now - st.mtimeMs < SETTLE_MS) continue;
-      const msg = parseMessage(readFileSync(file, "utf8"), extname(f).toLowerCase() === ".json");
-      mkdirSync(done, { recursive: true });
-      renameSync(file, join(done, f)); // 拿走的挪进 done/，不删，想翻还能翻
-      if (msg.text || msg.title) out.push({ ...msg, id: msg.id || basename(f, extname(f)) });
+      // 收发室落盘后才挪进 done/（不删，想翻还能翻）；中途出错或重启，没挪走的下一轮再收
+      const ack = () => {
+        mkdirSync(done, { recursive: true });
+        renameSync(file, join(done, f));
+      };
+      let msg: Incoming;
+      try {
+        msg = parseMessage(readFileSync(file, "utf8"), extname(f).toLowerCase() === ".json");
+      } catch (e) {
+        console.warn(`[postroom] ${this.name} 的 ${f} 读不了：${(e as Error).message}`);
+        continue;
+      }
+      if (msg.text || msg.title) out.push({ ...msg, id: msg.id || basename(f, extname(f)), ack });
+      else ack(); // 空文件直接收走
     }
     return out;
   }
@@ -159,7 +171,9 @@ export function parseMessage(raw: string, isJson = false): Incoming {
     try {
       const p = JSON.parse(v);
       v = typeof p === "string" ? p : String(p);
-    } catch {} // 没加引号也认
+    } catch {
+      v = v.replace(/\s+#.*$/, ""); // 没加引号也认，行尾的 # 注释去掉
+    }
     h[line.slice(0, i).trim()] = v;
   }
   return { id: h.id ?? "", text: m[2].trim(), title: h.title || undefined, re: h.re || undefined, attention: h.attention === "true", bao: h.bao || undefined };
@@ -250,6 +264,7 @@ export class Postroom extends EventEmitter {
   private statuses = new Map<string, AgentStatus & { kind: string }>();
   private timer?: NodeJS.Timeout;
   private polling?: Promise<void>;
+  private delivering: Promise<void> = Promise.resolve(); // 分派排成一队，和收信分开：分派要等宝回答，收信不能被它卡住
   /** 新消息交给奇奇分派，返回奇奇的回执。server.ts 接上 */
   deliver: (item: InboxItem) => Promise<string> = async () => {
     throw new Error("奇奇还没接上");
@@ -301,6 +316,7 @@ export class Postroom extends EventEmitter {
     this.timer = setInterval(() => void this.poll(), ms);
     this.timer.unref();
     setTimeout(() => void this.poll(), 3000).unref(); // 启动后先收一次
+    for (const it of this.inbox.rows) if (it.status === "new") this.enqueue(it); // 上次落了盘、还没分出去就关掉的
   }
 
   stop() {
@@ -336,7 +352,13 @@ export class Postroom extends EventEmitter {
       if (old?.state !== st.state || old?.note !== st.note) changed = true;
       this.statuses.set(cfg.name, { ...st, kind: cfg.kind });
       for (const m of got) {
-        await this.receive(cfg.name, m);
+        const item = this.record(cfg.name, m);
+        try {
+          m.ack?.();
+        } catch (e) {
+          console.warn(`[postroom] 收走 ${cfg.name} 的消息失败：${(e as Error).message}`);
+        }
+        this.enqueue(item);
         changed = true;
       }
     }
@@ -348,8 +370,17 @@ export class Postroom extends EventEmitter {
     if (changed) this.emit("change", this.state());
   }
 
-  /** 收下一条：先进队列落盘，再分出去。 */
-  private async receive(from: string, m: Incoming) {
+  /** 等排着的分派都做完（测试用）。 */
+  settled(): Promise<void> {
+    return this.delivering;
+  }
+
+  private enqueue(item: InboxItem) {
+    this.delivering = this.delivering.then(() => this.route(item)).then(() => void this.emit("change", this.state()));
+  }
+
+  /** 收下一条：先进队列落盘。 */
+  private record(from: string, m: Incoming): InboxItem {
     const item: InboxItem = {
       id: newId(),
       from,
@@ -362,9 +393,14 @@ export class Postroom extends EventEmitter {
       status: "new",
     };
     this.inbox.put(item);
-    const sent = m.re ? this.outbox.get(m.re) : undefined;
+    return item;
+  }
+
+  /** 分出去：回复某次派活的回到派活的对话，其余交给奇奇。不抛错，失败记在这条上。 */
+  private async route(item: InboxItem) {
+    const sent = item.re ? this.outbox.get(item.re) : undefined;
     try {
-      if (sent && sent.to === from && (await this.answer(item, sent))) {
+      if (sent && sent.to === item.from && (await this.answer(item, sent))) {
         this.outbox.put({ ...sent, status: "answered", answer: item.id });
         this.inbox.put({ ...item, status: "replied" });
         return;
@@ -456,8 +492,7 @@ export function postroomTool(pr: Postroom, label: (path: string | undefined) => 
     async execute(_id, p: any, _signal, _onUpdate, ctx) {
       try {
         if (p.action === "list") {
-          await pr.poll();
-          const s = pr.state();
+          const s = pr.state(); // 只看已知的状态，不在这里收信：收到的消息可能正等着这段对话回答，等它会卡死
           if (!s.agents.length) return reply("还没有外部 agent。在 数据目录/postroom/mailbox/ 下建一个文件夹就能接上一个（格式见那里的 README.md）。");
           return reply(s.agents.map((a) => `- ${a.name}（${a.kind}）：${a.label}${a.note ? `，${a.note}` : ""}${a.waiting ? `；还有 ${a.waiting} 件没回` : ""}`).join("\n"));
         }
@@ -495,11 +530,15 @@ const MAILBOX_README = `# 收发室的信箱
 \`\`\`markdown
 ---
 title: 每日巡检做完了
-re: 20261102-100000-abc   # 回复的是哪次派活（to-agent 里那个文件的 id），结果会直接回到派活的那段对话
-attention: true           # 要主人亲自看，会显示在「情况」里
-bao: 工作宝               # 指定交给哪个宝；不写就由奇奇判断
+re: 20261102-100000-abc
+attention: true
+bao: 工作宝
 ---
 
 正文写在这里。
 \`\`\`
+
+- re：回复的是哪次派活（to-agent 里那个文件的 id），结果会直接回到派活的那段对话
+- attention：写 true 表示要主人亲自看，会显示在「情况」里
+- bao：指定交给哪个宝；不写就由奇奇判断
 `;
