@@ -2,7 +2,7 @@
 // 每个 agent 是 DATA_DIR/agents/<名字>/ 一个文件夹，里面的 AGENTS.md 就是它的说明；
 // DATA_DIR/AGENTS.md（关于我）在上级目录，pi 会自动一起读进来。
 import { EventEmitter } from "node:events";
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   type AgentSession,
@@ -258,6 +258,23 @@ export class Agents extends EventEmitter {
     return run;
   }
 
+  /** 关掉一段对话：停下手上的活、放开内存，JSONL 挪进 数据目录/trash/<宝>/（不真删，需要时还能找回）。 */
+  async discard(agent: string, path: string, name: string) {
+    const s = this.live.get(path);
+    if (s) {
+      await s.abort().catch(() => {});
+      s.dispose();
+    }
+    this.live.delete(path);
+    this.queues.delete(path);
+    if (this.runs.delete(path)) this.emit("activity", { path, live: null });
+    if (!existsSync(path)) return; // 还没回答过的对话，文件没写盘
+    const dir = join(this.dataDir, "trash", agent);
+    mkdirSync(dir, { recursive: true });
+    const safe = name.replace(/[\\/:*?"<>|]/g, "_").slice(0, 60);
+    renameSync(path, join(dir, `${trashStamp()}-${safe}.jsonl`));
+  }
+
   /** 停掉正在跑的对话（后台任务超时用）。 */
   async abort(path: string) {
     await this.live.get(path)?.abort();
@@ -339,4 +356,10 @@ function lastReply(s: AgentSession): string {
     if (text) return text;
   }
   return "（没有文字回答）";
+}
+
+/** 回收站文件名前缀，比如 20261102-103015 */
+function trashStamp(d = new Date()) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
