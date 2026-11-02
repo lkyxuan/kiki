@@ -86,17 +86,21 @@ flowchart LR
 
 ## 🍎 Install the Mac App
 
-Recommended setup: run Kiki on an always-on Mac mini and use it remotely from your MacBook or iPhone. Run one line in Terminal on the Mac mini:
+Requires macOS 12 or later, on Apple silicon or Intel. Any Mac works; if you also want to use it from your phone, install it on an always-on Mac such as a Mac mini. Pick one of two ways:
+
+**Option 1: one line in Terminal (recommended).** It downloads, verifies, installs and starts Kiki, and macOS won't block it:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash
 ```
 
+**Option 2: download the disk image.** Get the `.dmg` from the [releases page](https://github.com/lkyxuan/kiki/releases/latest) (`Kiki-mac-arm64.dmg` for Apple silicon, `Kiki-mac-x64.dmg` for Intel), drag Kiki into Applications, then open it from Applications. Kiki isn't signed with an Apple Developer ID yet, so the first launch says the developer can't be verified: click Done, go to System Settings → Privacy & Security, scroll to the bottom and click Open Anyway.
+
 - **Works out of the box**: Kiki.app bundles its own runtime and the Kiki Engine, so there's no Node to install. It starts in the background at login and restarts automatically if it crashes.
 - **Automatic updates**: a prompt appears in the top-right corner of the web UI when a new version is out. By default it installs while no conversation is running, and rolls back automatically if anything fails.
 - **Secure remote access**: Kiki listens only on localhost. Remote access goes through an encrypted [Tailscale](https://tailscale.com) connection, so only your own devices can reach it.
 
-After installing, add your model API key to `~/kiki-data/.env`, then restart Kiki: `launchctl kickstart -k gui/$(id -u)/com.lkyxuan.kiki`. See the **[Mac App guide](docs/mac-app.md)** (Chinese) for full install, update, remote access and uninstall instructions.
+On first launch choose "在这台电脑上运行" (run on this Mac), then open Settings (bottom left) → 模型与密钥 (Model & key), paste your [DeepSeek API key](https://platform.deepseek.com/api_keys) and save. You can start chatting right away. See the **[Mac App guide](docs/mac-app.md)** (Chinese) for full install, update, remote access and uninstall instructions.
 
 ## 🚀 Quick Start
 

@@ -10,13 +10,15 @@ Kiki 装在 Mac mini 上一直开着，你在 MacBook、iPhone 上用浏览器�
 
 ## 安装
 
-在 Mac mini 的“终端”里跑一行。
+需要 macOS 12 或以上。在“终端”里跑一行（也可以到发布页下载 `.dmg`，见下面）。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash
 ```
 
-它会下载最新版、核对校验和、放进“应用程序”、启动 Kiki。用脚本装而不是浏览器下载，是因为 Kiki 还没有苹果开发者签名，浏览器下载的 App 会被 macOS 拦下来。
+它会下载最新版、核对校验和、放进“应用程序”、启动 Kiki。推荐用脚本装，是因为 Kiki 还没有苹果开发者签名，浏览器下载的 App 会被 macOS 拦一下。
+
+不想用终端的话，到 [发布页](https://github.com/lkyxuan/kiki/releases/latest) 下载 `.dmg`（Apple 芯片选 arm64，Intel 选 x64），打开后把 Kiki 拖进「应用程序」，**从「应用程序」里**打开（直接在安装盘里双击，Kiki 会提示你先拖进去）。第一次打开会提示无法验证开发者：点「完成」，到「系统设置 → 隐私与安全性」拉到最下面点「仍要打开」。
 
 还没有发布版时，也可以在仓库里自己打包再装（需要本机有 Node 22.19 以上）：
 
@@ -26,16 +28,17 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 ### 第一次装好以后
 
-1. 填模型密钥。可以在 Kiki 左下角的「设置」里填，填好点「立即重启」；也可以手动改 `~/kiki-data/.env`。Kiki 在后台运行、没人在电脑前点授权，所以密钥要放在它自己拿得到的地方。推荐 macOS 钥匙串（登录后就能取，不是明文文件）：
+1. 第一次打开选「在这台电脑上运行」，然后填模型密钥：点 Kiki 左下角「设置 → 模型与密钥」，粘贴 DeepSeek API 密钥（到 https://platform.deepseek.com/api_keys 申请），点「保存」，马上就能用。密钥存在 `~/kiki-data/.env`，只有你自己能读。
+
+   进阶：不想让密钥以明文放在文件里，可以放进 macOS 钥匙串（登录后就能取）。Kiki 在后台运行、没人在电脑前点授权，所以密钥要放在它自己拿得到的地方：
    ```bash
-   # 从 1Password 拷一次进钥匙串（把 op:// 换成你自己的引用；也可以把 "$(op read …)" 换成密钥本身）
-   security add-generic-password -U -a "$USER" -s kiki-deepseek -w "$(op read 'op://保险库/条目/字段')"
+   # 把 sk-… 换成你的密钥；用 1Password 的话可以写成 -w "$(op read 'op://保险库/条目/字段')"
+   security add-generic-password -U -a "$USER" -s kiki-deepseek -w 'sk-…'
    ```
    然后在 `~/kiki-data/.env` 里写 `DEEPSEEK_API_KEY=keychain:kiki-deepseek`。
-   也可以直接写明文 `DEEPSEEK_API_KEY=sk-...`（再 `chmod 600 ~/kiki-data/.env`）。
    写 `op://` 引用也支持，但后台进程每次重启都要 1Password 授权，没人点就拿不到密钥（Kiki 会照样启动，只是模型调不通），所以不推荐。
-2. 改完 `.env` 重启 Kiki：`launchctl kickstart -k gui/$(id -u)/com.lkyxuan.kiki`
-3. Mac mini 要“开机自动登录”（系统设置 → 用户与群组），Kiki 是跟着登录启动的。
+2. 手动改过 `.env` 的话，重启 Kiki 才生效（设置页里也有「立即重启」）：`launchctl kickstart -k gui/$(id -u)/com.lkyxuan.kiki`
+3. 想让 Kiki 在 Mac mini 上一直可用，要打开“开机自动登录”（系统设置 → 用户与群组），Kiki 是跟着登录启动的。第一次装好时 macOS 会提示“已添加后台项目”，那就是 Kiki 的后台服务，允许即可。
 
 ## 自动更新
 

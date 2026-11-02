@@ -109,6 +109,8 @@
   .steps .bad { color: var(--err); flex: none; width: 12px; text-align: center; }
   .steps .spin { width: 10px; height: 10px; }
   .hint { color: var(--muted); text-align: center; margin-top: 18vh; font-size: 14px; line-height: 1.8; }
+  .hint .need-key { margin-top: 14px; color: var(--text, inherit); }
+  .hint .need-key button { margin-left: 6px; padding: 4px 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--on-accent, #fff); font: inherit; cursor: pointer; }
   /* 奇奇的回执卡片：发到哪个宝的哪段对话 */
   .receipt { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 10px 10px 14px; margin-bottom: 12px; max-width: 520px; box-shadow: var(--shadow-sm); }
   .receipt .avatar { width: 28px; height: 28px; border-radius: 8px; font-size: 13px; }
@@ -565,6 +567,7 @@ async function open(path) {
   if (!hist.length) $("#msgs").innerHTML = path === "main"
     ? '<div class="hint">跟奇奇说就行，它会分给对应的宝。<br>@宝名 可以直接指定，/help 看命令。</div>'
     : s?.name === MAIN_SESSION ? `<div class="hint">这是${esc(s.agent)}的主对话，直接在这儿派活就行。<br>细的事它会分到讨论串里，点开在右边看。</div>` : '<div class="hint">新对话，说点什么吧。</div>';
+  if (!hist.length && path === "main") void keyHint();
   shown.clear(); lastStreamed = null;
   hist.forEach((m) => addMsg(m.role, m.text, m.steps));
   renderLive();
@@ -786,6 +789,20 @@ if (document.documentElement.classList.contains("kiki-fullsize")) {
   document.addEventListener("dblclick", (e) => { if (dragZone(e)) winMsg("zoom"); });
 }
 
+// 第一次用、还没填模型密钥：在奇奇的空白页提示一句，点一下直接打开「模型与密钥」
+async function keyHint() {
+  let need = false;
+  try {
+    const s = await (await fetch("/api/settings")).json();
+    need = (s.env.MODEL.value || "deepseek/").startsWith("deepseek/") && s.env.DEEPSEEK_API_KEY.source === "unset";
+  } catch {}
+  const hint = $("#msgs .hint");
+  hint?.querySelector(".need-key")?.remove();
+  if (!need || !hint || current !== "main") return;
+  hint.insertAdjacentHTML("beforeend", '<div class="need-key">开始前先填一个模型密钥<button type="button">去填写</button></div>');
+  hint.querySelector(".need-key button").onclick = () => openSettings("model");
+}
+
 // 设置：弹窗打开，不离开聊天页
 function openSettings(pane) {
   const sh = $("#sheet"), fr = $("#sheet-frame");
@@ -803,6 +820,7 @@ function closeSettings() {
   setTimeout(() => { sh.hidden = true; }, 200);
   for (const k in aboutCache) delete aboutCache[k]; // 说明可能刚改过
   loadTree();
+  void keyHint(); // 刚填了密钥，提示就收起来
   $("#input").focus();
 }
 window.kikiCloseSettings = closeSettings; // 弹窗里的页面按 Esc 时调用
