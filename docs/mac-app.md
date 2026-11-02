@@ -81,10 +81,15 @@ Kiki 能在 Mac mini 上读写文件、跑命令，所以**绝不能直接暴露
 2. 打开上面那个地址就是 Kiki。
 3. 当 App 用：iPhone 上 Safari「分享 → 添加到主屏幕」；Mac 上 Safari「文件 → 添加到程序坞」。
 
+想直接用 IP（Tailscale 分的 `100.x.x.x`）而不是名字：
+
+1. 在跑 Kiki 的电脑上再开一个 http 端口：`tailscale serve --bg --http=8889 4567`，再用 `tailscale ip -4` 查它的 IP。
+2. 客户端里填 `100.x.x.x:8889`（会自动用 http；HTTPS 证书只认 `.ts.net` 名字，IP 用不了。Tailscale 本身是加密的）。
+
 注意：
 
 - 用 `tailscale serve`，**不要用 `tailscale funnel`**（funnel 会公开到整个互联网）。
-- Kiki 自己也加了一道守卫：只接受 `localhost` 和 `*.ts.net` 的访问，挡住恶意网页借你的浏览器偷偷给 Kiki 发指令。用别的域名访问要写进 `.env` 的 `KIKI_ALLOWED_HOSTS`。
+- Kiki 自己也加了一道守卫：只接受 `localhost`、`*.ts.net` 和 Tailscale 内网 IP（`100.64.0.0/10`）的访问，挡住恶意网页借你的浏览器偷偷给 Kiki 发指令。用别的域名访问要写进 `.env` 的 `KIKI_ALLOWED_HOSTS`。
 - 你的 Tailscale 网络里不要加别人的设备，进了这个网络的设备都能用 Kiki。
 
 ## 卸载

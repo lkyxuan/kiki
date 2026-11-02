@@ -13,12 +13,30 @@ let pageBackground = NSColor(name: nil) { appearance in
         : NSColor.white
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
     var window: NSWindow!
     var webView: WKWebView!
     var base = URL(string: "http://localhost:4567")!  // 当前连的 Kiki
     var loaded = false
     var generation = 0  // 切换连接时作废旧的等待/重试
+    // 启动页（public/splash.html）：开场动画放完、后台也好了，才进主界面
+    var splashOn = false      // 现在窗口里是不是启动页
+    var splashReady = false   // 启动页加载完了，可以调它的 kikiSplash.*
+    var splashStatus = ""     // 启动页还没加载完时先记下要显示的字
+    var splashPlayed = false  // 这次打开已经放过开场动画（重新连接时不再放）
+    var leaveGen = -1         // 正在等哪次连接的启动页收尾
+
+    // 开场动画（菜单「显示 → 开场动画」可以关）
+    var introOn: Bool {
+        get { UserDefaults.standard.object(forKey: "intro") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "intro") }
+    }
+    var introItem: NSMenuItem?
+    // 上次关的时候是不是全屏：是的话下次打开还是全屏
+    var wasFullScreen: Bool {
+        get { UserDefaults.standard.bool(forKey: "fullscreen") }
+        set { UserDefaults.standard.set(newValue, forKey: "fullscreen") }
+    }
 
     // 保存的选择："local" 或远程地址；nil 表示还没选过
     var server: String? {
@@ -45,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "kikiWindow", let v = message.body as? String { windowAction(v); return }
+        if message.name == "kikiConnect", let v = message.body as? String { pickFromWelcome(v); return }
         guard message.name == "kikiTheme", let v = message.body as? String, ["system", "light", "dark"].contains(v) else { return }
         theme = v
         applyTheme()
@@ -62,6 +81,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             case "None": break
             default: window.zoom(nil)
             }
+        case "fullscreen":
+            window.toggleFullScreen(nil)
+        case "splash-done":
+            // 启动页收尾动画放完了，换成真正的界面
+            if leaveGen == generation { leaveGen = -1; webView.load(URLRequest(url: base)) }
         default: break
         }
     }
@@ -105,9 +129,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         buildMenu()
         buildWindow()
+        if wasFullScreen { window.toggleFullScreen(nil) }
         if server == nil {
-            showSplash("")
-            chooseServer(firstTime: true)
+            if !loadSplash(mode: "welcome", status: "") { showSplash(""); chooseServer(firstTime: true) }
         } else {
             connect()
         }
@@ -156,10 +180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 self.server = "local"
                 self.connect()
             case remote:
-                var text = field.stringValue.trimmingCharacters(in: .whitespaces)
-                if !text.isEmpty && !text.contains("://") { text = "https://" + text }
-                while text.hasSuffix("/") { text.removeLast() }
-                guard let url = URL(string: text), url.host != nil, ["http", "https"].contains(url.scheme ?? "") else {
+                guard let url = self.normalizedRemote(field.stringValue) else {
                     DispatchQueue.main.async { self.chooseServer(firstTime: firstTime, error: "地址看起来不对。") }
                     return
                 }
@@ -169,6 +190,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 break
             }
         }
+    }
+
+    // 启动页上的欢迎页选好了："local" 或 "remote:<地址>"
+    func pickFromWelcome(_ v: String) {
+        if v == "local" { server = "local"; connect(); return }
+        guard v.hasPrefix("remote:") else { return }
+        guard let url = normalizedRemote(String(v.dropFirst(7))) else {
+            webView.evaluateJavaScript("kikiSplash.error('地址看起来不对，形如 https://mac-mini.xxx.ts.net')", completionHandler: nil)
+            return
+        }
+        server = url.absoluteString
+        connect()
+    }
+
+    func normalizedRemote(_ raw: String) -> URL? {
+        var text = raw.trimmingCharacters(in: .whitespaces)
+        // 只填了 IP（比如 Tailscale 的 100.x.x.x:8889）就用 http：HTTPS 证书只认 .ts.net 名字，IP 用不了；Tailscale 本身已经加密
+        if !text.isEmpty && !text.contains("://") {
+            let host = text.split(separator: "/").first.map(String.init) ?? text
+            let isIp = host.first == "[" || host.split(separator: ":").first.map { $0.allSatisfy { $0.isNumber || $0 == "." } } == true
+            text = (isIp ? "http://" : "https://") + text
+        }
+        while text.hasSuffix("/") { text.removeLast() }
+        guard let url = URL(string: text), url.host != nil, ["http", "https"].contains(url.scheme ?? "") else { return nil }
+        return url
     }
 
     // 点 Dock 图标时把窗口叫回来
@@ -190,6 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         config.userContentController.addUserScript(script)
         config.userContentController.add(self, name: "kikiTheme")
         config.userContentController.add(self, name: "kikiWindow")
+        config.userContentController.add(self, name: "kikiConnect")
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
 
         webView = WKWebView(frame: .zero, configuration: config)
@@ -210,6 +257,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         window.backgroundColor = pageBackground
         window.minSize = NSSize(width: 720, height: 480)
         window.isReleasedWhenClosed = false
+        window.collectionBehavior.insert(.fullScreenPrimary)  // 绿色按钮 / ⌃⌘F 进入苹果原生全屏
+        window.delegate = self
         window.contentView = webView
         applyTheme()
         window.center()
@@ -218,7 +267,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    // MARK: 启动页
+
+    // 显示启动页上的一行状态。启动页已经在了就只换字，不重新加载（动画不会断）
     func showSplash(_ text: String) {
+        if splashOn {
+            splashStatus = text
+            if splashReady { webView.evaluateJavaScript("kikiSplash.status(\(jsString(text)))", completionHandler: nil) }
+            return
+        }
+        if loadSplash(mode: "wait", status: text) { return }
+        showPlainSplash(text)
+    }
+
+    // 把字符串变成 JS 字面量（借 JSON 数组转义再去掉方括号）
+    func jsString(_ s: String) -> String {
+        let data = try? JSONSerialization.data(withJSONObject: [s])
+        let arr = data.flatMap { String(data: $0, encoding: .utf8) } ?? "[\"\"]"
+        return String(arr.dropFirst().dropLast())
+    }
+
+    // 从 App 里直接读 public/splash.html（这时后台可能还没起来）。找不到就返回 false，退回到简单的转圈
+    @discardableResult
+    func loadSplash(mode: String, status: String) -> Bool {
+        let pub = Bundle.main.resourceURL!.appendingPathComponent("app/public")
+        let file = pub.appendingPathComponent("splash.html")
+        guard FileManager.default.fileExists(atPath: file.path),
+              var c = URLComponents(url: file, resolvingAgainstBaseURL: false) else { return false }
+        var items = [URLQueryItem(name: "mode", value: mode), URLQueryItem(name: "s", value: status)]
+        if splashPlayed || !introOn { items.append(URLQueryItem(name: "quick", value: "1")) }
+        if window.styleMask.contains(.fullScreen) || wasFullScreen { items.append(URLQueryItem(name: "fs", value: "1")) }
+        if isRemote { items.append(URLQueryItem(name: "remote", value: server)) }
+        c.queryItems = items
+        guard let url = c.url else { return false }
+        splashPlayed = true
+        splashOn = true
+        splashReady = false
+        splashStatus = status
+        webView.loadFileURL(url, allowingReadAccessTo: pub)
+        return true
+    }
+
+    // 后台好了：让启动页放完收尾（自检打勾、「欢迎回来」），它发 splash-done 回来再换界面
+    func enterApp() {
+        loaded = true
+        guard splashOn else { webView.load(URLRequest(url: base)); return }
+        leaveGen = generation
+        if splashReady { webView.evaluateJavaScript("kikiSplash.leave()", completionHandler: nil) }
+        // 万一启动页没回话，最多等 8 秒
+        let gen = generation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+            if self.leaveGen == gen && gen == self.generation { self.windowAction("splash-done") }
+        }
+    }
+
+    func showPlainSplash(_ text: String) {
         let html = """
         <html><head><meta charset="utf-8"><style>
         html,body{height:100%;margin:0;background:transparent;font:15px -apple-system,"PingFang SC",sans-serif;color:#8a8984}
@@ -230,6 +333,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         </body></html>
         """
         webView.loadHTMLString(html, baseURL: nil)
+    }
+
+    // 启动页加载完：补上加载期间来的状态；后台已经好了就让它收尾。主界面加载完：告诉它是不是全屏
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if webView.url?.isFileURL == true {
+            guard splashOn else { return }
+            splashReady = true
+            webView.evaluateJavaScript("kikiSplash.status(\(jsString(splashStatus)))", completionHandler: nil)
+            if leaveGen == generation { webView.evaluateJavaScript("kikiSplash.leave()", completionHandler: nil) }
+        } else {
+            tellFullScreen()
+        }
+    }
+
+    // MARK: 全屏
+
+    func windowDidEnterFullScreen(_ notification: Notification) { wasFullScreen = true; tellFullScreen() }
+    func windowDidExitFullScreen(_ notification: Notification) { wasFullScreen = false; tellFullScreen() }
+    func tellFullScreen() {
+        let on = window.styleMask.contains(.fullScreen)
+        webView.evaluateJavaScript("document.documentElement.classList.toggle('kiki-fullscreen', \(on)); window.kikiSplash && kikiSplash.fs(\(on))", completionHandler: nil)
     }
 
     // MARK: 后台服务
@@ -263,8 +387,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                 let ok = (resp as? HTTPURLResponse)?.statusCode == 200
                     && String(data: data ?? Data(), encoding: .utf8)?.contains("\"ok\":true") == true
                 if ok {
-                    self.loaded = true
-                    self.webView.load(URLRequest(url: self.base))
+                    self.enterApp()
                 } else if tries < 60 {
                     if tries == 8 {
                         self.showSplash(self.isRemote
@@ -298,7 +421,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // 是不是 Kiki 自己的页面（不是就交给浏览器）
     func isKiki(_ url: URL?) -> Bool {
         guard let url = url else { return true }
-        if url.scheme == "about" || url.scheme == "data" { return true }
+        if url.scheme == "about" || url.scheme == "data" || url.isFileURL { return true }
         return url.host == base.host && url.port == base.port
     }
 
@@ -309,6 +432,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             NSWorkspace.shared.open(url)
             decisionHandler(.cancel)
         } else {
+            if navigationAction.targetFrame?.isMainFrame != false, let url = navigationAction.request.url, !url.isFileURL {
+                splashOn = false; splashReady = false  // 离开启动页
+            }
             decisionHandler(.allow)
         }
     }
@@ -355,6 +481,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     @objc func showData(_ sender: Any?) {
         let data = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("kiki-data")
         NSWorkspace.shared.open(data)
+    }
+
+    @objc func toggleIntro(_ sender: Any?) {
+        introOn.toggle()
+        introItem?.state = introOn ? .on : .off
     }
 
     func buildMenu() {
@@ -406,6 +537,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         lookItem.submenu = look
         view.addItem(lookItem)
+        let intro = view.addItem(withTitle: "开场动画", action: #selector(toggleIntro(_:)), keyEquivalent: "")
+        intro.state = introOn ? .on : .off
+        introItem = intro
         view.addItem(.separator())
         let full = view.addItem(withTitle: "进入全屏", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
         full.keyEquivalentModifierMask = [.command, .control]

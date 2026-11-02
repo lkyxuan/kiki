@@ -16,9 +16,9 @@
   <img src="https://img.shields.io/badge/data-100%25%20local-5b6cf0?style=flat-square" alt="Local first">
 </p>
 
-**One inbox. Dedicated bots. Unlimited named conversations. Your data never leaves your machine.**
+**Tell Qiqi once, and it hands the job to the right bot. Each bot owns one area of your life, each task gets its own thread, and your data never leaves your Mac.**
 
-[Install the Mac App](#-install-the-mac-app) · [Quick Start](#-quick-start) · [Features](#-features) · [Architecture](#️-architecture) · [Roadmap](#️-roadmap) · [Contributing](#-contributing)
+[Download](#-download) · [Features](#-features) · [How to use](#-how-to-use) · [Architecture](#️-architecture) · [Roadmap](#️-roadmap) · [Contributing](#-contributing)
 
 </div>
 
@@ -26,187 +26,196 @@
 
 ## 📖 Overview
 
-**Kiki** is an open-source, local-first personal AI assistant built for an always-on Mac mini. Inspired by Grok Bot, you talk to a single **main bot** that works like an inbox: it routes each request to the right **dedicated bot**, and every dedicated bot keeps its own set of **named conversations**, organized by topic.
+**Kiki** is an open-source, local-first personal AI assistant built for an always-on Mac mini and packaged as a native Mac app.
 
-Unlike cloud assistants, Kiki runs on your own computer. You pick the model, conversations are local files, and your "about me" profile and notes are plain Markdown. If you ever stop using Kiki, just take the folder with you.
+You only ever talk to **Qiqi** (奇奇), your inbox. Quick questions get answered on the spot. Real work goes to the **bot** (宝, *bao*) that owns that area. A message that mixes several things gets split across several bots, and if no bot fits, Qiqi creates one. Every bot has a **main chat** that coordinates its work and opens **threads** for individual tasks, so contexts never get tangled.
 
-The Kiki Engine creates and resumes conversations and calls models and tools. It is lightweight, extensible, and version-locked with every Kiki release.
+Unlike cloud assistants, Kiki runs on your own computer. You choose the model, conversations are local files, and your "about me" profile and each bot's instructions are plain Markdown. If you ever stop using Kiki, just take the folder with you.
 
-> [!NOTE]
-> Kiki is in early development. A one-line-install Mac App with automatic updates is already available. Star the repo to follow along.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-dark.png">
+    <img src="docs/assets/screenshot-light.png" alt="Kiki's four-column layout: bots, a bot's main chat, a thread and the bot's status" width="100%">
+  </picture>
+  <p><sub>Four columns: Qiqi and your bots on the left, the bot's main chat in the middle, a thread on the right, and the bot's status at the far right. (UI is in Chinese for now.)</sub></p>
+</div>
 
 ## ✨ Features
 
 | | Feature | Description |
 |:---:|---|---|
-| 📥 | **Main bot as your inbox** | Drop in a message and the main bot only triages and forwards. All real work goes to dedicated bots |
-| 🤖 | **Dedicated bots** | Dev, life, study… each bot is a folder with one `AGENTS.md`. Add a bot without code changes or restarts |
-| 💬 | **Named conversations** | Open as many named conversations per bot as you like. Switch and resume anytime, with isolated context |
-| ⚡ | **Chat in front, work in back** | Discuss right in the conversation; hand real work to the background with `/bg` and get the result back when it's done |
-| 🔒 | **Local first** | The web UI listens only on `127.0.0.1`. Conversations are JSONL, notes are Markdown, all on your own disk |
-| 🔌 | **Bring your own model** | DeepSeek by default; switch to Anthropic, OpenAI, Google and other major models with one line of config |
-| 🧩 | **A replaceable shell** | Orchestration is fully separated from your data. UI, channels and models are all swappable, with no vendor lock-in |
+| 📥 | **Qiqi only dispatches** | Drop in a message and Qiqi picks the bot and the conversation. Simple questions get a direct answer; mixed requests get split up |
+| 🤖 | **One bot per area** | Travel, dev, fitness… each bot has an avatar, a main chat and its own instructions. Creating one takes a name and a sentence on what it handles |
+| 💬 | **Main chat + threads** | A bot's main chat coordinates; concrete tasks become threads. Conversation cards open in the side column, where you can keep talking |
+| ⚡ | **Chat in front, work in back** | Hand real work to the background and get the result back in the original conversation. Tasks queue, can be retried, and survive restarts |
+| 🧠 | **Bots that keep track** | Every conversation has a one-line summary. Bots can read other conversations, pass messages between them, and save key facts to "about me" |
+| 🛡️ | **Asks before acting** | Four kinds of irreversible actions (permanent deletes, force pushes, sending things out, spending money) need your OK first |
+| 🖼️ | **Images and any model** | Paste or drop images. Switch models right from the input box, with API keys or subscription logins (ChatGPT, Claude, GitHub Copilot and more) |
+| 🔒 | **Local first** | Listens only on localhost, with encrypted remote access through Tailscale. Conversations are JSONL, notes are Markdown, and deleted items go to a trash folder |
+| 🧩 | **Extensible** | Compatible with the pi extension ecosystem; add MCP servers in Settings using the same format as Claude and Cursor |
 
-## 🖼️ Screenshot
+## 📦 Download
 
-<div align="center">
-  <img src="docs/assets/screenshot.png" alt="Kiki local chat UI" width="90%">
-  <p><sub>Main bot and dedicated bots with their conversations on the left, chat on the right, with streaming replies.</sub></p>
-</div>
+Recommended setup: run Kiki on an always-on Mac mini and use it from your MacBook or iPhone. Requires macOS 12 or later.
 
-## 🏗️ Architecture
-
-```mermaid
-flowchart LR
-    U([You]) -->|a message| W[Local chat UI<br/>localhost:4567]
-    W --> M{{Main bot<br/>inbox · router}}
-    M -->|continue a conversation| S1
-    M -->|start a named conversation| S3
-    M -.->|/bg background task| S2
-
-    subgraph DEV[Default bot: 奇奇]
-        S1[Conversation: Kiki dev]
-        S2[Conversation: background task]
-    end
-    subgraph LIFE[Your own bot: work]
-        S3[Conversation: trip planning]
-        S4[Conversation: reading notes]
-    end
-
-    DEV & LIFE --> PI[(Kiki Engine)]
-    PI --> LLM[DeepSeek / Claude / GPT / ...]
-    S2 -.->|reports back when done| M
-```
-
-**Three layers**
-
-1. **Main bot**: deliberately thin. It decides whether a message continues an existing conversation or starts a new one under some bot, then relays the result back to you.
-2. **Dedicated bots**: a folder under `~/kiki-data/agents/<name>/`, whose `AGENTS.md` states what the bot is responsible for, how it works and what it hands back.
-3. **Named conversations**: sessions under a bot, stored locally as JSONL: readable, backup-friendly and portable.
-
-## 🍎 Install the Mac App
-
-Requires macOS 12 or later, on Apple silicon or Intel. Any Mac works; if you also want to use it from your phone, install it on an always-on Mac such as a Mac mini. Pick one of two ways:
-
-**Option 1: one line in Terminal (recommended).** It downloads, verifies, installs and starts Kiki, and macOS won't block it:
+**Option 1: one line in Terminal**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash
 ```
 
-**Option 2: download the disk image.** Get the `.dmg` from the [releases page](https://github.com/lkyxuan/kiki/releases/latest) (`Kiki-mac-arm64.dmg` for Apple silicon, `Kiki-mac-x64.dmg` for Intel), drag Kiki into Applications, then open it from Applications. Kiki isn't signed with an Apple Developer ID yet, so the first launch says the developer can't be verified: click Done, go to System Settings → Privacy & Security, scroll to the bottom and click Open Anyway.
+**Option 2: download the installer**
 
-- **Works out of the box**: Kiki.app bundles its own runtime and the Kiki Engine, so there's no Node to install. It starts in the background at login and restarts automatically if it crashes.
-- **Automatic updates**: a prompt appears in the top-right corner of the web UI when a new version is out. By default it installs while no conversation is running, and rolls back automatically if anything fails.
+Grab the `.dmg` from the [releases page](https://github.com/lkyxuan/kiki/releases/latest) (arm64 for Apple silicon, x64 for Intel) and drag Kiki into Applications, then open it **from Applications**. Kiki isn't signed by Apple yet, so the first launch shows an "unverified developer" warning: click Done, then go to System Settings → Privacy & Security, scroll to the bottom and click Open Anyway.
+
+Open Kiki, follow the prompt to add a model key in Settings, and start chatting.
+
+- **Works out of the box**: Kiki.app bundles its own runtime and the Kiki Engine, starts in the background at login, and restarts itself if it crashes.
+- **Automatic updates**: checks for new versions every hour, installs when idle, and rolls back automatically if the new version fails to start.
+- **Multiple devices**: install Kiki.app on another Mac and choose "connect to a remote address" to use it as a front end only; on iPhone, add it to your Home Screen from Safari.
 - **Secure remote access**: Kiki listens only on localhost. Remote access goes through an encrypted [Tailscale](https://tailscale.com) connection, so only your own devices can reach it.
 
-On first launch choose "在这台电脑上运行" (run on this Mac), then open Settings (bottom left) → 模型与密钥 (Model & key), paste your [DeepSeek API key](https://platform.deepseek.com/api_keys) and save. You can start chatting right away. See the **[Mac App guide](docs/mac-app.md)** (Chinese) for full install, update, remote access and uninstall instructions.
+See the **[Mac App guide](docs/mac-app.md)** (Chinese) for details.
 
-## 🚀 Quick Start
+## 💡 How to use
 
-To run from source or contribute, follow these steps.
+1. **Talk to Qiqi**, for example "I want to spend 5 days in Tokyo in December." Qiqi hands it to the Travel bot (creating it if needed), and you continue in Travel's main chat.
+2. **Pick a bot yourself** with `@botname`.
+3. **Open a thread** with the **+** next to a bot, or let the bot spin a new topic off into a thread. Threads open in the side column; close one to return to the overview.
+4. **Manage bots** with the gear next to each bot: rename it, change its avatar and what it handles. Dispatch rules live in `~/kiki-data/分派规则.md` and can be edited anytime.
 
-### Requirements
-
-- macOS (an always-on Mac mini is recommended)
-- [Node.js](https://nodejs.org) 22.19 or later: `brew install node`
-- A model API key ([DeepSeek](https://platform.deepseek.com) by default)
-
-### Install and run
-
-```bash
-git clone https://github.com/lkyxuan/kiki.git ~/kiki
-cd ~/kiki
-npm install
-cp .env.example .env     # add your model API key
-npm start
-```
-
-Open **<http://localhost:4567>** and start chatting.
-
-On first launch Kiki creates a data directory at `~/kiki-data` with one default bot, 奇奇 (Qiqi); new bots branch off from it later. Start by editing its `AGENTS.md` with what you want every bot to know about you.
-
-> The Kiki Engine is installed with `npm install`; no separate install is needed. It is also bundled into `.app` when packaged as a Mac App, and engine upgrades ship with Kiki releases after testing.
-
-### Configuration
-
-| Variable | Default | Description |
-|---|---|---|
-| `DEEPSEEK_API_KEY` | — | Model API key |
-| `MODEL` | `deepseek/deepseek-flash` | Model, as `provider/model` |
-| `DATA_DIR` | `~/kiki-data` | Data directory |
-| `DEFAULT_AGENT` | `奇奇` | Bot that receives messages when no conversation is selected |
-| `PORT` | `4567` | Web UI port |
-
-## 💡 Usage
-
-Click any conversation on the left to chat; click **+** next to a bot name to start a new one. The main bot also understands commands:
+<details>
+<summary><b>Commands</b></summary>
 
 | Command | What it does |
 |---|---|
-| `/new <bot> <name>` | Start a named conversation under a bot and switch to it |
+| `@bot <message>` | Send straight to a bot |
+| `/new <bot> <name>` | Start a new thread under a bot |
 | `/use <name>` | Switch to an existing conversation (use `bot/name` if names collide) |
 | `/list [bot]` | List all conversations, or those of one bot |
-| `/bg <task>` | Run a task in a new background conversation under the current bot; the result is reported back |
+| `/bg <task>` | Run a task in the background; the result is reported back to the original conversation |
+| `/tasks [all]` | List background tasks |
+| `/retry <task id>` | Retry a failed or interrupted task |
 | `/agents` | List all bots |
 | `/where` | Show the current conversation |
 | `/help` | Help |
 
-### Add a dedicated bot
+</details>
 
-```bash
-mkdir -p ~/kiki-data/agents/study
-$EDITOR ~/kiki-data/agents/study/AGENTS.md   # what it handles, how it works, what it returns
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+    U([You]) -->|a message| Q{{Qiqi<br/>inbox · dispatcher}}
+    Q -->|simple question| A([direct answer])
+    Q -->|to the right bot| M1
+    Q -->|split across bots| M2
+    Q -.->|no bot fits| NEW[create a new bot]
+
+    subgraph TRAVEL[Bot: Travel]
+        M1[Main chat] --> T1[Thread: Tokyo trip]
+        M1 --> T2[Thread: flight prices]
+    end
+    subgraph DEV[Bot: Kiki dev]
+        M2[Main chat] --> T3[Thread: README rewrite]
+        M2 -.->|background task| BG[Thread: release]
+    end
+
+    TRAVEL & DEV --> K[(Kiki Engine)]
+    K --> LLM[DeepSeek / Claude / GPT / Gemini ...]
+    BG -.->|reports back| M2
 ```
 
-Refresh the page and the new bot appears. No restart needed.
+**Three levels of dispatch**
+
+1. **Qiqi**: deliberately thin. It triages and forwards but never takes on work itself, using each bot's description and each conversation's one-line summary to decide.
+2. **Bots**: a folder under `~/kiki-data/agents/<bot>/` whose `AGENTS.md` states what the bot handles and how it works. Every bot has one fixed main chat.
+3. **Threads**: individual conversations under a bot, stored locally as JSONL: readable, backup-friendly and portable.
 
 ## 📂 Data directory
 
 ```text
 ~/kiki-data/
 ├── AGENTS.md              # About me: shared by all bots
-├── registry.json          # Conversation registry: named conversations and their bots
-├── main.jsonl             # Main bot inbox history
+├── 分派规则.md             # Dispatch rules, editable anytime, no restart needed
+├── .env                   # Model keys and config (readable only by you)
+├── registry.json          # Conversation registry and one-line summaries
+├── tasks/                 # Background tasks: one .md per task
+├── trash/                 # Deleted threads end up here instead of being erased
+├── engine/                # Kiki Engine extensions and MCP config
 └── agents/
-    ├── 奇奇/              # the default bot
-    │   ├── AGENTS.md      # its responsibilities
-    │   └── sessions/      # its conversations (JSONL)
-    └── work/              # a bot you created
-        └── ...
+    ├── 奇奇/               # Qiqi, the default dispatcher bot
+    └── 旅行/               # e.g. a Travel bot
+        ├── AGENTS.md      # What it handles and how it works
+        └── sessions/      # Main chat and threads (JSONL)
 ```
 
 We recommend backing up `~/kiki-data` with Time Machine or a private Git repository.
 
-## 🧩 Recommended extensions
-
-The Kiki Engine is compatible with the pi extension ecosystem. Installing extensions requires the pi CLI:
-
-```bash
-npm install -g @earendil-works/pi-coding-agent@1.4.0
-```
-
-| Extension | What it does | Install |
-|---|---|---|
-| [pi-web-access](https://www.npmjs.com/package/pi-web-access) | Web search and reading web pages, PDFs and GitHub repos | `pi install npm:pi-web-access` |
-| [cc-safety-net](https://ccsafetynet.com/docs/installation/pi) | Blocks destructive commands like `rm -rf` and reads of secret files | See the [official guide](https://ccsafetynet.com/docs/installation/pi) |
-
-> [!WARNING]
-> Bots can read and write files and run commands, with real permissions on your computer. Installing cc-safety-net is strongly recommended.
-
 ## 🗺️ Roadmap
 
-- [x] Kiki Engine: multiple bots, multiple named conversations
-- [x] Background tasks with result reporting
-- [x] Local chat UI (streaming)
-- [x] Mac App: one-line install, start at login, automatic updates
-- [x] Secure remote access via Tailscale
-- [ ] Automatic routing in the main bot, using a lightweight model to pick the conversation
-- [ ] Built-in Kiki extensions (`extensions/`)
-- [ ] Messaging channel plugin interface (WeChat and more)
-- [ ] Scheduled tasks
+- [x] Qiqi dispatch: pick a bot, create bots, split one message across bots
+- [x] Bot main chats + threads, four-column layout
+- [x] Background tasks: queueing, retries, reporting back
+- [x] Conversation summaries, cross-conversation messages, handoffs
+- [x] Approvals for irreversible actions
+- [x] Images, manual model picker, subscription logins
+- [x] Mac App: one-line install, `.dmg`, automatic updates, launch animation
+- [x] Secure remote access via Tailscale; several devices sharing one back end
+- [ ] To-dos, scheduled tasks and a task board *(in progress)*
+- [ ] Mailroom: connect external agents and messaging channels *(in progress)*
+- [ ] Apple code signing and notarization
 
-## 🛠️ Tech stack
+## 🚀 Run from source
+
+To contribute, follow these steps. Requires [Node.js](https://nodejs.org) 22.19 or later.
+
+```bash
+git clone https://github.com/lkyxuan/kiki.git ~/kiki
+cd ~/kiki
+npm install
+cp .env.example .env     # add a model API key, or set it later in Settings
+npm start
+```
+
+Open **<http://localhost:4567>** and start chatting.
+
+<details>
+<summary><b>Configuration</b></summary>
+
+These live in `~/kiki-data/.env` (or `.env` in the repo when running from source); most can also be changed in Settings.
+
+| Variable | Default | Description |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | — | DeepSeek key; configure other providers in Settings |
+| `MODEL` | `deepseek/deepseek-flash` | Default model, as `provider/model` |
+| `SUMMARY_MODEL` | same as `MODEL` | Model for summaries and dispatch; a cheaper one works well |
+| `VISION_MODEL` | auto | Reads images when the current model can't |
+| `DATA_DIR` | `~/kiki-data` | Data directory |
+| `DEFAULT_AGENT` | `奇奇` | Bot that receives messages when no conversation is selected |
+| `PORT` | `4567` | Web UI port |
+| `TASK_CONCURRENCY` | `2` | Max background tasks running at once |
+| `TASK_TIMEOUT_MIN` | `30` | Timeout per background task, in minutes |
+| `KIKI_AUTO_UPDATE` | `1` | Set to `0` to only notify about updates instead of installing them |
+
+</details>
+
+<details>
+<summary><b>Extensions and MCP</b></summary>
+
+The Kiki Engine is compatible with the pi extension ecosystem. Extensions are installed in `~/kiki-data/engine`, separate from any pi you installed yourself. Install them under Settings → Extensions, or from the repo:
+
+```bash
+npm run pi -- install npm:pi-web-access   # web search and page reading
+npm run pi -- list                        # list installed extensions
+```
+
+Add MCP servers under Settings → MCP Servers, using the same `mcpServers` format as Claude and Cursor.
+
+</details>
+
+<details>
+<summary><b>Tech stack and project structure</b></summary>
 
 | Layer | Choice |
 |---|---|
@@ -215,18 +224,21 @@ npm install -g @earendil-works/pi-coding-agent@1.4.0
 | UI | Local web app (SSE streaming), packaged as a Mac App |
 | Storage | Local files: Markdown + JSONL, no database |
 
-<details>
-<summary><b>Project structure</b></summary>
-
 ```text
 src/
-├── main.ts       # Entry: reads config, wires up the web UI, router and engine
-├── server.ts     # Local web UI and API; also the boundary for future channels
-├── router.ts     # Main bot: command parsing and dispatch
-├── registry.ts   # Conversation registry
-└── agents.ts     # Engine wrapper: create/resume conversations, stream events, read history
-public/
-└── index.html    # Chat UI
+├── main.ts       # Entry: config, web UI, router and engine
+├── server.ts     # Local web UI and API
+├── router.ts     # Qiqi: dispatch, commands, forwarding
+├── route.ts      # Auto-dispatch decision logic
+├── agents.ts     # Engine wrapper: create/resume conversations, stream events
+├── tasks.ts      # Background tasks
+├── summary.ts    # Conversation summaries
+├── tools.ts      # Bot tools: read other conversations, pass messages, save notes
+├── approval.ts   # Approvals
+├── update.ts     # Automatic updates
+└── ...
+public/           # Chat UI, settings, launch animation
+packaging/        # Mac App packaging and install scripts
 ```
 
 ```bash
@@ -246,50 +258,10 @@ Issues and pull requests are welcome.
 
 ## 🙏 Acknowledgements
 
-Kiki stands on the shoulders of many great projects. Thanks to the personal and coding agents below, whose open-source code, product ideas and public writing inspired Kiki.
-
-**What Kiki builds on directly**
-
-- [pi](https://pi.dev) ([pi-mono](https://github.com/badlogic/pi-mono)): the open-source agent framework the Kiki Engine is built on
-- [DeepSeek](https://www.deepseek.com): the default model Kiki uses
-- [cua](https://github.com/trycua/cua): open-source infrastructure for Computer-Use Agents, behind the cua-driver toggle
-
-**Personal agents and agent gateways**
-
-- [OpenClaw](https://github.com/openclaw/openclaw): a local-first personal AI assistant; inspiration for the session tool design
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent): Nous Research's self-improving personal agent, where Kiki's journey started
+- [pi](https://pi.dev): the open-source agent framework the Kiki Engine is built on
+- OpenClaw: inspiration for background tasks and cross-conversation tools
+- Hermes: inspiration for automatic updates and image reading
 - Grok Bot: inspiration for the interaction model
-- [Letta](https://github.com/letta-ai/letta) (formerly MemGPT): stateful agents with long-term memory
-- [Open Interpreter](https://github.com/openinterpreter/open-interpreter): lets LLMs run code and operate your computer locally
-- [AutoGPT](https://github.com/Significant-Gravitas/AutoGPT): an early pioneer of autonomous agents
-- [Manus](https://manus.im): a general-purpose autonomous agent
-- [browser-use](https://github.com/browser-use/browser-use): lets agents drive a web browser
-
-**Coding agents**
-
-- [Claude Code](https://github.com/anthropics/claude-code): Anthropic's agentic coding tool for the terminal
-- [Codex](https://github.com/openai/codex): OpenAI's open-source coding agent for the terminal
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli): Google's open-source terminal agent
-- [Qwen Code](https://github.com/QwenLM/qwen-code): Qwen's terminal coding agent
-- [Kimi CLI](https://github.com/MoonshotAI/kimi-cli): Moonshot AI's terminal agent
-- [opencode](https://github.com/sst/opencode): an open-source, model-agnostic terminal coding agent
-- [Crush](https://github.com/charmbracelet/crush): Charm's terminal coding agent
-- [Aider](https://github.com/Aider-AI/aider): git-native AI pair programming in the terminal
-- [Goose](https://github.com/block/goose): Block's open-source, extensible local agent
-- [OpenHands](https://github.com/All-Hands-AI/OpenHands): an open platform for AI software engineers
-- [SWE-agent](https://github.com/SWE-agent/SWE-agent): a research agent that fixes GitHub issues automatically
-- [Cline](https://github.com/cline/cline): an autonomous coding agent in VS Code with step-by-step approval
-- [Roo Code](https://github.com/RooCodeInc/Roo-Code): an in-editor agent with multiple role modes
-- [Kilo Code](https://github.com/Kilo-Org/kilocode): an open-source in-editor coding agent
-- [Continue](https://github.com/continuedev/continue): an open-source IDE coding assistant
-- [Cursor](https://cursor.com), [Windsurf](https://windsurf.com), [Zed](https://zed.dev), [Amp](https://ampcode.com), [Devin](https://devin.ai), [GitHub Copilot](https://github.com/features/copilot): products that brought agents into everyday development
-
-**Open standards**
-
-- [Model Context Protocol](https://modelcontextprotocol.io): an open protocol for connecting agents to tools and data
-- [AGENTS.md](https://agents.md): a convention for project instructions aimed at agents, which every 宝's AGENTS.md follows
-
-All project names and trademarks belong to their respective owners. They are listed here only as thanks and do not imply any partnership or endorsement.
 
 ## 📄 License
 
