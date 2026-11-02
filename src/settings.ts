@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
-import { baoDoc } from "./bao.js";
+import { baoDoc, readDuty, setDuty } from "./bao.js";
 import { Extensions, validSource } from "./extensions.js";
 import { listFeatures, setFeature } from "./features.js";
 import { listApproval, removeAlways, setMode } from "./approval.js";
@@ -124,6 +124,15 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
   const startVals = fileVals(); // 启动时 .env 的样子，用来判断哪些值是外部注入的
   const source = (k: string) => sourceOf(fileVals()[k], process.env[k], startVals[k]);
   const agentFile = (name: string) => join(agentsDir, name, "AGENTS.md");
+  // 改 bao.json 里的几项，别的项（以后加的）原样留着；值为 undefined 就删掉那一项
+  const writeLook = (name: string, patch: Record<string, unknown>) => {
+    const f = join(agentsDir, name, "bao.json");
+    let cur: Record<string, unknown> = {};
+    try { cur = JSON.parse(readFileSync(f, "utf8")); } catch {}
+    const next = { ...cur, ...patch };
+    for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+    writeFileSync(f, JSON.stringify(next) + "\n");
+  };
   const listAgents = () =>
     existsSync(agentsDir) ? readdirSync(agentsDir).filter((n) => statSync(join(agentsDir, n)).isDirectory()) : [];
   // 当前这个进程是不是由 Kiki.app 的 launchd 服务跑起来的：是的话能自己重启
@@ -204,15 +213,17 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
       return json({ ok: true });
     }
 
-    // 某个宝的说明：GET ?name=dev 读，POST {name, text} 写，POST {name, create:true} 新建
+    // 某个宝的说明：GET ?name=dev 读（带上「我负责什么」和头像），POST {name, text} 写整份说明，
+    // POST {name, create:true} 新建，POST {name, edit:true, about, emoji} 宝设置弹窗改负责什么和头像
     if (p === "/api/settings/agent") {
       if (!post) {
         const name = url.searchParams.get("name");
         if (!validName(name) || !listAgents().includes(name)) return json({ error: "没有这个宝" }, 404);
         const f = agentFile(name);
-        return json({ name, path: f, text: existsSync(f) ? readFileSync(f, "utf8") : "" });
+        const text = existsSync(f) ? readFileSync(f, "utf8") : "";
+        return json({ name, path: f, text, about: readDuty(text), ...baoLook(opts.dataDir, name) });
       }
-      const { name, text, create, about, emoji } = await body();
+      const { name, text, create, edit, about, emoji } = await body();
       if (!validName(name)) return json({ error: "名字只能用字母、数字、汉字、- 和 _，最多 40 个字" }, 400);
       const exists = listAgents().includes(name);
       if (create) {
@@ -226,6 +237,14 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
         return json({ ok: true });
       }
       if (!exists) return json({ error: "没有这个宝" }, 404);
+      if (edit) {
+        if (typeof about === "string") {
+          const f = agentFile(name);
+          writeFileSync(f, setDuty(existsSync(f) ? readFileSync(f, "utf8") : "", name, about.slice(0, 500)));
+        }
+        if (emoji !== undefined) writeLook(name, { emoji: baoEmoji(emoji) || undefined });
+        return json({ ok: true });
+      }
       if (typeof text !== "string") return json({ error: "缺 text" }, 400);
       writeFileSync(agentFile(name), text);
       return json({ ok: true });
