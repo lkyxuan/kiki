@@ -45,7 +45,7 @@ test("检查更新：发现新版本；开发模式不能自己装", async () =>
   process.env.KIKI_UPDATE_API = `http://127.0.0.1:${port}`;
   process.env.GITHUB_TOKEN = "test"; // 免得去调 gh
   try {
-    const u = new Updater({ dataDir: "/tmp", port: 0, isIdle: () => true });
+    const u = new Updater({ dataDir: "/tmp", port: 0, whyBusy: () => undefined });
     const s = await u.check();
     assert.equal(s.current, VERSION);
     assert.equal(s.latest, "99.0.0");
@@ -58,7 +58,7 @@ test("检查更新：发现新版本；开发模式不能自己装", async () =>
 
 test("已经在装了再点更新：返回进度，不报“没有可装的新版本”", async () => {
   const { Updater } = await import("./update.js");
-  const u = new Updater({ dataDir: "/tmp", port: 0, isIdle: () => true });
+  const u = new Updater({ dataDir: "/tmp", port: 0, whyBusy: () => undefined });
   u.state.canApply = true;
   u.state.status = "downloading";
   u.state.message = "正在下载 9.9.9…";

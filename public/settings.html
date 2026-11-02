@@ -307,6 +307,13 @@
 </div>
 
 <script>
+// 总进度：下载最慢，占 80%；后面 5 步（校验、自检、备份、等空闲、切换）各占 4%
+const UPD_WEIGHTS = [80, 4, 4, 4, 4, 4];
+function updPercent(st) {
+  if (st.of !== UPD_WEIGHTS.length) return Math.round(((st.n - 1) + (st.percent ?? 0) / 100) / st.of * 100);
+  const done = UPD_WEIGHTS.slice(0, st.n - 1).reduce((a, b) => a + b, 0);
+  return Math.min(100, Math.round(done + (UPD_WEIGHTS[st.n - 1] ?? 0) * (st.percent ?? 0) / 100));
+}
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 let S = null;
@@ -524,7 +531,7 @@ async function loadUpdate() {
   const st = (u.status === "downloading" || u.status === "installing") && u.step;
   $("#upd-prog").hidden = !st;
   if (st) {
-    const overall = Math.round(((st.n - 1) + (st.percent ?? 0) / 100) / st.of * 100);
+    const overall = updPercent(st);
     $("#upd-prog progress").value = overall;
     $("#upd-step").textContent = `第 ${st.n}/${st.of} 步：${st.label}${st.percent !== undefined && st.n === 1 ? ` · ${st.percent}%` : ""}`;
   }

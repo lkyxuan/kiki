@@ -49,3 +49,15 @@ test("奇奇的说明：没改过的旧版换成新版，改过的不动", async
   writeFileSync(f, old + "\n我自己加的一行\n");
   assert.deepEqual(upgradeQiqiNote(d, tpl), []);
 });
+
+test("分派规则补上新增的小节，放在「聊还是后台干」前面；已有的不重复加", async () => {
+  const { addRuleSections } = await import("./migrate.js");
+  const d = mkdtempSync(join(tmpdir(), "kiki-"));
+  writeFileSync(join(d, "分派规则.md"), "# 规则\n\n## 我改过的\n- 自己的\n\n## 聊还是后台干\n- 旧的\n");
+  const tpl = join(process.cwd(), "data-template");
+  assert.deepEqual(addRuleSections(d, tpl), ["分派规则里补上「在某段对话里冒出别的宝的事」"]);
+  const s = readFileSync(join(d, "分派规则.md"), "utf8");
+  assert.ok(s.indexOf("## 在某段对话里冒出别的宝的事") < s.indexOf("## 聊还是后台干"));
+  assert.match(s, /## 我改过的\n- 自己的/);
+  assert.deepEqual(addRuleSections(d, tpl), []);
+});

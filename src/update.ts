@@ -73,10 +73,12 @@ export class Updater extends EventEmitter {
   readonly logDir = join(homedir(), "Library", "Logs", "Kiki");
   private release?: { tag: string; assets: { name: string; url: string }[] };
   private lastCheck = 0;
+  private lastBusyLog = ""; // 上次写进日志的“为什么还没装”，同样的原因一小时只写一次
+  private lastBusyLogAt = 0;
   state: UpdateState;
 
   constructor(
-    private opts: { dataDir: string; port: number; isIdle: () => boolean },
+    private opts: { dataDir: string; port: number; whyBusy: () => string | undefined; maxWaitMs?: number },
   ) {
     super();
     this.state = {
@@ -128,8 +130,14 @@ export class Updater extends EventEmitter {
       if (Date.now() - this.lastCheck > HOUR) await this.check().catch(() => {});
       // 上次装这个版本失败回滚过，就不再自动重试，等你手动点
       const failedBefore = this.state.last?.result.startsWith("roll") && this.state.last.to === this.state.latest;
-      if (this.state.status === "available" && this.state.auto && this.state.canApply && !failedBefore && this.opts.isIdle()) {
-        await this.apply().catch(() => {});
+      if (this.state.status === "available" && this.state.auto && this.state.canApply && !failedBefore) {
+        const why = this.opts.whyBusy();
+        if (!why) await this.apply().catch(() => {});
+        else if (why !== this.lastBusyLog || Date.now() - this.lastBusyLogAt > HOUR) {
+          this.lastBusyLog = why;
+          this.lastBusyLogAt = Date.now();
+          this.log(`有新版本 ${this.state.latest}，等空闲再装：${why}`);
+        }
       }
     };
     setTimeout(tick, 20_000); // 别和启动抢
@@ -291,8 +299,22 @@ export class Updater extends EventEmitter {
 
       // 4. 等手上的对话都跑完再切（下载和自检期间可能有新对话开始）。
       //    检查空闲和启动替换脚本之间是同步的，中间插不进新消息。
-      while (!this.opts.isIdle()) {
-        step(5, `${to} 已准备好，等手上的对话跑完就切换`);
+      //    最多等 30 分钟：一直不空闲（比如某段对话卡住了）就先放弃这次，回到“有新版本”，
+      //    这样下一轮还能查到更新的版本，空了再装，不会一直卡在这一步、再也查不到新版本。
+      const waitStart = Date.now();
+      const maxWait = this.opts.maxWaitMs ?? 30 * 60_000;
+      let why: string | undefined;
+      let logged = "";
+      while ((why = this.opts.whyBusy())) {
+        if (why !== logged) this.log(`${to} 已准备好，等空闲再切换：${why}`);
+        logged = why;
+        if (Date.now() - waitStart > maxWait) {
+          rmSync(staging, { recursive: true, force: true });
+          this.log(`等了 ${Math.round(maxWait / 60_000)} 分钟还不空闲（${why}），这次先不装，空闲了再试`);
+          this.set({ status: "available", message: `等空闲再装：${why}`, step: undefined });
+          return this.state;
+        }
+        step(5, `${to} 已准备好，等手上的事做完就切换（${why}）`);
         await new Promise((r) => setTimeout(r, 5000));
       }
 

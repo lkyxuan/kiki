@@ -430,3 +430,55 @@ test("清空主对话：换一段新文件，名字不变，接在上面的聊�
   const t = await router.newSession("dev", "讨论");
   await assert.rejects(router.clearMain(t.path), /只有主对话/);
 });
+
+test("kiki_relay 只写宝名：交给那个宝的主对话", async () => {
+  const { router, say, reg, ctl } = setup();
+  await router.ensureMains();
+  await say("/new dev 路由器");
+  const from = reg.current("app")!.path;
+  const r = await router.relay(from, "life", "用户问：周末去哪玩");
+  assert.match(r, /已捎给 life\/主对话/);
+  await new Promise((x) => setTimeout(x, 10));
+  assert.match(ctl.sends.at(-1)!, /^【从「dev\/路由器」捎来的话】\n用户问：周末去哪玩/);
+});
+
+test("奇奇路由只看摘要：每个宝主对话 + 最近 5 段 + 当前对话，较早的只报个数", async () => {
+  const { router, reg, say, ctl } = setup();
+  await router.ensureMains();
+  const recs = [];
+  for (let i = 1; i <= 8; i++) recs.push(await router.newSession("dev", `串${i}`));
+  recs.forEach((r, i) => reg.setSummary(r.path, `第${i + 1}段的摘要`, new Date(2026, 0, 1, 0, i)));
+  reg.setCurrent("app", recs[0].path); // 最旧的那段是当前对话，也要在
+  ctl.routeAnswer = '{"action":"continue","target":"dev/串8","mode":"chat"}';
+  await say("接着说");
+  const p = ctl.routePrompts.at(-1)!;
+  assert.match(p, /dev\/串8：第8段的摘要/);
+  assert.match(p, /dev\/串4：第4段的摘要/);
+  assert.doesNotMatch(p, /dev\/串3/);
+  assert.match(p, /dev\/串1【当前】：第1段的摘要/);
+  assert.match(p, /还有 2 段较早的讨论串/);
+  assert.match(p, /dev\/主对话/);
+});
+
+test("主对话的讨论串清单：最近活跃的在前，带摘要和卡片写法", async () => {
+  const { router, reg } = setup();
+  assert.equal(router.threadDigest("dev"), "");
+  await router.ensureMains();
+  const a = await router.newSession("dev", "修 bug");
+  const b = await router.newSession("dev", "写文档");
+  reg.setSummary(a.path, "登录页报错，已找到原因", new Date(2026, 0, 1, 10));
+  reg.setSummary(b.path, "README 写到一半", new Date(2026, 0, 1, 9));
+  const d = router.threadDigest("dev");
+  assert.ok(d.indexOf("修 bug") < d.indexOf("写文档"));
+  assert.match(d, /\[修 bug\]\(kiki:dev\/修 bug\)：登录页报错，已找到原因/);
+  assert.doesNotMatch(d, /主对话\]/);
+});
+
+test("清空主对话时摘要一起清掉", async () => {
+  const { router, reg } = setup();
+  (router as any).agents.discard = async () => {};
+  const main = await router.ensureMain("dev");
+  reg.setSummary(main.path, "旧摘要");
+  const rec = await router.clearMain(main.path);
+  assert.equal(reg.byPath(rec.path)?.summary, undefined);
+});

@@ -10,7 +10,9 @@ import { handoffTool } from "./handoff.js";
 import { loadRules } from "./rules.js";
 import { kikiTools } from "./tools.js";
 import { type FeatureId, isOn } from "./features.js";
-import { DEFAULT_BAO, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
+import { Summaries } from "./summary.js";
+import { MAIN_SESSION } from "./bao.js";
+import { addRuleSections, DEFAULT_BAO, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { startServer } from "./server.js";
@@ -44,7 +46,7 @@ if (!existsSync(dataDir)) {
   console.log(`已在 ${dataDir} 建好数据目录，记得改 AGENTS.md（关于我）。`);
 }
 // 老数据目录升级：只留奇奇一个默认宝，旧的 dev、life 挪进 archive/（不删）
-for (const line of [...migrateToQiqi(dataDir, join(root, "data-template")), ...upgradeQiqiNote(dataDir, join(root, "data-template"))])
+for (const line of [...migrateToQiqi(dataDir, join(root, "data-template")), ...upgradeQiqiNote(dataDir, join(root, "data-template")), ...addRuleSections(dataDir, join(root, "data-template"))])
   console.log(`升级数据目录：${line}`);
 
 const agents = new Agents(dataDir, process.env.MODEL || "deepseek/deepseek-flash");
@@ -62,7 +64,25 @@ const router = new Router(agents, registry, defaultBao, new FileTaskStore(join(d
 // 对话里的 agent 可以把一件新事交接到新对话（自己写交接说明）
 router.rules = () => loadRules(dataDir);
 const TOOL_FEATURE: Record<string, FeatureId> = { kiki_handoff: "handoff", kiki_peek: "peek", kiki_relay: "relay", kiki_remember: "remember" };
-void router.ensureMains().catch((e) => console.warn("补主对话失败：", (e as Error).message)); // 每个宝一段主对话，老对话都当讨论串
+// 每段对话一句话摘要：回完话后台更新（registry.json 里的 summary），路由和主对话都只看摘要
+const summaries = new Summaries({
+  registry,
+  history: (p) => agents.history(p),
+  complete: (sys, user) => agents.complete(sys, user, process.env.SUMMARY_MODEL || undefined),
+});
+agents.on("busy", ({ path, busy }: { path: string; busy: boolean }) => {
+  if (!busy) summaries.schedule(path);
+});
+// 宝的主对话每轮自动看到本宝讨论串的摘要，不用靠它想起来去翻
+agents.extensions.push((pi) => {
+  pi.on("before_agent_start", (ev, ctx) => {
+    const file = ctx.sessionManager.getSessionFile();
+    const rec = file ? registry.byPath(file) : undefined;
+    if (rec?.name !== MAIN_SESSION) return;
+    const digest = router.threadDigest(rec.agent);
+    return digest ? { systemPrompt: `${ev.systemPrompt}\n\n${digest}` } : undefined;
+  });
+});
 router.isOn = (id) => isOn(dataDir, id);
 // 设置页关掉的能力不挂给 agent（新开的对话生效）
 agents.toolsFor = () =>
@@ -71,15 +91,22 @@ agents.toolsFor = () =>
     ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
   ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
 
+// 每个宝一段主对话，老对话都当讨论串。放在扩展和工具都挂好之后，启动时补建的主对话也带着它们
+void router.ensureMains().catch((e) => console.warn("补主对话失败：", (e as Error).message)); // 每个宝一段主对话，老对话都当讨论串
+
 const port = Number(process.env.PORT || 4567);
 const updater = new Updater({
   dataDir,
   port,
-  // 没有对话在跑才自动装，免得打断干活
-  isIdle: () =>
-    registry.list().every((s) => !agents.isBusy(s.path)) &&
-    router.tasks.list((t) => t.status === "queued" || t.status === "running").length === 0 &&
-    approvals.list().length === 0, // 有卡片等你点头时也别重启，不然那一步就丢了
+  // 没有对话在跑才自动装，免得打断干活；不空闲时说清楚卡在谁身上，写进更新日志
+  whyBusy: () => {
+    const s = registry.list().find((s) => agents.isBusy(s.path));
+    if (s) return `对话「${s.agent}/${s.name}」还在跑`;
+    const t = router.tasks.list((t) => t.status === "queued" || t.status === "running")[0];
+    if (t) return `后台任务「${t.title}」还没做完（${t.status === "queued" ? "排队中" : "进行中"}）`;
+    if (approvals.list().length) return "有卡片在等你点头"; // 这时重启，那一步就丢了
+    return undefined;
+  },
 });
 updater.start();
 
