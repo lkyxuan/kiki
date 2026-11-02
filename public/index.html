@@ -262,7 +262,7 @@
   <div class="peek-head">
     <span class="t" id="peek-title"></span>
     <button id="peek-full" title="在中间打开这段对话">在中间打开</button>
-    <button id="peek-close" class="icon-btn" aria-label="关掉右边的对话" title="关掉"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <button id="peek-close" class="icon-btn" aria-label="关掉右边的对话，回到总览" title="关掉，回到总览"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
   <div id="peek-log"><div class="msgs" id="peek-msgs"></div></div>
   <div class="composer">
@@ -396,10 +396,13 @@ async function openBao(name) {
 function renderPanel() {
   const all = tree.agents.flatMap((a) => a.sessions);
   // 在干活的对话：后面的小字写它正在干嘛（正在运行命令…），不然写是哪个宝的
-  const row = (s) => `<button class="row" data-path="${esc(s.path)}">${s.busy ? '<span class="spin"></span>' : avatar(s.agent)}<span class="name">${esc(s.name)}</span><small class="st">${esc(s.busy && s.live ? s.live.status : s.agent)}</small></button>`;
+  // 点了在右边打开（主对话会去中间），中间的对话不动
+  const row = (s) => `<button class="row" data-thread="${esc(s.path)}">${s.busy ? '<span class="spin"></span>' : avatar(s.agent)}<span class="name">${esc(s.name)}</span><small class="st">${esc(s.busy && s.live ? s.live.status : s.agent)}</small></button>`;
   const busy = all.filter((s) => s.busy);
   const bg = all.filter((s) => s.background).sort((x, y) => String(y.created).localeCompare(String(x.created))).slice(0, 8);
   let html = "";
+  const back = !peek && lastPeek && find(lastPeek);
+  if (back) html += `<div><h3>刚才看的</h3><div class="card"><button class="row" data-thread="${esc(back.path)}">${back.busy ? '<span class="spin"></span>' : avatar(back.agent)}<span class="name">${esc(back.name)}</span><small>${esc(back.agent)}</small></button></div></div>`;
   if (asks.length) html += `<div><h3>等你点头</h3><div class="card">${asks.map((a) => { const s = find(a.path); return `<button class="row" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small>${esc(s ? s.name : a.agent)}</small></button>`; }).join("")}</div></div>`;
   html += `<div><h3>进行中</h3><div class="card">${busy.length ? busy.map(row).join("") : '<div class="none">现在没有在干活的对话</div>'}</div></div>`;
   html += `<div><h3>后台任务</h3><div class="card">${bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>'}</div></div>`;
@@ -512,7 +515,7 @@ async function send() {
 }
 
 // 右栏打开一段对话（点对话小卡片）：像 Claude Desktop 那样，主对话不动，旁边看那段、也能接着说
-let peek = null, peekStream = null;
+let peek = null, peekStream = null, lastPeek = null; // lastPeek：关掉后在总览里留个「刚才看的」，一点就回去
 function byLabel(lbl) {
   const i = lbl.indexOf("/");
   return tree.agents.find((a) => a.name === lbl.slice(0, i))?.sessions.find((x) => x.name === lbl.slice(i + 1));
@@ -523,7 +526,7 @@ async function openPeek(lbl, byPath) {
   if (!s) { await loadTree(); s = look(); } // 刚交接出来的对话，左栏可能还没刷新
   if (!s) return;
   if (s.name === MAIN_SESSION) return open(s.path); // 主对话放中间
-  peek = s.path; peekStream = null;
+  peek = lastPeek = s.path; peekStream = null;
   unread.delete(s.path); // 在右边看了就算读过
   $("#peek-title").innerHTML = `<span class="crumb">${esc(s.agent)} › </span>${esc(s.name)}`;
   $("#peek").hidden = false;
