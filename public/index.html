@@ -261,7 +261,6 @@
 <section id="peek" aria-label="右边打开的对话" hidden>
   <div class="peek-head">
     <span class="t" id="peek-title"></span>
-    <button id="peek-full" title="在中间打开这段对话">在中间打开</button>
     <button id="peek-close" class="icon-btn" aria-label="关掉右边的对话，回到总览" title="关掉，回到总览"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
   <div id="peek-log"><div class="msgs" id="peek-msgs"></div></div>
@@ -479,6 +478,9 @@ function addMsg(role, text, steps) {
 }
 
 async function open(path) {
+  // 中间只放奇奇和各个宝的主对话；讨论串一律在右边打开
+  const t = path !== "main" && find(path);
+  if (t && t.name !== MAIN_SESSION) return openPeek(path, true);
   current = path;
   unread.delete(path);
   streaming = null;
@@ -574,7 +576,6 @@ async function sendPeek() {
   if (!r.ok) $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg assistant">${esc("出错了：" + (await r.json()).error)}</div>`);
 }
 $("#peek-close").onclick = closePeek;
-$("#peek-full").onclick = () => { const p = peek; closePeek(); if (p) open(p); };
 $("#peek-send").onclick = sendPeek;
 $("#peek-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendPeek(); }
