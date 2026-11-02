@@ -4,10 +4,13 @@
 // 通道边界：任何"通道"（这个网页、以后的微信插件……）都只需要调 router.handle(chatId, text, reply)。
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { execFile } from "node:child_process";
+import { networkInterfaces } from "node:os";
+import { promisify } from "node:util";
 import { join } from "node:path";
 import type { Agents, ChatLine } from "./agents.js";
 import type { Approvals, Decision } from "./approval.js";
-import { rejectReason } from "./guard.js";
+import { rejectReason, tailscaleIp } from "./guard.js";
 import type { Registry } from "./registry.js";
 import type { Router } from "./router.js";
 import { OPEN } from "./tasks.js";
@@ -16,6 +19,8 @@ import { setProviderModels, setProviderOn } from "./modelprefs.js";
 import { imageMime, saveImage, uploadsDir, validImageName } from "./images.js";
 import { baoLook, setEnvLine, settingsApi } from "./settings.js";
 import { type Updater, VERSION } from "./update.js";
+
+const run = promisify(execFile);
 
 const MAIN = "main"; // 主 bot 在网页里的 path
 const CHAT_ID = "app"; // 主 bot 在路由器眼里的聊天 id
@@ -400,5 +405,68 @@ export function startServer(opts: {
   server.listen(opts.port, "127.0.0.1", () => {
     console.log(`Kiki 已启动：http://localhost:${opts.port}  （数据目录 ${opts.dataDir}）`);
   });
+  if (process.env.KIKI_TAILSCALE_LISTEN !== "0") listenOnTailscale(server, opts.port);
   return server;
+}
+
+/** 本机网卡上落在 Tailscale 地址段（100.64.0.0/10）里的 IPv4。这个段也可能是运营商 CGNAT 分的，所以只当候选。 */
+export function candidateAddresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((a) => a && a.family === "IPv4" && tailscaleIp(a.address))
+    .map((a) => a!.address);
+}
+
+const TAILSCALE_BINS = [
+  "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
+  "/opt/homebrew/bin/tailscale",
+  "/usr/local/bin/tailscale",
+  "/usr/bin/tailscale",
+];
+
+/** 问 Tailscale 自己：它分给本机的 IPv4 是哪些。找不到 Tailscale 或问不到就返回空（宁可不开）。 */
+async function tailscaleOwned(): Promise<Set<string>> {
+  for (const bin of TAILSCALE_BINS) {
+    if (!existsSync(bin)) continue;
+    try {
+      const { stdout } = await run(bin, ["ip", "-4"], { timeout: 5000 });
+      return new Set(stdout.split(/\s+/).filter((ip) => tailscaleIp(ip)));
+    } catch {
+      /* 下一个 */
+    }
+  }
+  return new Set();
+}
+
+/**
+ * 同一个端口再在 Tailscale 的 IP 上开一扇门，别的设备可以直接填 100.x.x.x:端口 来连。
+ * 只开在 Tailscale 自己确认是它分的地址上（100.64/10 也可能是运营商的 CGNAT），
+ * 局域网、公网都连不到；进来的请求和本机一样过守卫。
+ * Tailscale 可能比 Kiki 晚起来，所以每分钟看一次。KIKI_TAILSCALE_LISTEN=0 关掉。
+ */
+function listenOnTailscale(main: ReturnType<typeof createServer>, port: number) {
+  const open = new Map<string, ReturnType<typeof createServer>>();
+  const failed = new Set<string>(); // 开不了的不再每分钟重试刷日志
+  const scan = async () => {
+    const local = candidateAddresses().filter((ip) => !open.has(ip) && !failed.has(ip));
+    if (!local.length) return;
+    const owned = await tailscaleOwned();
+    for (const ip of local) {
+      if (!owned.has(ip) || open.has(ip)) continue;
+      const s = createServer((req, res) => main.emit("request", req, res));
+      open.set(ip, s);
+      s.on("error", (e) => {
+        console.warn(`Tailscale 地址 ${ip}:${port} 开不了：${(e as Error).message}`);
+        open.delete(ip);
+        failed.add(ip);
+        s.close();
+      });
+      s.listen(port, ip, () => console.log(`远程可连：http://${ip}:${port}（Tailscale 内网）`));
+    }
+  };
+  void scan();
+  setInterval(() => void scan(), 60_000).unref();
+  main.on("close", () => {
+    for (const s of open.values()) s.close();
+  });
 }
