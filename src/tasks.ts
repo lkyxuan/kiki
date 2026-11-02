@@ -337,7 +337,8 @@ export class Tasks extends EventEmitter {
     switch (t.status) {
       case "todo":
       case "queued":
-        this.update(t, { prompt: `${t.prompt}\n\n${say}` });
+        if (this.resumes.has(t.id)) this.resumes.set(t.id, `${this.resumes.get(t.id)}\n\n${say}`);
+        else this.update(t, { prompt: `${t.prompt}\n\n${say}` });
         return "已补进任务内容";
       case "running":
         if (t.executor || !t.session || !this.backend.steer) return undefined;
@@ -388,7 +389,9 @@ export class Tasks extends EventEmitter {
     switch (t.status) {
       case "todo":
       case "queued":
-        this.update(t, { prompt: `${t.prompt}\n\n补充：${add}` });
+        // 已经排着队要在原对话里接着做（回答、返工、新消息）的，补在那句话后面，不然开跑时看不到
+        if (this.resumes.has(t.id)) this.resumes.set(t.id, `${this.resumes.get(t.id)}\n\n补充：${add}`);
+        else this.update(t, { prompt: `${t.prompt}\n\n补充：${add}` });
         return `已经改进「${t.title}」的任务内容，开跑时会按新的做。`;
       case "running":
         if (t.executor || !t.session || !this.backend.steer) return undefined;

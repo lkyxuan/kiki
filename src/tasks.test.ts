@@ -498,3 +498,26 @@ test("开对话时就被停：不再把任务发出去，标已取消", async ()
   assert.deepEqual(sent, []);
   assert.equal(t.status, "cancelled");
 });
+
+test("排队等返工时再改一次：两句都送到原对话", async () => {
+  const sent: string[] = [];
+  let hold!: () => void;
+  const gate = new Promise<void>((r) => (hold = r));
+  const { backend } = fakeBackend(async (text) => {
+    sent.push(text);
+    if (text === "占位") await gate;
+    return "好";
+  });
+  const tasks = new Tasks(new MemoryTaskStore(), backend, { concurrency: 1 });
+  const a = tasks.start({ agent: "dev", title: "周报", prompt: "写周报" });
+  await tick();
+  tasks.start({ agent: "dev", title: "占位", prompt: "占位" }); // 占住唯一的位置
+  await tick();
+  tasks.revise(a.id, "加一张表");
+  assert.equal(a.status, "queued");
+  tasks.revise(a.id, "再加下周计划");
+  hold();
+  await tick(50);
+  assert.equal(sent.at(-1), "返工：加一张表\n\n补充：再加下周计划");
+  assert.equal(a.prompt, "写周报");
+});
