@@ -10,6 +10,7 @@ import type { Approvals, Decision } from "./approval.js";
 import { rejectReason } from "./guard.js";
 import type { Registry } from "./registry.js";
 import type { Router } from "./router.js";
+import { OPEN } from "./tasks.js";
 import { Logins } from "./login.js";
 import { setProviderModels, setProviderOn } from "./modelprefs.js";
 import { imageMime, saveImage, uploadsDir, validImageName } from "./images.js";
@@ -105,7 +106,8 @@ export function startServer(opts: {
       : [];
 
   const tree = () => ({
-    tasks: router.tasks.list().slice(-50),
+    // 没结束的全给（待办、定时、等你…），结束了的只给最近 40 个
+    tasks: [...router.tasks.list((t) => OPEN.includes(t.status)), ...router.tasks.list((t) => !OPEN.includes(t.status)).slice(-40)],
     current: registry.current(CHAT_ID)?.path,
     main: mainLive, // 奇奇正在分派的进度，没有就是 null
     agents: agents.listAgents().map((name) => ({
@@ -279,11 +281,26 @@ export function startServer(opts: {
       if (!rec) return json({ error: "没有这段对话" }, 404);
       json({ ok: true });
       push("message", { path, role: "user", text });
+      // 这段对话是卡住等你回答的后台任务：回答交给任务，让它接着干、做完照常回报
+      const stuck = router.tasks.blockedBySession(path);
+      if (stuck) {
+        router.tasks.answer(stuck.id, text);
+        return;
+      }
       agents
         .send(rec.agent, rec.path, text)
         .then((r) => push("message", { path, role: "assistant", text: r }))
         .catch((e) => push("message", { path, role: "assistant", text: `出错了：${(e as Error).message}` }));
       return;
+    }
+
+    // 看板上的按钮：马上开始 / 取消 / 重跑
+    if (url.pathname.startsWith("/api/tasks/") && req.method === "POST") {
+      const { id } = await body();
+      const act = url.pathname.slice("/api/tasks/".length);
+      const t = act === "run" ? router.tasks.runNow(id) : act === "cancel" ? router.tasks.cancel(id) : act === "retry" ? router.tasks.retry(id) : undefined;
+      if (!t) return json({ error: "这个任务现在不能这样操作" }, 400);
+      return json(t);
     }
 
     if (url.pathname === "/api/new" && req.method === "POST") {
@@ -367,6 +384,11 @@ export function startServer(opts: {
     res.end(readFileSync(join(opts.publicDir, "index.html")));
   });
 
+  // 定时开出来的、重启后的、agent 用工具记的任务，做完/卡住时回报到收件箱
+  router.tasks.defaultNotify = (t) => {
+    const msg = router.notice(t);
+    if (msg) mainSay("assistant", msg);
+  };
   // 上次退出时没做完的后台任务：标成中断，在收件箱里说一声
   const lost = router.tasks.recover();
   if (lost.length)
