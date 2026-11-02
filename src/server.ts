@@ -9,6 +9,7 @@ import type { Agents, ChatLine } from "./agents.js";
 import type { Approvals, Decision } from "./approval.js";
 import { rejectReason } from "./guard.js";
 import type { Registry } from "./registry.js";
+import { answerText, deliveryText, type Postroom } from "./postroom.js";
 import type { Router } from "./router.js";
 import { Logins } from "./login.js";
 import { setProviderModels, setProviderOn } from "./modelprefs.js";
@@ -18,6 +19,7 @@ import { type Updater, VERSION } from "./update.js";
 
 const MAIN = "main"; // 主 bot 在网页里的 path
 const CHAT_ID = "app"; // 主 bot 在路由器眼里的聊天 id
+const POSTROOM_CHAT = "postroom"; // 收发室交给奇奇的消息，单独一个聊天 id，不打乱你自己的“当前对话”
 const STATIC: Record<string, string> = {
   "/manifest.webmanifest": "application/manifest+json",
   "/icon.svg": "image/svg+xml",
@@ -41,6 +43,7 @@ export function startServer(opts: {
   router: Router;
   updater?: Updater;
   approvals?: Approvals;
+  postroom?: Postroom;
 }) {
   const { agents, registry, router } = opts;
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
@@ -104,10 +107,35 @@ export function startServer(opts: {
       ? readFileSync(mainLog, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l))
       : [];
 
+  // 收发室：外部 agent 发来的新消息交给奇奇分派（和你在奇奇里说话走同一条路，聊天 id 单独一个），
+  // 奇奇的回执记进奇奇的聊天；回复某次派活的，直接记回派活的那段对话
+  const pr = opts.postroom;
+  if (pr) {
+    pr.deliver = (it) =>
+      new Promise((ok, fail) => {
+        let first = "";
+        router
+          .handle(POSTROOM_CHAT, deliveryText(it, (b) => agents.exists(b)), async (r) => {
+            first ||= r;
+            mainSay("assistant", `📮 收发室 · 「${it.from}」发来${it.title ? `「${it.title}」` : "一条消息"}\n\n${r}`);
+            push("tree", tree());
+          })
+          .then(() => ok(first), fail);
+      });
+    pr.answer = async (it, sent) => {
+      const rec = sent.origin ? registry.byPath(sent.origin) : undefined;
+      if (!rec) return false;
+      await agents.note(rec.agent, rec.path, answerText(it, sent));
+      return true;
+    };
+    pr.on("change", () => push("tree", tree()));
+  }
+
   const tree = () => ({
     tasks: router.tasks.list().slice(-50),
     current: registry.current(CHAT_ID)?.path,
     main: mainLive, // 奇奇正在分派的进度，没有就是 null
+    postroom: pr?.state() ?? null, // 收发室：外部 agent 的状态、要你看的
     agents: agents.listAgents().map((name) => ({
       name,
       ...baoLook(opts.dataDir, name), // 头像 emoji
@@ -131,6 +159,24 @@ export function startServer(opts: {
       return json(tree());
     }
     if (url.pathname.startsWith("/api/settings")) return settings(req, res, url); // 设置页，见 settings.ts
+
+    // 收发室：GET 看一览；POST /api/postroom/poll 立刻收一轮、send {agent, text, title} 派活、dismiss {id} 不用再看
+    if (url.pathname.startsWith("/api/postroom") && pr) {
+      if (url.pathname === "/api/postroom") return json(pr.state());
+      if (req.method !== "POST") return json({ error: "要用 POST" }, 405);
+      try {
+        if (url.pathname === "/api/postroom/poll") await pr.poll();
+        else if (url.pathname === "/api/postroom/send") {
+          const b = await body();
+          if (!String(b.text ?? "").trim()) return json({ error: "空消息" }, 400);
+          await pr.send(String(b.agent ?? ""), String(b.text), b.title ? String(b.title) : undefined, undefined, "用户");
+        } else if (url.pathname === "/api/postroom/dismiss") pr.dismiss(String((await body()).id ?? ""));
+        else return json({ error: "not found" }, 404);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      return json(pr.state());
+    }
 
     // 健康检查：自动更新换完版本后靠它确认新版本起来了
     if (url.pathname === "/api/health") return json({ ok: true, version: VERSION });

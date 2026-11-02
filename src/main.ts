@@ -16,6 +16,7 @@ import { MAIN_SESSION } from "./bao.js";
 import { addRuleSections, DEFAULT_BAO, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
+import { Postroom, postroomTool } from "./postroom.js";
 import { startServer } from "./server.js";
 import { FileTaskStore } from "./tasks.js";
 import { Updater, VERSION } from "./update.js";
@@ -64,7 +65,7 @@ const router = new Router(agents, registry, defaultBao, new FileTaskStore(join(d
 });
 // 对话里的 agent 可以把一件新事交接到新对话（自己写交接说明）
 router.rules = () => loadRules(dataDir);
-const TOOL_FEATURE: Record<string, FeatureId> = { kiki_handoff: "handoff", kiki_peek: "peek", kiki_relay: "relay", kiki_remember: "remember" };
+const TOOL_FEATURE: Record<string, FeatureId> = { kiki_handoff: "handoff", kiki_peek: "peek", kiki_relay: "relay", kiki_remember: "remember", kiki_outside: "postroom" };
 // 每段对话一句话摘要：回完话后台更新（registry.json 里的 summary），路由和主对话都只看摘要
 const summaries = new Summaries({
   registry,
@@ -85,12 +86,22 @@ agents.extensions.push((pi) => {
   });
 });
 router.isOn = (id) => isOn(dataDir, id);
+// 收发室：定时去外部 agent 那里收发（见 postroom.ts）。怎么把收到的交给奇奇、记回对话，在 server.ts 里接上
+const postroom = new Postroom({
+  dataDir,
+  intervalMs: Number(process.env.POSTROOM_POLL_SEC || 60) * 1000,
+  isOn: () => isOn(dataDir, "postroom"),
+});
 // 设置页关掉的能力不挂给 agent（新开的对话生效）
 agents.toolsFor = () =>
   [
     handoffTool({ listBaos: () => agents.listAgents(), describe: (b) => agents.describe(b), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
     ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
     lookTool((name, q) => agents.look(name, q)), // 看不了图的模型再看一眼图
+    postroomTool(postroom, (p) => {
+      const r = p ? registry.byPath(p) : undefined;
+      return r && `${r.agent}/${r.name}`;
+    }),
   ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
 
 // 每个宝一段主对话，老对话都当讨论串。放在扩展和工具都挂好之后，启动时补建的主对话也带着它们
@@ -121,4 +132,6 @@ startServer({
   router,
   updater,
   approvals,
+  postroom,
 });
+postroom.start();
