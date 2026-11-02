@@ -69,3 +69,23 @@ export function upgradeQiqiNote(dataDir: string, templateDir: string): string[] 
   writeFileSync(f, readFileSync(join(templateDir, "agents", DEFAULT_BAO, "AGENTS.md"), "utf8"));
   return ["奇奇的说明换成新版：只做分派，没有合适的宝就自己建"];
 }
+
+/** 分派规则里补上模板新增的小节（按标题判断，用户已有的同名小节不动，别的内容也不动）。 */
+export function addRuleSections(dataDir: string, templateDir: string, titles = ["在某段对话里冒出别的宝的事"]): string[] {
+  const file = join(dataDir, "分派规则.md");
+  if (!existsSync(file)) return [];
+  let src = readFileSync(file, "utf8");
+  const tpl = readFileSync(join(templateDir, "分派规则.md"), "utf8");
+  const done: string[] = [];
+  for (const title of titles) {
+    if (src.includes(`## ${title}`)) continue;
+    const m = tpl.match(new RegExp(`## ${title}\\n[\\s\\S]*?(?=\\n## |$)`));
+    if (!m) continue;
+    const section = `${m[0].trim()}\n\n`;
+    const at = src.indexOf("## 聊还是后台干");
+    src = at >= 0 ? src.slice(0, at) + section + src.slice(at) : `${src.trimEnd()}\n\n${section}`;
+    done.push(`分派规则里补上「${title}」`);
+  }
+  if (done.length) writeFileSync(file, src);
+  return done;
+}

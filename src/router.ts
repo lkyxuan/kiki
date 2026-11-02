@@ -171,14 +171,23 @@ export class Router {
     };
     if (!this.isOn("route")) return fallback(); // 自动路由关了：投进当前对话或默认的宝
     const agents = this.agents.listAgents();
-    const candidates: RouteCandidate[] = agents.map((agent) => ({
-      agent,
-      desc: this.agents.describe(agent),
-      sessions: this.registry
-        .list(agent)
-        .filter((s, i, all) => i >= all.length - 20 || s.path === cur?.path || s.name === MAIN_SESSION) // 每个宝只看最近 20 段，主对话和当前对话一定在
-        .map((s) => ({ label: label(s), recent: this.agents.recent(s.path, 2), background: s.background })),
-    }));
+    const candidates: RouteCandidate[] = agents.map((agent) => {
+      // 每个宝：主对话 + 当前对话 + 最近活跃的几段讨论串，每段只看一句摘要
+      const all = this.registry.list(agent);
+      const recent = new Set(byActivity(all.filter((s) => s.name !== MAIN_SESSION)).slice(0, ROUTE_THREADS));
+      const shown = all.filter((s) => s.name === MAIN_SESSION || s.path === cur?.path || recent.has(s));
+      return {
+        agent,
+        desc: this.agents.describe(agent),
+        sessions: shown.map((s) => ({
+          label: label(s),
+          summary: s.summary,
+          recent: s.summary ? [] : this.agents.recent(s.path, 1),
+          background: s.background,
+        })),
+        more: all.length - shown.length,
+      };
+    });
     const targets = candidates.flatMap((c) => c.sessions.map((s) => s.label));
     try {
       const raw = await this.agents.complete(
@@ -463,12 +472,27 @@ export class Router {
   private resolve(target: string): SessionRecord {
     const t = target.trim().replace(/^\//, "");
     const i = t.indexOf("/");
-    const rec = i > 0 ? this.registry.get(t.slice(0, i), t.slice(i + 1)) : undefined;
+    const rec = i > 0 ? this.registry.get(t.slice(0, i), t.slice(i + 1)) : this.registry.get(t, MAIN_SESSION); // 只写宝名 = 那个宝的主对话
     if (rec) return rec;
     const hits = this.registry.find(t);
     if (hits.length === 1) return hits[0];
     const all = this.registry.list().map(label);
     throw new Error(`找不到对话「${target}」。现有：${all.slice(-30).join("、") || "（没有）"}`);
+  }
+
+  /** 宝的主对话每轮看到的讨论串清单：每段一句摘要，最近活跃的在前。没有讨论串返回空。 */
+  threadDigest(agent: string): string {
+    const ss = byActivity(this.registry.list(agent).filter((s) => s.name !== MAIN_SESSION));
+    if (!ss.length) return "";
+    const lines = ss.slice(0, DIGEST_THREADS).map((s) => {
+      const tags = [this.agents.isBusy(s.path) ? "正在跑" : "", s.background ? "后台" : ""].filter(Boolean).join("、");
+      const about = s.summary ?? this.agents.recent(s.path, 1)[0] ?? "还没有内容";
+      return `- [${s.name}](kiki:${agent}/${s.name})${tags ? `【${tags}】` : ""}：${about}`;
+    });
+    if (ss.length > DIGEST_THREADS) lines.push(`- （还有 ${ss.length - DIGEST_THREADS} 段更早的，用 kiki_peek 看）`);
+    return `## 本宝现在的讨论串（每轮自动更新，最近活跃的在前）
+用户说的事明显接着某段讨论串的，用 kiki_relay 交进那段（target 写「${agent}/对话名」）；要细节用 kiki_peek 看那段原文；是新的事就自己答或用 kiki_handoff 开新讨论串。
+${lines.join("\n")}`;
   }
 
   /** kiki_peek：不给 target 列出全部对话；给了就返回那段最近 n 条。 */
@@ -482,8 +506,8 @@ export class Router {
         if (!ss.length) lines.push("（还没有对话）");
         for (const s of ss.slice(-20)) {
           const tags = [this.agents.isBusy(s.path) ? "正在跑" : "", s.background ? "后台" : ""].filter(Boolean).join("、");
-          const last = this.agents.recent(s.path, 1)[0];
-          lines.push(`- ${label(s)}${tags ? `【${tags}】` : ""}${last ? `：最近「${last}」` : ""}`);
+          const about = s.summary ?? (this.agents.recent(s.path, 1)[0] ? `最近「${this.agents.recent(s.path, 1)[0]}」` : "");
+          lines.push(`- ${label(s)}${tags ? `【${tags}】` : ""}${about ? `：${about}` : ""}`);
         }
       }
       return lines.join("\n");
@@ -544,6 +568,15 @@ export class Router {
       this.creating.delete(key);
     }
   }
+}
+
+/** 奇奇路由时每个宝列几段最近的讨论串（只看摘要）；主对话每轮看几段 */
+const ROUTE_THREADS = 5;
+const DIGEST_THREADS = 30;
+
+/** 按最近活跃排序（没回答过的按创建时间），新的在前 */
+function byActivity(ss: SessionRecord[]): SessionRecord[] {
+  return [...ss].sort((a, b) => (b.active ?? b.created).localeCompare(a.active ?? a.created));
 }
 
 /** 本机时间和时区，比如 "2026/11/2 06:15 星期一（Asia/Shanghai）" */
