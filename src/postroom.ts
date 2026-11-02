@@ -11,7 +11,7 @@
 //
 // 不同的接法（信箱、A2A、ACP）都实现同一个 ExternalAgent 接口：看状态、派任务、拿结果。
 import { EventEmitter } from "node:events";
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, type FSWatcher, mkdirSync, watch as fsWatch, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
@@ -68,6 +68,8 @@ export interface ExternalAgent {
   collect(): Promise<Incoming[]>;
   /** 不再用时（配置改了、删了）收尾，比如关掉子进程 */
   close?(): void;
+  /** 对方主动推过来的（比如 A2A 的推送通知），收到马上处理 */
+  onPush?(payload: unknown): void;
   /** 让对方停下某件派出去的活（任务超时、你叫停），能停就停 */
   cancel?(id: string): Promise<void>;
 }
@@ -92,6 +94,8 @@ export interface AdapterContext {
   root: string;
   /** 对方要做收不回来的动作时问你；没接审批就一律不同意 */
   approve(req: PermissionRequest): Promise<boolean>;
+  /** 有东西到了，叫收发室马上收一轮（不等下一分钟）。推送类的来源用 */
+  wake(): void;
 }
 
 export interface PermissionRequest {
@@ -107,7 +111,7 @@ export type AdapterFactory = (cfg: AgentConfig, ctx: AdapterContext) => External
 
 /** 适配器：按 kind 造出外部 agent。a2a、acp、watch 在各自的文件里，main.ts 启动时注册进来。 */
 export const ADAPTERS: Record<string, AdapterFactory | null> = {
-  mailbox: (cfg, ctx) => new MailboxAgent(cfg.name, cfg.dir ? expand(cfg.dir) : join(ctx.root, "mailbox", cfg.name)),
+  mailbox: (cfg, ctx) => new MailboxAgent(cfg.name, cfg.dir ? expand(cfg.dir) : join(ctx.root, "mailbox", cfg.name), ctx.wake),
 };
 
 // ---------- 信箱适配器（共享文件夹） ----------
@@ -117,14 +121,27 @@ const TO_AGENT = "to-agent"; // Kiki 往这里放派给对方的活
 const STATUS_FILE = "status.json"; // 对方自己写的状态
 const SETTLE_MS = 2000; // 刚写的文件等一会儿再拿，免得读到一半
 
-/** 最笨也最通用的接法：一个文件夹，谁都能读写（自家脚本、同步盘、别的机器挂进来）。 */
+/** 最笨也最通用的接法：一个文件夹，谁都能读写（自家脚本、同步盘、别的机器挂进来）。
+ *  放进文件马上就收（盯着文件夹），每分钟的巡视只是兜底。 */
 export class MailboxAgent implements ExternalAgent {
   readonly kind = "mailbox";
+  private watcher?: FSWatcher;
   constructor(
     readonly name: string,
     readonly dir: string,
+    wake?: () => void,
   ) {
     for (const d of [TO_KIKI, TO_AGENT]) mkdirSync(join(dir, d), { recursive: true });
+    if (wake)
+      try {
+        // 刚写的文件要等它写完（SETTLE_MS）才拿，所以晚一点再收
+        this.watcher = fsWatch(join(dir, TO_KIKI), () => setTimeout(wake, SETTLE_MS + 200).unref());
+        this.watcher.unref(); // 不因为盯着文件夹就让进程退不出去
+      } catch {} // 有的同步盘不支持盯，靠每分钟巡视
+  }
+
+  close() {
+    this.watcher?.close();
   }
 
   async status(): Promise<AgentStatus> {
@@ -215,6 +232,70 @@ export const MAIN_PATH = "main";
 export const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 export const expand = (p: string) => resolve(p.replace(/^~/, homedir()));
 
+// ---------- 重要规则 ----------
+
+/** 你定的“什么算重要”：postroom/重要规则.md，每行一条，改完马上生效。 */
+export const RULES_FILE = "重要规则.md";
+const RULES_TEMPLATE = `# 什么算重要
+
+命中下面任意一条的消息，收到就马上提醒你（标成重要，经通知通道发出），不等奇奇判断。
+对方自己标了 attention: true 的，也算重要。每行一条，前面写「来自」或「包含」：
+
+- 包含：出错
+- 包含：失败
+<!-- 例子：
+- 来自：grokbot
+- 包含：/付款|到期/      ← 两边加斜杠就是正则
+-->
+`;
+
+export interface UrgentRule {
+  kind: "from" | "text";
+  value: string;
+  re?: RegExp;
+}
+
+export function parseRules(md: string): UrgentRule[] {
+  const out: UrgentRule[] = [];
+  const body = md.replace(/<!--[\s\S]*?-->/g, "");
+  for (const line of body.split("\n")) {
+    const m = line.match(/^\s*[-*]\s*(来自|包含)\s*[:：]\s*(.+?)\s*$/);
+    if (!m) continue;
+    const v = m[2];
+    let re: RegExp | undefined;
+    const r = v.match(/^\/(.+)\/(i?)$/);
+    if (r)
+      try {
+        re = new RegExp(r[1], r[2]);
+      } catch {
+        continue;
+      }
+    out.push({ kind: m[1] === "来自" ? "from" : "text", value: v, re });
+  }
+  return out;
+}
+
+function readRules(root: string): UrgentRule[] {
+  const f = join(root, RULES_FILE);
+  try {
+    return parseRules(readFileSync(f, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+/** 重要吗？返回原因，不重要返回 undefined。 */
+export function isUrgent(it: Pick<InboxItem, "from" | "title" | "text" | "attention">, rules: UrgentRule[]): string | undefined {
+  if (it.attention) return "对方标了要你看";
+  const hay = `${it.title ?? ""}\n${it.text}`;
+  for (const r of rules) {
+    const target = r.kind === "from" ? it.from : hay;
+    const hit = r.re ? r.re.test(target) : r.kind === "from" ? target === r.value : target.includes(r.value);
+    if (hit) return `命中规则「${r.kind === "from" ? "来自" : "包含"}：${r.value}」`;
+  }
+  return undefined;
+}
+
 // ---------- 收件队列 ----------
 
 export interface InboxItem {
@@ -231,6 +312,7 @@ export interface InboxItem {
   route?: false; // 只通知你、不再交给奇奇分派（比如后台任务的结果已经回报到原对话了）
   path?: string; // 结果写在了哪段对话（pi JSONL 路径；"main" 是奇奇）。你打开过那段就算读过
   read?: boolean; // 已读：写进去时你正开着那段，或者后来点开看过。未读的才提醒你
+  urgent?: string; // 重要：为什么（对方标了要看 / 命中你的哪条规则）。收到就直接提醒，不等奇奇
   routedTo?: string; // 奇奇的回执第一行，比如 “→ 工作宝/主对话 · 交给宝”
   error?: string;
   dismissed?: boolean; // 「X 的情况」里点了 ×
@@ -342,6 +424,7 @@ export class Postroom extends EventEmitter {
     mkdirSync(join(this.root, "mailbox"), { recursive: true });
     const readme = join(this.root, "mailbox", "README.md");
     if (!existsSync(readme)) writeFileSync(readme, MAILBOX_README);
+    if (!existsSync(join(this.root, RULES_FILE))) writeFileSync(join(this.root, RULES_FILE), RULES_TEMPLATE);
     this.inbox = new JsonlTable(join(this.root, "inbox.jsonl"));
     this.outbox = new JsonlTable(join(this.root, "outbox.jsonl"));
   }
@@ -375,12 +458,23 @@ export class Postroom extends EventEmitter {
     if (make === undefined) return `不认识的接法 ${cfg.kind}`;
     if (make === null) return `${cfg.kind} 接法下一步才做`;
     try {
-      const agent = make(cfg, { root: this.root, approve: (r) => this.approve(r) });
+      const agent = make(cfg, { root: this.root, approve: (r) => this.approve(r), wake: () => this.wake() });
       this.live.set(cfg.name, { key, agent });
       return agent;
     } catch (e) {
       return (e as Error).message;
     }
+  }
+
+  private wakeTimer?: NodeJS.Timeout;
+  /** 有东西到了：马上收一轮（300 毫秒内的多次合成一次）。 */
+  wake() {
+    if (this.wakeTimer) return;
+    this.wakeTimer = setTimeout(() => {
+      this.wakeTimer = undefined;
+      void this.poll();
+    }, 300);
+    this.wakeTimer.unref?.();
   }
 
   start() {
@@ -479,12 +573,19 @@ export class Postroom extends EventEmitter {
   /** 分出去：回复某次派活的回到派活的对话，其余交给奇奇。不抛错，失败记在这条上。 */
   private async route(item: InboxItem) {
     const sent = item.re ? this.outbox.get(item.re) : undefined;
+    // 先用规则快速分拣：重要的程序直接提醒（马上、不等 AI），然后照常分派
+    const why = item.urgent ?? isUrgent(item, readRules(this.root));
+    if (why && !item.urgent) {
+      item = { ...item, urgent: why };
+      this.inbox.put(item);
+      await this.notify(item).catch(() => {});
+    }
     try {
       if (item.route === false) {
         // 结果已经写在某段对话里了（或者只是个提醒）：你正开着那段就不打扰，不在才提醒
         const path = item.path ?? MAIN_PATH;
         const read = this.isViewing(path);
-        if (!read) await this.notify(item);
+        if (!read && !item.urgent) await this.notify(item); // 重要的上面已经提醒过了
         this.inbox.put({ ...item, path, read, status: "notified" });
         return;
       }
@@ -506,7 +607,7 @@ export class Postroom extends EventEmitter {
         // 结果先写回派活的那段对话；你正开着它就算读过，不然提醒你一声
         const read = this.isViewing(sent.origin!);
         const replied: InboxItem = { ...item, path: sent.origin, read, status: "replied" };
-        if (!read) await this.notify(replied);
+        if (!read && !item.urgent) await this.notify(replied);
         this.inbox.put(replied);
         return;
       }
@@ -521,8 +622,8 @@ export class Postroom extends EventEmitter {
 
   /** Kiki 内部的来源（后台任务做完、定时任务到点……）往收件箱里投一条，和外部来的走同一条路。
    *  route: false 表示只通知你、不再交给奇奇分派。 */
-  post(from: string, m: Omit<Incoming, "id" | "ack">): InboxItem {
-    const item = { ...this.record(from, { ...m, id: "" }), internal: true };
+  post(from: string, m: Omit<Incoming, "id" | "ack">, internal = true): InboxItem {
+    const item = { ...this.record(from, { ...m, id: "" }), internal: internal || undefined };
     this.inbox.put(item);
     this.enqueue(item);
     this.emit("change", this.state());
@@ -563,6 +664,18 @@ export class Postroom extends EventEmitter {
         ok(t);
       });
     });
+  }
+
+  /** 外部推过来的（本机程序 POST /api/postroom/push，或 A2A 推送通知）：马上收，不等巡视。 */
+  push(from: string, payload: any): InboxItem | undefined {
+    const agent = this.live.get(from)?.agent;
+    if (agent?.onPush) {
+      agent.onPush(payload);
+      return undefined;
+    }
+    const text = str(payload?.text);
+    if (!text && !str(payload?.title)) throw new Error("要有 text 或 title");
+    return this.post(from, { text: text ?? "", title: str(payload?.title), re: str(payload?.re), attention: payload?.attention === true || undefined, bao: str(payload?.bao) }, false);
   }
 
   /** 你打开了这些对话：写在里面的结果都算读过。 */

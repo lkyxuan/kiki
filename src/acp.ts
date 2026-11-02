@@ -84,6 +84,7 @@ export class AcpAgent implements ExternalAgent {
     const text = job?.chunks.join("").trim() ?? "";
     const why = err ? `（出错：${err}）\n` : stop && stop !== "end_turn" ? `（停下原因：${stop}）\n` : "";
     this.done.push({ id: `${id}-r`, re: id, title: job?.title, text: why + (text || "（没有文字回答）"), attention: !!err || undefined });
+    this.ctx.wake(); // 做完马上交回，不等下一轮巡视
   }
 
   async cancel(id: string) {

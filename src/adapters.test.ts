@@ -17,7 +17,7 @@ function ctx(asks: PermissionRequest[] = [], answer = true): AdapterContext {
   const dataDir = mkdtempSync(join(tmpdir(), "kiki-ad-"));
   const root = join(dataDir, "postroom");
   mkdirSync(root, { recursive: true });
-  return { root, approve: async (r) => (asks.push(r), answer) };
+  return { root, approve: async (r) => (asks.push(r), answer), wake: () => {} };
 }
 
 // ---------- A2A ----------

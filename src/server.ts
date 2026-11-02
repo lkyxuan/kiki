@@ -126,8 +126,7 @@ export function startServer(opts: {
             void opts.notifier?.send({
               title: `收发室 · 「${it.from}」发来${it.title ? `「${it.title}」` : "一条消息"}`,
               text: r,
-              urgent: it.attention,
-              source: `收发室 · ${it.from}`,
+              source: `收发室 · ${it.from}`, // 重要的收到时已经单独提醒过，这里是奇奇的回执，不再弹系统通知
             });
             push("tree", tree());
           })
@@ -144,7 +143,8 @@ export function startServer(opts: {
       const rec = it.path && it.path !== MAIN ? registry.byPath(it.path) : undefined;
       const where = rec ? `\n\n结果在 [${rec.name === "主对话" ? rec.agent : rec.name}](kiki:${rec.agent}/${rec.name})` : "";
       const title = it.status === "replied" || it.re ? `「${it.from}」回复了${it.title ? `「${it.title}」` : ""}` : (it.title ?? `「${it.from}」有新消息`);
-      await opts.notifier?.send({ title, text: `${it.text.length > 600 ? `${it.text.slice(0, 600)}…` : it.text}${where}`, urgent: it.attention, source: it.from });
+      const why = it.urgent ? `（重要：${it.urgent}）\n` : "";
+      await opts.notifier?.send({ title, text: `${why}${it.text.length > 600 ? `${it.text.slice(0, 600)}…` : it.text}${where}`, urgent: !!it.urgent, source: it.from });
     };
     // 网页报上来你正开着哪几段对话（中间 + 右栏），90 秒内没再报就当你不在了
     pr.isViewing = (p) => (viewing.get(p) ?? 0) > Date.now() - 90_000;
@@ -194,6 +194,17 @@ export function startServer(opts: {
       for (const p of paths) viewing.set(p, now);
       pr?.markRead(paths);
       return json({ ok: true });
+    }
+    // 推送：本机程序（或 A2A 推送通知）直接 POST 过来，马上收。/api/postroom/push/<来源名> {title, text, attention, bao, re}
+    if (url.pathname.startsWith("/api/postroom/push/") && req.method === "POST" && pr) {
+      const from = decodeURIComponent(url.pathname.slice("/api/postroom/push/".length));
+      if (!/^[\p{L}\p{N} _.-]{1,40}$/u.test(from)) return json({ error: "来源名不对" }, 400);
+      try {
+        const it = pr.push(from, await body());
+        return json({ ok: true, id: it?.id });
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
     }
     if (url.pathname.startsWith("/api/postroom") && pr) {
       if (url.pathname === "/api/postroom") return json(pr.state());

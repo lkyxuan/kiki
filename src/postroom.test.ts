@@ -217,3 +217,30 @@ test("已读未读：结果写回派活的对话；你正开着就不提醒，�
   assert.equal(pr.state().unreadCount, 1);
   assert.equal(notified.length, 2);
 });
+
+test("重要规则：对方标了 attention 或命中你的规则，收到就先提醒（不等奇奇），再照常分派", async () => {
+  const { dataDir, pr, drop, delivered } = setup();
+  writeFileSync(join(dataDir, "postroom", "重要规则.md"), "- 来自：老板\n- 包含：/到期|付款/\n<!-- - 包含：日报 -->\n");
+  const notified: string[] = [];
+  pr.notify = async (it) => void notified.push(`${it.urgent}|${it.title}`);
+  drop("1.md", "---\ntitle: 域名快到期了\n---\n还有 3 天");
+  drop("2.md", "---\ntitle: 日报\n---\n一切正常");
+  await pr.poll();
+  await pr.settled();
+  assert.deepEqual(notified, ["命中规则「包含：/到期|付款/」|域名快到期了"]);
+  assert.equal(delivered.length, 2); // 两条都照常交给奇奇
+  pr.push("老板", { text: "回个电话" });
+  await pr.settled();
+  assert.match(notified[1], /来自：老板/);
+  assert.ok(!pr.inbox.rows.at(-1)!.internal);
+});
+
+test("信箱放进文件马上收，不等每分钟巡视", async () => {
+  const { pr, box, delivered } = setup();
+  await pr.poll(); // 接上信箱，开始盯文件夹
+  writeFileSync(join(box, "to-kiki", "now.md"), "急事");
+  await new Promise((r) => setTimeout(r, 3000));
+  await pr.settled();
+  assert.equal(delivered.length, 1);
+  pr.stop();
+});

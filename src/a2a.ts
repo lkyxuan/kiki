@@ -86,11 +86,17 @@ export class A2AAgent implements ExternalAgent {
         parts: [{ kind: "text", text: t.from ? `（来自 Kiki · ${t.from}）\n${t.text}` : t.text }],
         metadata: { kikiId: t.id, title: t.title },
       },
-      configuration: { blocking: false, acceptedOutputModes: ["text/plain", "text/markdown"] },
+      configuration: {
+        blocking: false,
+        acceptedOutputModes: ["text/plain", "text/markdown"],
+        // 写了 pushUrl（Kiki 的地址，对方能访问到的）就请对方做完时推过来，马上收到；没写就靠每分钟查
+        ...(this.cfg.pushUrl ? { pushNotificationConfig: { url: `${String(this.cfg.pushUrl).replace(/\/+$/, "")}/api/postroom/push/${encodeURIComponent(this.name)}` } } : {}),
+      },
     });
     this.pending[t.id] = { title: t.title };
     this.take(t.id, result);
     this.save();
+    if (this.done.length) this.ctx.wake(); // 对方当场就答了
   }
 
   /** 对方给的结果：是消息就直接算回答；是任务就看状态，做完或卡住就算回音。 */
@@ -115,6 +121,16 @@ export class A2AAgent implements ExternalAgent {
     const p = this.pending[id];
     delete this.pending[id];
     this.done.push({ id: `${id}-r`, re: id, title: p?.title, text, attention: attention || undefined });
+  }
+
+  /** 对方推过来的任务状态 */
+  onPush(payload: any) {
+    const task = payload?.result ?? payload?.task ?? payload;
+    const id = Object.entries(this.pending).find(([, p]) => p.task && p.task === task?.id)?.[0];
+    if (!id) return;
+    this.take(id, task);
+    this.save();
+    if (this.done.length) this.ctx.wake();
   }
 
   async cancel(id: string) {
