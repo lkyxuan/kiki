@@ -1024,25 +1024,21 @@ function renderModels() {
   // 模型多了按服务商分组，超过 12 个给个搜索框
   const many = models.models.length > 12, mq = (modelQuery || "").toLowerCase();
   if (many) h += `<div class="row"><input id="model-q" placeholder="搜索模型" value="${esc(modelQuery)}"></div>`;
-  // 现在用的那家排最前；不搜索时每家最多列 8 个（加上现在用的），其余搜索才出来
-  const curP = models.current.split("/")[0], LIMIT = 8;
+  // 现在用的那家排最前；列哪些模型由设置里的勾选决定，这里不再截断
+  const curP = models.current.split("/")[0];
   const all = models.models.filter((m) => !mq || (m.name + " " + m.spec + " " + (m.providerName || "")).toLowerCase().includes(mq));
   const order = [...new Set([curP, ...all.map((m) => m.provider)])].filter((p) => all.some((m) => m.provider === p));
   const groups = order.length > 1;
   let shown = [];
-  const more = {};
   for (const p of order) {
     const ms = all.filter((m) => m.provider === p);
-    const pick = mq ? ms : ms.filter((m, i) => i < LIMIT || m.spec === models.current);
-    if (pick.length < ms.length) more[p] = ms.length - pick.length;
-    shown.push(...pick);
+    shown.push(...ms);
   }
   let last = "";
-  h += '<div class="opts">' + shown.map((m, i) => {
+  h += '<div class="opts">' + shown.map((m) => {
     const head = groups && m.provider !== last ? `<div class="sub grp">${esc(m.providerName || m.provider)}</div>` : "";
     last = m.provider;
-    const tail = more[m.provider] && shown[i + 1]?.provider !== m.provider ? `<div class="sub">还有 ${more[m.provider]} 个，搜索就能找到</div>` : "";
-    return head + `<button class="opt" role="menuitemradio" aria-checked="${m.spec === models.current}" data-model="${esc(m.spec)}"><span class="ok">${m.spec === models.current ? "✓" : ""}</span><span class="n">${esc(m.name)}</span>${m.image ? '<span class="tag">能看图</span>' : ""}</button>` + tail;
+    return head + `<button class="opt" role="menuitemradio" aria-checked="${m.spec === models.current}" data-model="${esc(m.spec)}"><span class="ok">${m.spec === models.current ? "✓" : ""}</span><span class="n">${esc(m.name)}</span>${m.image ? '<span class="tag">能看图</span>' : ""}</button>`;
   }).join("") + "</div>";
   const eyes = models.models.filter((m) => m.image);
   if (!canSee() && eyes.length) { // 现在的模型看不了图：选谁先帮它看
