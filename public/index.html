@@ -476,15 +476,20 @@ function markChips() {
   const lbl = s ? `${s.agent}/${s.name}` : null;
   document.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.peek === lbl));
 }
-async function refreshPeek() {
+// expect：刚收到的一条回答。历史里还没有它（比如没进记录的报错）就补在最后
+async function refreshPeek(expect) {
   const path = peek;
   if (!path) return;
   const r = await fetch(`/api/history?path=${encodeURIComponent(path)}`);
   if (path !== peek || !r.ok) return;
   const hist = await r.json();
   const log = $("#peek-log"), atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  const keep = peekStream; // 请求发出后才流进来的字，快照里没有，不能丢
+  const lastA = [...hist].reverse().find((m) => m.role === "assistant")?.text.trim();
   $("#peek-msgs").innerHTML = hist.length ? hist.map((m) => `<div class="msg ${m.role}">${m.role === "user" ? esc(m.text) : render(m.text)}</div>`).join("") : '<div class="hint">这段对话还没有消息。</div>';
   peekStream = null;
+  if (keep && keep.dataset.raw.trim() && keep.dataset.raw.trim() !== lastA && live[path]) { $("#peek-msgs").appendChild(keep); peekStream = keep; }
+  if (expect && expect.trim() !== lastA && !(keep && keep.dataset.raw.trim() === expect.trim())) $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg assistant">${render(expect)}</div>`);
   if (atBottom || !log.dataset.seen) log.scrollTop = log.scrollHeight;
   log.dataset.seen = "1";
 }
@@ -622,7 +627,7 @@ $("#input").addEventListener("keydown", (e) => {
 const es = new EventSource("/api/events");
 es.addEventListener("message", (e) => {
   const m = JSON.parse(e.data);
-  if (m.path === peek) refreshPeek();
+  if (m.path === peek) refreshPeek(m.role === "assistant" ? m.text : undefined);
   if (m.path === "main" && m.role === "assistant" && mainBusy) { mainBusy = false; live.main = null; thinkEyes(); }
   if (m.path === current && m.role === "assistant") finishLive();
   if (m.path !== current) { if (m.role === "assistant" && m.path !== peek) { unread.add(m.path); renderSide(); } return; }
