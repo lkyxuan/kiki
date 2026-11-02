@@ -45,6 +45,9 @@
   .sub-head { color: var(--muted); font-size: 12px; font-weight: 600; padding-top: 10px; }
   #qiqi .sess { padding-left: 22px; }
   #qiqi .empty { padding-left: 22px; }
+  .bao-head[data-bao] { cursor: pointer; border-radius: 7px; transition: background .12s; }
+  .bao-head[data-bao]:hover { background: var(--hover); }
+  .bao-head.on { background: var(--active); }
   .bao-head .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bao-head button { color: var(--muted); width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; opacity: 0; transition: opacity .12s, background .12s; }
   .bao:hover .bao-head button, .bao-head button:focus-visible { opacity: 1; }
@@ -310,24 +313,47 @@ function renderSide() {
   k.classList.toggle("on", current === "main");
   k.querySelector(".dot")?.remove();
   if (unread.has("main")) k.insertAdjacentHTML("beforeend", '<span class="dot"></span>');
-  const sessRows = (a) => (a.sessions.length ? "" : '<div class="empty">还没有对话</div>') + a.sessions.map((s) => `
-        <button class="item sess ${s.path === current ? "on" : ""}" data-path="${esc(s.path)}"${s.live ? ` title="${esc(s.live.status)}"` : ""}>
+  // 两层：每个宝有一段「主对话」（点宝名打开，在中间），其余是讨论串（列在宝下面，点了在右栏打开）
+  const sessRows = (a) => { const th = threads(a); return (th.length ? "" : '<div class="empty">还没有讨论串</div>') + th.map((s) => `
+        <button class="item sess ${s.path === current || s.path === peek ? "on" : ""}" data-thread="${esc(s.path)}"${s.live ? ` title="${esc(s.live.status)}"` : ""}>
           <span class="name">${esc(s.name)}</span>
           ${s.background ? '<span class="tag">后台</span>' : ""}
           ${s.busy ? '<span class="spin"></span>' : unread.has(s.path) ? '<span class="dot"></span>' : ""}
-        </button>`).join("");
-  const newBtn = (name) => `<button title="在${esc(name)}里新开对话" aria-label="在${esc(name)}里新开对话" data-new="${esc(name)}">${PLUS}</button>`;
+        </button>`).join(""); };
+  const newBtn = (name) => `<button title="在${esc(name)}里新开讨论串" aria-label="在${esc(name)}里新开讨论串" data-new="${esc(name)}">${PLUS}</button>`;
   // 奇奇是默认的宝：它的对话直接列在主按钮下面；别的宝都是从奇奇分出去的，列在“我的宝”
   const qiqi = tree.agents.find((a) => a.name === DEFAULT_BAO);
-  $("#qiqi").innerHTML = qiqi ? `<div class="bao"><div class="bao-head sub-head"><span class="name">对话</span>${newBtn(qiqi.name)}</div>${sessRows(qiqi)}</div>` : "";
+  $("#qiqi").innerHTML = qiqi ? `<div class="bao"><div class="bao-head sub-head"><span class="name">讨论串</span>${newBtn(qiqi.name)}</div>${sessRows(qiqi)}</div>` : "";
   const others = tree.agents.filter((a) => a.name !== DEFAULT_BAO);
   $("#baos-label").hidden = !others.length;
   $("#agents").innerHTML = others.map((a) => `
     <div class="bao">
-      <div class="bao-head">${avatar(a.name)}<span class="name">${esc(a.name)}</span>${newBtn(a.name)}</div>
+      ${baoHead(a)}
       ${sessRows(a)}
     </div>`).join("");
   renderPanel();
+}
+
+// 宝的主对话（名字固定，见 src/bao.ts 的 MAIN_SESSION）；其余的对话都是讨论串
+const MAIN_SESSION = "主对话";
+const mainOf = (a) => a.sessions.find((s) => s.name === MAIN_SESSION);
+const threads = (a) => a.sessions.filter((s) => s.name !== MAIN_SESSION);
+// 宝名那一行：点了在中间打开它的主对话；还没有主对话的老数据，点了就新建一段
+function baoHead(a) {
+  const m = mainOf(a), on = m && m.path === current;
+  const mark = m ? (m.busy ? '<span class="spin"></span>' : unread.has(m.path) ? '<span class="dot"></span>' : "") : "";
+  return `<div class="bao-head ${on ? "on" : ""}" data-bao="${esc(a.name)}" role="button" tabindex="0" title="打开${esc(a.name)}的主对话">${avatar(a.name)}<span class="name">${esc(a.name)}</span>${mark}<button title="在${esc(a.name)}里新开讨论串" aria-label="在${esc(a.name)}里新开讨论串" data-new="${esc(a.name)}">${PLUS}</button></div>`;
+}
+async function openBao(name) {
+  let a = tree.agents.find((x) => x.name === name);
+  let m = a && mainOf(a);
+  if (!m) { // 还没补上主对话：建一段
+    const r = await fetch("/api/new", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agent: name, name: MAIN_SESSION }) });
+    if (!r.ok) return;
+    await loadTree();
+    a = tree.agents.find((x) => x.name === name); m = a && mainOf(a);
+  }
+  if (m) open(m.path);
 }
 
 // 右栏：哪些对话在干活、后台任务、当前这个宝
@@ -354,7 +380,7 @@ function renderPanel() {
 }
 // 卡片：奇奇（收件箱）里显示全部，某段对话里只显示它自己的
 function renderAsks() {
-  const mine = current === "main" ? asks : asks.filter((a) => a.path === current);
+  const mine = current === "main" ? asks : asks.filter((a) => a.path === current || a.path === peek); // 右栏开着的讨论串要点头，也显示在这里
   $("#asks").innerHTML = mine.map((a) => {
     const s = find(a.path);
     const where = s ? `${esc(a.agent)} › ${esc(s.name)}` : esc(a.agent);
@@ -418,7 +444,7 @@ async function open(path) {
   unread.delete(path);
   streaming = null;
   const s = find(path);
-  $("#title").innerHTML = path === "main" ? "奇奇" : `<span class="crumb">${esc(s.agent)} › </span>${esc(s.name)}${s.background ? ' <span class="tag">后台</span>' : ""}`;
+  $("#title").innerHTML = path === "main" ? "奇奇" : s.name === MAIN_SESSION ? `${esc(s.agent)} <span class="crumb">· 主对话</span>` : `<span class="crumb">${esc(s.agent)} › </span>${esc(s.name)}${s.background ? ' <span class="tag">后台</span>' : ""}`;
   document.body.classList.remove("show-panel");
   renderSide();
   const hist = await (await fetch(`/api/history?path=${encodeURIComponent(path)}`)).json();
@@ -426,7 +452,7 @@ async function open(path) {
   $("#msgs").innerHTML = "";
   if (!hist.length) $("#msgs").innerHTML = path === "main"
     ? '<div class="hint">跟奇奇说就行，它会分给对应的宝。<br>@宝名 可以直接指定，/help 看命令。</div>'
-    : '<div class="hint">新对话，说点什么吧。</div>';
+    : s?.name === MAIN_SESSION ? `<div class="hint">这是${esc(s.agent)}的主对话，直接在这儿派活就行。<br>细的事它会分到讨论串里，点开在右边看。</div>` : '<div class="hint">新对话，说点什么吧。</div>';
   shown.clear(); lastStreamed = null;
   hist.forEach((m) => addMsg(m.role, m.text, m.steps));
   renderLive();
@@ -455,15 +481,18 @@ function byLabel(lbl) {
   const i = lbl.indexOf("/");
   return tree.agents.find((a) => a.name === lbl.slice(0, i))?.sessions.find((x) => x.name === lbl.slice(i + 1));
 }
-async function openPeek(lbl) {
-  let s = byLabel(lbl);
-  if (!s) { await loadTree(); s = byLabel(lbl); } // 刚交接出来的对话，左栏可能还没刷新
+async function openPeek(lbl, byPath) {
+  const look = () => (byPath ? find(lbl) : byLabel(lbl));
+  let s = look();
+  if (!s) { await loadTree(); s = look(); } // 刚交接出来的对话，左栏可能还没刷新
   if (!s) return;
+  if (s.name === MAIN_SESSION) return open(s.path); // 主对话放中间
   peek = s.path; peekStream = null;
+  unread.delete(s.path); // 在右边看了就算读过
   $("#peek-title").innerHTML = `<span class="crumb">${esc(s.agent)} › </span>${esc(s.name)}`;
   $("#peek").hidden = false;
   document.body.classList.add("peeking");
-  markChips();
+  markChips(); renderSide();
   await refreshPeek();
   $("#peek-input").focus();
 }
@@ -471,7 +500,7 @@ function closePeek() {
   peek = null; peekStream = null;
   $("#peek").hidden = true;
   document.body.classList.remove("peeking");
-  markChips();
+  markChips(); renderSide();
 }
 // 正在右边打开的那段，对应的小卡片加个框
 function markChips() {
@@ -536,7 +565,7 @@ function newSession(agent, btn) {
     const data = await r.json();
     if (!r.ok) return data.error;
     await loadTree();
-    open(data.path);
+    openPeek(data.path, true); // 新讨论串在右边打开，主对话留在中间
   });
 }
 
@@ -573,7 +602,7 @@ try { if (localStorage.getItem("kiki.panel") === "off") document.body.classList.
 if (document.documentElement.classList.contains("kiki-fullsize")) {
   const winMsg = (m) => { try { window.webkit.messageHandlers.kikiWindow.postMessage(m); } catch {} };
   const dragZone = (e) => e.button === 0 && (e.clientY < 28 || e.target.closest("header"))
-    && !e.target.closest("button, a, input, textarea, select, [data-path], #sheet");
+    && !e.target.closest("button, a, input, textarea, select, [data-path], [data-bao], [data-thread], #sheet");
   document.addEventListener("mousedown", (e) => { if (e.detail === 1 && dragZone(e)) winMsg("drag"); });
   document.addEventListener("dblclick", (e) => { if (dragZone(e)) winMsg("zoom"); });
 }
@@ -611,10 +640,14 @@ document.body.addEventListener("click", (e) => {
   if (dc) return decide(dc.dataset.id, dc.dataset.decide);
   const st = e.target.closest("[data-settings]");
   if (st && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); return openSettings(st.dataset.settings); }
-  const pk = e.target.closest("[data-peek]");
-  if (pk) { e.preventDefault(); return openPeek(pk.dataset.peek); }
+  const th = e.target.closest("[data-thread]");
+  if (th) return openPeek(th.dataset.thread, true);
   const nb = e.target.closest("[data-new]");
   if (nb) return newSession(nb.dataset.new, nb);
+  const bh = e.target.closest("[data-bao]");
+  if (bh) return openBao(bh.dataset.bao);
+  const pk = e.target.closest("[data-peek]");
+  if (pk) { e.preventDefault(); return openPeek(pk.dataset.peek); }
   const it = e.target.closest("[data-path]");
   if (it) return open(it.dataset.path);
   const go = e.target.closest("[data-goto]");
@@ -628,6 +661,7 @@ document.body.addEventListener("click", (e) => {
   if (ch) { $("#input").value = ch.dataset.choose; send(); }
 });
 $("#add-bao").onclick = newBao;
+$("aside").addEventListener("keydown", (e) => { const bh = e.target.closest?.("[data-bao]"); if (bh && e.target === bh && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openBao(bh.dataset.bao); } });
 $("#panel-toggle").onclick = togglePanel;
 $("#send").onclick = send;
 const syncSend = () => { $("#send").disabled = !$("#input").value.trim(); };
@@ -776,7 +810,7 @@ setInterval(() => document.querySelectorAll(".elapsed").forEach((el) => el.textC
 // 左栏转圈的地方悬停能看到在干嘛
 function sideStatus(path) {
   const s = find(path);
-  const btn = [...document.querySelectorAll("aside .sess")].find((b) => b.dataset.path === path);
+  const btn = [...document.querySelectorAll("aside .sess")].find((b) => b.dataset.thread === path);
   if (btn) btn.title = s?.live?.status || "";
 }
 es.addEventListener("tree", (e) => { tree = JSON.parse(e.data); syncLive(); renderSide(); });
