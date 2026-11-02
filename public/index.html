@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Kiki">
 <link rel="stylesheet" href="/theme.css">
 <script src="/theme.js"></script>
+<script src="/bots.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -195,6 +196,8 @@
   #sheet { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .18s; }
   #sheet.on { opacity: 1; pointer-events: auto; }
   .avatar.emoji { background: var(--fill); box-shadow: none; font-size: 14px; font-weight: 400; }
+  .avatar.bot { background: none; box-shadow: none; } /* 默认头像：按名字生成的小机器人（public/bots.js） */
+  .avatar.bot svg, .faces .bot svg { width: 100%; height: 100%; display: block; }
   .receipt .avatar.emoji { font-size: 17px; }
   /* 新建宝：小弹窗，只问名字、负责什么、头像 */
   #newbao { position: fixed; inset: 0; z-index: 21; display: grid; place-items: center; background: var(--scrim); }
@@ -210,7 +213,7 @@
   #newbao .faces { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   #newbao .faces button { width: 32px; height: 32px; border-radius: 8px; font-size: 17px; display: grid; place-items: center; background: var(--fill); }
   #newbao .faces button.on { box-shadow: 0 0 0 2px var(--accent); }
-  #newbao .faces .letter { font-size: 13px; font-weight: 700; color: #fff; }
+  #newbao .faces .bot { padding: 3px; }
   #newbao .faces input { width: 64px; text-align: center; padding: 6px; }
   #newbao .edit-only { margin: -4px 0 0; font-size: 12.5px; color: var(--muted); }
   #newbao .edit-only a { color: var(--accent); text-decoration: none; margin: 0 2px; }
@@ -338,11 +341,9 @@ function md(src) {
   }).join("");
 }
 
-// 每个宝一个固定颜色（按名字算），头像显示名字第一个字
-const COLORS = ["#3a7bf0", "#2f9e57", "#e07b12", "#9a55d6", "#e0475f", "#1f9aa8"]; // 接近 macOS 系统色，白字仍看得清
-function color(name) { let h = 0; for (const c of name) h = (h * 31 + c.codePointAt(0)) >>> 0; return COLORS[h % COLORS.length]; }
+// 没挑 emoji 的宝，头像是按名字生成的小机器人（同一个名字永远同一个）
 const emojiOf = (name) => tree?.agents?.find((a) => a.name === name)?.emoji;
-const avatar = (name) => { const e = emojiOf(name); return e ? `<span class="avatar emoji">${esc(e)}</span>` : `<span class="avatar" style="background:${color(name)}">${esc([...name][0].toUpperCase())}</span>`; };
+const avatar = (name) => { const e = emojiOf(name); return e ? `<span class="avatar emoji">${esc(e)}</span>` : `<span class="avatar bot">${kikiBot(name)}</span>`; };
 const GEAR = '<svg class="i" viewBox="-1.5 -1.5 27 27" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 const PLUS = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15"/></svg>';
 
@@ -623,7 +624,7 @@ function newSession(agent, btn) {
 
 // 新建宝：弹一个小窗，填名字（必填）、负责什么、挑个头像；建好直接进它的主对话
 // 宝设置（宝名后面的齿轮）：同一个小窗，改负责什么和头像
-const FACES = ["", "💼", "🏠", "📚", "💰", "🏃", "🍳", "✈️", "🎨", "💻", "❤️", "🌱"]; // "" = 名字首字
+const FACES = ["", "💼", "🏠", "📚", "💰", "🏃", "🍳", "✈️", "🎨", "💻", "❤️", "🌱"]; // "" = 按名字生成的小机器人
 const newBao = () => baoDialog();
 async function editBao(name) {
   try {
@@ -638,7 +639,7 @@ function baoDialog(editing, info = {}) {
   let face = editing ? info.emoji || "" : "";
   const drawFaces = () => {
     const nm = f.name.value.trim() || "宝";
-    faces.innerHTML = FACES.map((e) => `<button type="button" data-face="${e}" class="${e === face ? "on" : ""}${e ? "" : " letter"}" ${e ? "" : `style="background:${color(nm)}"`} aria-label="${e ? `头像 ${e}` : "用名字首字"}">${e || esc([...nm][0].toUpperCase())}</button>`).join("")
+    faces.innerHTML = FACES.map((e) => `<button type="button" data-face="${e}" class="${e === face ? "on" : ""}${e ? "" : " bot"}" aria-label="${e ? `头像 ${e}` : "小机器人（按名字生成）"}">${e || kikiBot(nm)}</button>`).join("")
       + `<input data-own maxlength="8" placeholder="自己填" aria-label="自己填一个 emoji" value="${FACES.includes(face) ? "" : esc(face)}">`;
   };
   f.reset(); err.textContent = "";
@@ -655,7 +656,7 @@ function baoDialog(editing, info = {}) {
   const last = document.activeElement;
   (editing ? f.about : f.name).focus();
   const close = () => { box.hidden = true; box.onkeydown = f.onsubmit = faces.onclick = faces.oninput = f.name.oninput = box.onclick = null; last?.focus?.(); };
-  f.name.oninput = () => { if (!face) faces.querySelector(".letter").textContent = [...(f.name.value.trim() || "宝")][0].toUpperCase(), faces.querySelector(".letter").style.background = color(f.name.value.trim() || "宝"); };
+  f.name.oninput = () => { faces.querySelector(".bot").innerHTML = kikiBot(f.name.value.trim() || "宝"); }; // 名字一改，小机器人跟着变
   faces.onclick = (e) => { const b = e.target.closest("[data-face]"); if (!b) return; face = b.dataset.face; drawFaces(); };
   faces.oninput = (e) => { if (!e.target.matches("[data-own]")) return; face = e.target.value.trim(); faces.querySelectorAll("[data-face]").forEach((b) => b.classList.toggle("on", b.dataset.face === face)); };
   box.querySelector(".cancel").onclick = close;
