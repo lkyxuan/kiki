@@ -2,6 +2,9 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+/** 每个宝固定的主对话：这个宝的协调人，简单的直接答，具体的事开成讨论串（宝下面其他的对话）。 */
+export const MAIN_SESSION = "主对话";
+
 /** 每个宝的说明文件（pi 会读进系统提示词）。 */
 export const BAO_FILE = "AGENTS.md";
 
