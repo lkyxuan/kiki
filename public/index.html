@@ -51,6 +51,7 @@
   .bao-head .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bao-head button { color: var(--muted); width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; opacity: 0; transition: opacity .12s, background .12s; }
   .bao:hover .bao-head button, .bao-head button:focus-visible { opacity: 1; }
+  .bao-head .acts { display: flex; gap: 2px; }
   .bao-head button:hover { background: var(--active); color: var(--text); }
   .avatar { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; flex: none; color: #fff; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.1); }
   .sess { padding-left: 42px; min-height: 30px; }
@@ -210,6 +211,10 @@
   #newbao .faces button.on { box-shadow: 0 0 0 2px var(--accent); }
   #newbao .faces .letter { font-size: 13px; font-weight: 700; color: #fff; }
   #newbao .faces input { width: 64px; text-align: center; padding: 6px; }
+  #newbao .edit-only { margin: -4px 0 0; font-size: 12.5px; color: var(--muted); }
+  #newbao .edit-only a { color: var(--accent); text-decoration: none; margin: 0 2px; }
+  #newbao .edit-only a:hover { text-decoration: underline; }
+  #newbao input[readonly] { color: var(--muted); background: var(--fill); }
   #newbao .err { color: #e0475f; font-size: 12.5px; min-height: 0; margin: -4px 0 0; }
   #newbao .err:empty { display: none; }
   #newbao .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
@@ -278,6 +283,7 @@
     <label>名字<input name="name" maxlength="40" placeholder="比如 工作、家里、学英语" required></label>
     <label>我负责什么（可不填）<textarea name="about" rows="2" maxlength="500" placeholder="比如：帮我管工作上的项目、会议和邮件"></textarea></label>
     <div><label style="margin-bottom:5px">头像</label><div class="faces"></div></div>
+    <p class="edit-only" hidden>改了之后，新开的对话按新的来。更细的规矩在<a href="#">完整说明</a>里改。</p>
     <p class="err" role="alert"></p>
     <div class="btns"><button type="button" class="cancel">取消</button><button type="submit" class="primary">创建</button></div>
   </form>
@@ -336,7 +342,8 @@ const COLORS = ["#3a7bf0", "#2f9e57", "#e07b12", "#9a55d6", "#e0475f", "#1f9aa8"
 function color(name) { let h = 0; for (const c of name) h = (h * 31 + c.codePointAt(0)) >>> 0; return COLORS[h % COLORS.length]; }
 const emojiOf = (name) => tree?.agents?.find((a) => a.name === name)?.emoji;
 const avatar = (name) => { const e = emojiOf(name); return e ? `<span class="avatar emoji">${esc(e)}</span>` : `<span class="avatar" style="background:${color(name)}">${esc([...name][0].toUpperCase())}</span>`; };
-const PLUS = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const GEAR = '<svg class="i" viewBox="-1.5 -1.5 27 27" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+const PLUS = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15"/></svg>';
 
 function find(path) {
   for (const a of tree.agents) for (const s of a.sessions) if (s.path === path) return s;
@@ -377,7 +384,7 @@ const threads = (a) => a.sessions.filter((s) => s.name !== MAIN_SESSION);
 function baoHead(a) {
   const m = mainOf(a), on = m && m.path === current;
   const mark = m ? (m.busy ? '<span class="spin"></span>' : unread.has(m.path) ? '<span class="dot"></span>' : "") : "";
-  return `<div class="bao-head ${on ? "on" : ""}" data-bao="${esc(a.name)}" role="button" tabindex="0" title="打开${esc(a.name)}的主对话">${avatar(a.name)}<span class="name">${esc(a.name)}</span>${mark}<button title="在${esc(a.name)}里新开讨论串" aria-label="在${esc(a.name)}里新开讨论串" data-new="${esc(a.name)}">${PLUS}</button></div>`;
+  return `<div class="bao-head ${on ? "on" : ""}" data-bao="${esc(a.name)}" role="button" tabindex="0" title="打开${esc(a.name)}的主对话">${avatar(a.name)}<span class="name">${esc(a.name)}</span>${mark}<span class="acts"><button title="在${esc(a.name)}里新开讨论串" aria-label="在${esc(a.name)}里新开讨论串" data-new="${esc(a.name)}">${PLUS}</button><button title="设置${esc(a.name)}" aria-label="设置${esc(a.name)}" data-bao-edit="${esc(a.name)}">${GEAR}</button></span></div>`;
 }
 async function openBao(name) {
   let a = tree.agents.find((x) => x.name === name);
@@ -610,24 +617,44 @@ function newSession(agent, btn) {
 }
 
 // 新建宝：弹一个小窗，填名字（必填）、负责什么、挑个头像；建好直接进它的主对话
+// 宝设置（宝名后面的齿轮）：同一个小窗，改负责什么和头像
 const FACES = ["", "💼", "🏠", "📚", "💰", "🏃", "🍳", "✈️", "🎨", "💻", "❤️", "🌱"]; // "" = 名字首字
-function newBao() {
+const newBao = () => baoDialog();
+async function editBao(name) {
+  try {
+    const r = await fetch("/api/settings/agent?name=" + encodeURIComponent(name));
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    baoDialog(name, data);
+  } catch (e) { addMsg("assistant", `打不开${name}的设置：${e.message || "连不上 Kiki"}`); }
+}
+function baoDialog(editing, info = {}) {
   const box = $("#newbao"), f = box.querySelector("form"), faces = box.querySelector(".faces"), err = box.querySelector(".err");
-  let face = "";
+  let face = editing ? info.emoji || "" : "";
   const drawFaces = () => {
     const nm = f.name.value.trim() || "宝";
     faces.innerHTML = FACES.map((e) => `<button type="button" data-face="${e}" class="${e === face ? "on" : ""}${e ? "" : " letter"}" ${e ? "" : `style="background:${color(nm)}"`} aria-label="${e ? `头像 ${e}` : "用名字首字"}">${e || esc([...nm][0].toUpperCase())}</button>`).join("")
       + `<input data-own maxlength="8" placeholder="自己填" aria-label="自己填一个 emoji" value="${FACES.includes(face) ? "" : esc(face)}">`;
   };
-  f.reset(); err.textContent = ""; drawFaces();
+  f.reset(); err.textContent = "";
+  box.querySelector("h2").textContent = editing ? `设置 · ${editing}` : "新建一个宝";
+  box.querySelector(".sub").hidden = !!editing;
+  box.querySelector(".edit-only").hidden = !editing;
+  f.querySelector(".primary").textContent = editing ? "保存" : "创建";
+  f.name.readOnly = !!editing;
+  f.name.title = editing ? "宝的名字暂时不能改" : "";
+  f.about.maxLength = editing ? 2000 : 500;
+  if (editing) { f.name.value = editing; f.about.value = info.about || ""; }
+  drawFaces();
   box.hidden = false;
   const last = document.activeElement;
-  f.name.focus();
+  (editing ? f.about : f.name).focus();
   const close = () => { box.hidden = true; box.onkeydown = f.onsubmit = faces.onclick = faces.oninput = f.name.oninput = box.onclick = null; last?.focus?.(); };
   f.name.oninput = () => { if (!face) faces.querySelector(".letter").textContent = [...(f.name.value.trim() || "宝")][0].toUpperCase(), faces.querySelector(".letter").style.background = color(f.name.value.trim() || "宝"); };
   faces.onclick = (e) => { const b = e.target.closest("[data-face]"); if (!b) return; face = b.dataset.face; drawFaces(); };
   faces.oninput = (e) => { if (!e.target.matches("[data-own]")) return; face = e.target.value.trim(); faces.querySelectorAll("[data-face]").forEach((b) => b.classList.toggle("on", b.dataset.face === face)); };
   box.querySelector(".cancel").onclick = close;
+  box.querySelector(".edit-only a").onclick = (e) => { e.preventDefault(); e.stopPropagation(); close(); openSettings("baos"); };
   box.onclick = (e) => { if (e.target === box) close(); };
   box.onkeydown = (e) => {
     if (e.key === "Escape") { e.stopPropagation(); close(); }
@@ -638,6 +665,18 @@ function newBao() {
     const name = f.name.value.trim(), btn = f.querySelector(".primary");
     if (!name) return f.name.focus();
     btn.disabled = true; err.textContent = "";
+    if (editing) {
+      try {
+        const r = await fetch("/api/settings/agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, edit: true, emoji: face, ...(f.about.value.trim() !== (info.about || "").trim() ? { about: f.about.value.trim() } : {}) }) }); // 没改的不发，免得动到原文
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) { err.textContent = data.error || "没存上，再试一次"; return; }
+        delete aboutCache[name]; // 右栏里宝的介绍要重新读
+        close();
+        await loadTree();
+      } catch { err.textContent = "连不上 Kiki，再试一次"; }
+      finally { btn.disabled = false; }
+      return;
+    }
     try {
       const r = await fetch("/api/settings/agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, create: true, about: f.about.value.trim(), emoji: face }) });
       const data = await r.json().catch(() => ({}));
@@ -714,6 +753,8 @@ document.body.addEventListener("click", (e) => {
   if (st && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); return openSettings(st.dataset.settings); }
   const th = e.target.closest("[data-thread]");
   if (th) return openPeek(th.dataset.thread, true);
+  const be = e.target.closest("[data-bao-edit]");
+  if (be) return editBao(be.dataset.baoEdit);
   const nb = e.target.closest("[data-new]");
   if (nb) return newSession(nb.dataset.new, nb);
   const bh = e.target.closest("[data-bao]");
