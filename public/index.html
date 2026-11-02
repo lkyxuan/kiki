@@ -126,7 +126,7 @@
   .via { color: var(--muted); }
   .via .how { margin-left: 6px; font-size: 12px; color: var(--faint); }
   /* 右栏里打开的对话（点小卡片打开）：能看、能接着说，也能挪到中间 */
-  #peek { width: 420px; flex: none; border-left: 1px solid var(--divider); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+  #peek { flex: 1; min-width: 360px; /* 拉宽窗口时和中间的主对话一起变宽，各占一半；左栏和最右的情况栏宽度不变 */ border-left: 1px solid var(--divider); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
   #peek[hidden] { display: none; }
   #peek .peek-head { display: flex; align-items: center; gap: 8px; padding: 12px 10px 12px 16px; border-bottom: 1px solid var(--line); }
   #peek .peek-head .t { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
