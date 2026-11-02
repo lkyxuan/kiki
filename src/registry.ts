@@ -51,6 +51,26 @@ export class Registry {
     return this.data.sessions.find((s) => s.path === path);
   }
 
+  /** 从名册里去掉一段对话；接在它上面的聊天也一并断开，免得下一句投到已删的对话。 */
+  remove(path: string): SessionRecord | undefined {
+    const rec = this.byPath(path);
+    if (!rec) return undefined;
+    this.data.sessions = this.data.sessions.filter((s) => s.path !== path);
+    for (const [chat, p] of Object.entries(this.data.chats)) if (p === path) delete this.data.chats[chat];
+    this.save();
+    return rec;
+  }
+
+  /** 一段对话换了新文件（清空主对话用）：名册和接在上面的聊天都指向新文件。 */
+  repoint(oldPath: string, newPath: string) {
+    const rec = this.byPath(oldPath);
+    if (!rec) return;
+    rec.path = newPath;
+    rec.created = new Date().toISOString();
+    for (const [chat, p] of Object.entries(this.data.chats)) if (p === oldPath) this.data.chats[chat] = newPath;
+    this.save();
+  }
+
   current(chatId: string): SessionRecord | undefined {
     const p = this.data.chats[chatId];
     return p ? this.byPath(p) : undefined;

@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Kiki">
 <link rel="stylesheet" href="/theme.css">
 <script src="/theme.js"></script>
+<script src="/bots.js"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -125,14 +126,20 @@
   .via { color: var(--muted); }
   .via .how { margin-left: 6px; font-size: 12px; color: var(--faint); }
   /* 右栏里打开的对话（点小卡片打开）：能看、能接着说，也能挪到中间 */
-  #peek { width: 440px; flex: none; border-left: 1px solid var(--divider); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+  #peek { width: 420px; flex: none; border-left: 1px solid var(--divider); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
   #peek[hidden] { display: none; }
-  body.peeking #panel { display: none; }
   #peek .peek-head { display: flex; align-items: center; gap: 8px; padding: 12px 10px 12px 16px; border-bottom: 1px solid var(--line); }
   #peek .peek-head .t { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #peek .peek-head .t .crumb { color: var(--muted); font-weight: 500; }
   #peek .peek-head button { font-size: 13px; color: var(--muted); padding: 4px 8px; border-radius: 6px; }
   #peek .peek-head button:hover { background: var(--hover); color: var(--text); }
+  /* 右键菜单：删讨论串、清空主对话 */
+  #ctx { position: fixed; z-index: 30; min-width: 168px; padding: 5px; background: var(--material); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow-lg); }
+  #ctx[hidden] { display: none; }
+  #ctx button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 9px; border-radius: 5px; font-size: 13px; text-align: left; }
+  #ctx button:hover, #ctx button:focus-visible { background: var(--accent); color: var(--on-accent); outline: none; }
+  #ctx button.danger { color: var(--err); }
+  #ctx button.danger:hover, #ctx button.danger:focus-visible { background: var(--err); color: #fff; }
   #peek-log { flex: 1; overflow: auto; padding: 14px 16px; }
   #peek-log .msg { font-size: 14px; }
   #peek .composer { padding: 8px 12px 14px; }
@@ -203,9 +210,11 @@
   #model-menu .row button:hover, #model-menu .link:hover { background: var(--hover); }
   #model-menu .err { color: #e0475f; }
 
-  /* 右栏：进行中、后台任务、这个宝 */
-  #panel { width: 300px; flex: none; border-left: 1px solid var(--divider); background: var(--side); overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 18px; }
+  /* 最右一列：这个宝的长期情况（等你点头、出问题、正在跑、定时任务、后台任务），和短期对话分开，一直在 */
+  #panel { width: 280px; flex: none; border-left: 1px solid var(--divider); background: var(--side); overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 18px; }
   body.no-panel #panel { display: none; }
+  #panel .ptitle { font-weight: 600; font-size: 15px; margin: -4px 4px -6px; }
+  #panel .row .bad { color: var(--err); flex: none; width: 14px; text-align: center; }
   #panel h3 { margin: 0 0 6px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
   #panel .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px; font-size: 14px; box-shadow: var(--shadow-sm); }
   #panel .row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
@@ -222,6 +231,8 @@
   #sheet { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .18s; }
   #sheet.on { opacity: 1; pointer-events: auto; }
   .avatar.emoji { background: var(--fill); box-shadow: none; font-size: 14px; font-weight: 400; }
+  .avatar.bot { background: none; box-shadow: none; } /* 默认头像：按名字生成的小机器人（public/bots.js） */
+  .avatar.bot svg, .faces .bot svg { width: 100%; height: 100%; display: block; }
   .receipt .avatar.emoji { font-size: 17px; }
   /* 新建宝：小弹窗，只问名字、负责什么、头像 */
   #newbao { position: fixed; inset: 0; z-index: 21; display: grid; place-items: center; background: var(--scrim); }
@@ -237,7 +248,7 @@
   #newbao .faces { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   #newbao .faces button { width: 32px; height: 32px; border-radius: 8px; font-size: 17px; display: grid; place-items: center; background: var(--fill); }
   #newbao .faces button.on { box-shadow: 0 0 0 2px var(--accent); }
-  #newbao .faces .letter { font-size: 13px; font-weight: 700; color: #fff; }
+  #newbao .faces .bot { padding: 3px; }
   #newbao .faces input { width: 64px; text-align: center; padding: 6px; }
   #newbao .edit-only { margin: -4px 0 0; font-size: 12.5px; color: var(--muted); }
   #newbao .edit-only a { color: var(--accent); text-decoration: none; margin: 0 2px; }
@@ -257,7 +268,7 @@
   #sheet .close:hover { color: var(--text); background: var(--active); }
   #sheet iframe { flex: 1; border: 0; width: 100%; background: var(--grouped); }
 
-  @media (max-width: 1100px) { #peek:not([hidden]) { position: fixed; right: 0; top: 0; bottom: 0; z-index: 6; width: min(440px, 100%); box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
+  @media (max-width: 1400px) { #peek:not([hidden]) { position: fixed; right: 0; top: 0; bottom: 0; z-index: 6; width: min(440px, 100%); box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 1100px) { #panel { display: none; } body.show-panel #panel { display: flex; position: fixed; right: 0; top: 0; bottom: 0; z-index: 5; box-shadow: -8px 0 24px rgba(0,0,0,.12); } }
   @media (max-width: 700px) { aside { width: 200px; } #log, .composer, #asks { padding-left: 16px; padding-right: 16px; } #sheet .win { width: 100%; height: 100%; border-radius: 0; } }
   /* Kiki.app：没有单独的标题栏，三栏颜色铺到顶；左上角给红绿灯让位，顶部空白处可以拖动窗口 */
@@ -279,7 +290,7 @@
   <header>
     <span id="title">奇奇</span>
     <span id="upd"></span>
-    <button class="icon-btn" id="panel-toggle" aria-label="显示或隐藏右栏" title="右栏"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
+    <button class="icon-btn" id="panel-toggle" aria-label="显示或隐藏最右边的情况栏" title="情况栏"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
   </header>
   <div id="log"><div class="msgs" id="msgs"></div></div>
   <div id="asks" aria-live="polite"></div>
@@ -296,10 +307,11 @@
     </div>
   </div>
 </main>
-<section id="panel" aria-label="右栏"></section>
+<div id="ctx" role="menu" hidden></div>
 <section id="peek" aria-label="右边打开的对话" hidden>
   <div class="peek-head">
     <span class="t" id="peek-title"></span>
+    <button id="peek-del" class="icon-btn" aria-label="删除这段讨论串" title="删除这段讨论串"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button>
     <button id="peek-close" class="icon-btn" aria-label="关掉右边的对话，回到总览" title="关掉，回到总览"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
   <div id="peek-log"><div class="msgs" id="peek-msgs"></div></div>
@@ -312,6 +324,7 @@
     </div>
   </div>
 </section>
+<section id="panel" aria-label="这个宝的情况"></section>
 <div id="newbao" role="dialog" aria-modal="true" aria-labelledby="newbao-title" hidden>
   <form autocomplete="off">
     <h2 id="newbao-title">新建一个宝</h2>
@@ -376,11 +389,9 @@ function md(src) {
   }).join("");
 }
 
-// 每个宝一个固定颜色（按名字算），头像显示名字第一个字
-const COLORS = ["#3a7bf0", "#2f9e57", "#e07b12", "#9a55d6", "#e0475f", "#1f9aa8"]; // 接近 macOS 系统色，白字仍看得清
-function color(name) { let h = 0; for (const c of name) h = (h * 31 + c.codePointAt(0)) >>> 0; return COLORS[h % COLORS.length]; }
+// 没挑 emoji 的宝，头像是按名字生成的小机器人（同一个名字永远同一个）
 const emojiOf = (name) => tree?.agents?.find((a) => a.name === name)?.emoji;
-const avatar = (name) => { const e = emojiOf(name); return e ? `<span class="avatar emoji">${esc(e)}</span>` : `<span class="avatar" style="background:${color(name)}">${esc([...name][0].toUpperCase())}</span>`; };
+const avatar = (name) => { const e = emojiOf(name); return e ? `<span class="avatar emoji">${esc(e)}</span>` : `<span class="avatar bot">${kikiBot(name)}</span>`; };
 const GEAR = '<svg class="i" viewBox="-1.5 -1.5 27 27" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 const PLUS = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15"/></svg>';
 
@@ -438,27 +449,31 @@ async function openBao(name) {
 }
 
 // 右栏：哪些对话在干活、后台任务、当前这个宝
+// 最右一列：当前这一层的长期情况。在奇奇看全部，在某个宝里只看这个宝
+const layerOf = () => (current === "main" ? null : find(current)?.agent ?? null);
 function renderPanel() {
-  const all = tree.agents.flatMap((a) => a.sessions);
-  // 在干活的对话：后面的小字写它正在干嘛（正在运行命令…），不然写是哪个宝的
-  // 点了在右边打开（主对话会去中间），中间的对话不动
+  const layer = layerOf(), mine = (agent) => !layer || agent === layer;
+  const all = tree.agents.filter((a) => mine(a.name)).flatMap((a) => a.sessions);
+  // 后面的小字：在干活就写它正在干嘛（正在运行命令…），不然写是哪个宝的
   const row = (s) => `<button class="row" data-thread="${esc(s.path)}">${s.busy ? '<span class="spin"></span>' : avatar(s.agent)}<span class="name">${esc(s.name)}</span><small class="st">${esc(s.busy && s.live ? s.live.status : s.agent)}</small></button>`;
+  const card = (title, body) => `<div><h3>${title}</h3><div class="card">${body}</div></div>`;
   const busy = all.filter((s) => s.busy);
   const bg = all.filter((s) => s.background).sort((x, y) => String(y.created).localeCompare(String(x.created))).slice(0, 8);
-  let html = "";
+  const tasks = (tree.tasks || []).filter((t) => mine(t.agent));
+  const bad = tasks.filter((t) => t.status === "failed" || t.status === "interrupted").slice(-5).reverse();
+  const queued = tasks.filter((t) => t.status === "queued");
+  let html = `<div class="ptitle">${layer ? esc(layer) : "全部"}的情况</div>`;
   const back = !peek && lastPeek && find(lastPeek);
-  if (back) html += `<div><h3>刚才看的</h3><div class="card"><button class="row" data-thread="${esc(back.path)}">${back.busy ? '<span class="spin"></span>' : avatar(back.agent)}<span class="name">${esc(back.name)}</span><small>${esc(back.agent)}</small></button></div></div>`;
-  if (asks.length) html += `<div><h3>等你点头</h3><div class="card">${asks.map((a) => { const s = find(a.path); return `<button class="row" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small>${esc(s ? s.name : a.agent)}</small></button>`; }).join("")}</div></div>`;
-  html += `<div><h3>进行中</h3><div class="card">${busy.length ? busy.map(row).join("") : '<div class="none">现在没有在干活的对话</div>'}</div></div>`;
-  html += `<div><h3>后台任务</h3><div class="card">${bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>'}</div></div>`;
-  const s = find(current);
-  if (s) {
-    const about = aboutCache[s.agent];
-    html += `<div><h3>${esc(s.agent)}</h3><div class="card"><div class="about">${about === undefined ? "读取中…" : esc(about || "还没写说明")}</div><a href="/settings.html#baos" data-settings="baos">编辑说明</a></div></div>`;
-    if (about === undefined) loadAbout(s.agent);
-  } else {
-    html += `<div><h3>我的宝</h3><div class="card">${tree.agents.map((a) => `<div class="row">${avatar(a.name)}<span class="name">${esc(a.name)}</span><small>${a.sessions.length} 段对话</small></div>`).join("") || '<div class="none">还没有宝</div>'}</div></div>`;
-  }
+  if (back) html += card("刚才看的", `<button class="row" data-thread="${esc(back.path)}">${back.busy ? '<span class="spin"></span>' : avatar(back.agent)}<span class="name">${esc(back.name)}</span><small>${esc(back.agent)}</small></button>`);
+  const myAsks = asks.filter((a) => mine(a.agent));
+  if (myAsks.length) html += card("等你点头", myAsks.map((a) => { const s = find(a.path); return `<button class="row" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small>${esc(s ? s.name : a.agent)}</small></button>`; }).join(""));
+  if (bad.length) html += card("出了问题", bad.map((t) => `<button class="row" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.result || "")}"><span class="bad">!</span><span class="name">${esc(t.title)}</span><small>${t.status === "failed" ? "失败" : "中断"}</small></button>`).join(""));
+  html += card("正在跑", busy.length || queued.length ? busy.map(row).join("") + queued.map((t) => `<div class="row"><span class="spin" style="opacity:.4"></span><span class="name">${esc(t.title)}</span><small>排队</small></div>`).join("") : '<div class="none">现在没有在跑的</div>');
+  html += card("定时任务", '<div class="none">还没有定时任务</div>');
+  html += card("后台任务", bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>');
+  const name = layer || DEFAULT_BAO, about = aboutCache[name];
+  html += card(`关于${esc(name)}`, `<div class="about">${about === undefined ? "读取中…" : esc(about || "还没写说明")}</div><a href="/settings.html#baos" data-settings="baos">编辑说明</a>`);
+  if (about === undefined) loadAbout(name);
   $("#panel").innerHTML = html;
   renderAsks();
 }
@@ -661,7 +676,7 @@ function newSession(agent, btn) {
 
 // 新建宝：弹一个小窗，填名字（必填）、负责什么、挑个头像；建好直接进它的主对话
 // 宝设置（宝名后面的齿轮）：同一个小窗，改负责什么和头像
-const FACES = ["", "💼", "🏠", "📚", "💰", "🏃", "🍳", "✈️", "🎨", "💻", "❤️", "🌱"]; // "" = 名字首字
+const FACES = ["", "💼", "🏠", "📚", "💰", "🏃", "🍳", "✈️", "🎨", "💻", "❤️", "🌱"]; // "" = 按名字生成的小机器人
 const newBao = () => baoDialog();
 async function editBao(name) {
   try {
@@ -676,7 +691,7 @@ function baoDialog(editing, info = {}) {
   let face = editing ? info.emoji || "" : "";
   const drawFaces = () => {
     const nm = f.name.value.trim() || "宝";
-    faces.innerHTML = FACES.map((e) => `<button type="button" data-face="${e}" class="${e === face ? "on" : ""}${e ? "" : " letter"}" ${e ? "" : `style="background:${color(nm)}"`} aria-label="${e ? `头像 ${e}` : "用名字首字"}">${e || esc([...nm][0].toUpperCase())}</button>`).join("")
+    faces.innerHTML = FACES.map((e) => `<button type="button" data-face="${e}" class="${e === face ? "on" : ""}${e ? "" : " bot"}" aria-label="${e ? `头像 ${e}` : "小机器人（按名字生成）"}">${e || kikiBot(nm)}</button>`).join("")
       + `<input data-own maxlength="8" placeholder="自己填" aria-label="自己填一个 emoji" value="${FACES.includes(face) ? "" : esc(face)}">`;
   };
   f.reset(); err.textContent = "";
@@ -693,7 +708,7 @@ function baoDialog(editing, info = {}) {
   const last = document.activeElement;
   (editing ? f.about : f.name).focus();
   const close = () => { box.hidden = true; box.onkeydown = f.onsubmit = faces.onclick = faces.oninput = f.name.oninput = box.onclick = null; last?.focus?.(); };
-  f.name.oninput = () => { if (!face) faces.querySelector(".letter").textContent = [...(f.name.value.trim() || "宝")][0].toUpperCase(), faces.querySelector(".letter").style.background = color(f.name.value.trim() || "宝"); };
+  f.name.oninput = () => { faces.querySelector(".bot").innerHTML = kikiBot(f.name.value.trim() || "宝"); }; // 名字一改，小机器人跟着变
   faces.onclick = (e) => { const b = e.target.closest("[data-face]"); if (!b) return; face = b.dataset.face; drawFaces(); };
   faces.oninput = (e) => { if (!e.target.matches("[data-own]")) return; face = e.target.value.trim(); faces.querySelectorAll("[data-face]").forEach((b) => b.classList.toggle("on", b.dataset.face === face)); };
   box.querySelector(".cancel").onclick = close;
@@ -816,6 +831,70 @@ document.body.addEventListener("click", (e) => {
   const ch = e.target.closest("[data-choose]");
   if (ch) { $("#input").value = ch.dataset.choose; send(); }
 });
+// 删除和清空：讨论串可以删，宝的主对话和奇奇只能清空。记录都挪进 kiki-data/trash/，不会真删
+async function post(url, data) {
+  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(j.error || "没成功"); return null; }
+  return j;
+}
+async function deleteThread(path) {
+  const s = find(path);
+  if (!s || s.name === MAIN_SESSION) return;
+  const busy = s.busy ? "它正在干活，会先停下来。\n" : "";
+  if (!confirm(`删除讨论串「${s.name}」？\n${busy}删掉后列表里不再显示，聊天记录挪到 kiki-data/trash，需要时还能找回。`)) return;
+  if (!(await post("/api/delete", { path }))) return;
+  forget(path);
+  await loadTree();
+}
+// 一段对话没了：右边开着就关掉，「刚才看的」、未读都清掉
+function forget(path) {
+  if (peek === path) closePeek();
+  if (lastPeek === path) lastPeek = null;
+  unread.delete(path); delete live[path];
+}
+async function clearMain(path) {
+  const s = path === "main" ? null : find(path);
+  if (path !== "main" && (!s || s.name !== MAIN_SESSION)) return;
+  const who = s ? `${s.agent}的主对话` : "和奇奇的聊天记录";
+  if (!confirm(`清空${who}？\n之后从空白开始，${s ? "它会忘掉之前聊过的内容；讨论串不受影响。" : "宝和讨论串都不受影响。"}\n旧记录挪到 kiki-data/trash，需要时还能找回。`)) return;
+  const r = await post("/api/clear", { path });
+  if (!r) return;
+  await loadTree();
+  if (current === path) { forget(path); open(r.path || "main"); }
+}
+const ctx = $("#ctx");
+function hideCtx() { ctx.hidden = true; }
+function showCtx(x, y, items) {
+  ctx.innerHTML = items.map((it, i) => `<button role="menuitem" class="${it.danger ? "danger" : ""}" data-i="${i}">${esc(it.label)}</button>`).join("");
+  ctx.querySelectorAll("button").forEach((b) => { b.onclick = () => { hideCtx(); items[+b.dataset.i].run(); }; });
+  ctx.hidden = false;
+  const w = ctx.offsetWidth, h = ctx.offsetHeight;
+  ctx.style.left = `${Math.min(x, innerWidth - w - 8)}px`;
+  ctx.style.top = `${Math.min(y, innerHeight - h - 8)}px`;
+  ctx.querySelector("button")?.focus();
+}
+// 右键：讨论串 → 删除；宝名 → 清空主对话；奇奇 → 清空聊天记录
+document.addEventListener("contextmenu", (e) => {
+  const th = e.target.closest("aside [data-thread], #panel [data-thread]");
+  const s = th && find(th.dataset.thread);
+  const bh = !th && e.target.closest("[data-bao]");
+  const kk = !th && !bh && e.target.closest(".kiki");
+  let items = null;
+  if (s && s.name !== MAIN_SESSION) items = [{ label: "在右边打开", run: () => openPeek(s.path, true) }, { label: "删除讨论串…", danger: true, run: () => deleteThread(s.path) }];
+  else if (bh) {
+    const m = mainOf(tree.agents.find((a) => a.name === bh.dataset.bao) || { sessions: [] });
+    if (m) items = [{ label: "清空主对话…", danger: true, run: () => clearMain(m.path) }];
+  } else if (kk) items = [{ label: "清空聊天记录…", danger: true, run: () => clearMain("main") }];
+  if (!items) return hideCtx();
+  e.preventDefault();
+  showCtx(e.clientX, e.clientY, items);
+});
+document.addEventListener("pointerdown", (e) => { if (!ctx.hidden && !ctx.contains(e.target)) hideCtx(); }, true);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !ctx.hidden) { e.preventDefault(); hideCtx(); } });
+addEventListener("blur", hideCtx);
+addEventListener("resize", hideCtx);
+$("#peek-del").onclick = () => peek && deleteThread(peek);
 $("#add-bao").onclick = newBao;
 $("aside").addEventListener("keydown", (e) => { const bh = e.target.closest?.("[data-bao]"); if (bh && e.target === bh && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openBao(bh.dataset.bao); } });
 $("#panel-toggle").onclick = togglePanel;
@@ -1091,7 +1170,16 @@ function sideStatus(path) {
   const btn = [...document.querySelectorAll("aside .sess")].find((b) => b.dataset.thread === path);
   if (btn) btn.title = s?.live?.status || "";
 }
-es.addEventListener("tree", (e) => { tree = JSON.parse(e.data); syncLive(); renderSide(); });
+es.addEventListener("tree", (e) => {
+  tree = JSON.parse(e.data);
+  if (peek && !find(peek)) forget(peek); // 在别处删掉了
+  syncLive(); renderSide();
+});
+// 别的窗口（比如远程打开的）清空了主对话：正开着就换到新的那段
+es.addEventListener("cleared", (e) => {
+  const d = JSON.parse(e.data);
+  if (current === d.path) open(d.fresh || "main");
+});
 // 从列表里同步进度（刷新页面、重连、打开一段已经在干活的对话时用）
 function syncLive() {
   if (tree.main !== undefined) live.main = tree.main || (mainBusy ? live.main : null);

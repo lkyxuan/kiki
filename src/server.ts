@@ -2,7 +2,7 @@
 // 网页是 public/index.html；数据走下面几个接口，实时更新走 SSE。
 //
 // 通道边界：任何"通道"（这个网页、以后的微信插件……）都只需要调 router.handle(chatId, text, reply)。
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { Agents, ChatLine } from "./agents.js";
@@ -28,6 +28,7 @@ const STATIC: Record<string, string> = {
   "/qiqi-eyes.js": "text/javascript; charset=utf-8",
   "/theme.css": "text/css; charset=utf-8", // 浅色 / 深色配色，两个页面共用
   "/theme.js": "text/javascript; charset=utf-8", // 外观切换（跟随系统 / 浅色 / 深色）
+  "/bots.js": "text/javascript; charset=utf-8", // 宝的默认头像：按名字生成的小机器人
 };
 
 export function startServer(opts: {
@@ -244,6 +245,40 @@ export function startServer(opts: {
       const rec = await router.newSession(agent, name.trim());
       push("tree", tree());
       return json(rec);
+    }
+
+    // 删讨论串 / 清空主对话：记录都挪进 数据目录/trash/，不真删
+    if (url.pathname === "/api/delete" && req.method === "POST") {
+      const { path } = await body();
+      try {
+        await router.deleteSession(String(path));
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      push("tree", tree());
+      return json({ ok: true });
+    }
+    if (url.pathname === "/api/clear" && req.method === "POST") {
+      const { path } = await body();
+      if (path === MAIN) {
+        // 奇奇自己的聊天记录：整个文件挪走，下次从空白开始
+        if (existsSync(mainLog)) {
+          const dir = join(opts.dataDir, "trash", "奇奇收件箱");
+          mkdirSync(dir, { recursive: true });
+          renameSync(mainLog, join(dir, `${new Date().toISOString().replace(/[:.]/g, "-")}-main.jsonl`));
+        }
+        push("cleared", { path: MAIN });
+        return json({ ok: true });
+      }
+      let fresh: string;
+      try {
+        fresh = (await router.clearMain(String(path))).path;
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      push("tree", tree());
+      push("cleared", { path, fresh });
+      return json({ ok: true, path: fresh });
     }
 
     if (url.pathname === "/api/events") {

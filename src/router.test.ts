@@ -399,3 +399,34 @@ test("拆分里交给主对话的后台活不分叉主对话", async () => {
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual(ctl.forks, []);
 });
+
+test("删讨论串：从名册去掉、断开接在上面的聊天、交给后端挪进回收站；主对话不能删", async () => {
+  const { router, reg } = setup();
+  const discarded: string[] = [];
+  (router as any).agents.discard = async (_a: string, p: string) => void discarded.push(p);
+  const t = await router.newSession("dev", "修 bug");
+  reg.setCurrent("app", t.path);
+  await router.deleteSession(t.path);
+  assert.equal(reg.byPath(t.path), undefined);
+  assert.equal(reg.current("app"), undefined);
+  assert.deepEqual(discarded, [t.path]);
+  const main = await router.ensureMain("dev");
+  await assert.rejects(router.deleteSession(main.path), /不能删/);
+  await assert.rejects(router.deleteSession("/nope"), /没有这段对话/);
+});
+
+test("清空主对话：换一段新文件，名字不变，接在上面的聊天跟着换", async () => {
+  const { router, reg } = setup();
+  const discarded: string[] = [];
+  (router as any).agents.discard = async (_a: string, p: string) => void discarded.push(p);
+  const main = await router.ensureMain("dev");
+  const old = main.path;
+  reg.setCurrent("app", old);
+  const rec = await router.clearMain(old);
+  assert.notEqual(rec.path, old);
+  assert.equal(reg.get("dev", "主对话")?.path, rec.path);
+  assert.equal(reg.current("app")?.path, rec.path);
+  assert.deepEqual(discarded, [old]);
+  const t = await router.newSession("dev", "讨论");
+  await assert.rejects(router.clearMain(t.path), /只有主对话/);
+});
