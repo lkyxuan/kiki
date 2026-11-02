@@ -287,6 +287,7 @@
   @media (max-width: 700px) { aside { width: 220px; } #log, .composer, #asks { padding-left: 16px; padding-right: 16px; } #sheet .win { width: 100%; height: 100%; border-radius: 0; } }
   /* Kiki.app：没有单独的标题栏，三栏颜色铺到顶；左上角给红绿灯让位，顶部空白处可以拖动窗口 */
   .kiki-fullsize aside { padding-top: 40px; }
+  .kiki-fullscreen aside { padding-top: 14px; } /* 苹果全屏时红绿灯藏起来了，不用再让位 */
   .kiki-fullsize header, .kiki-fullsize #panel h3 { -webkit-user-select: none; user-select: none; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation-duration: .01ms !important; } }
 </style>
