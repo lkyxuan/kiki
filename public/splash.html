@@ -166,7 +166,7 @@
 
 <script>
 (function () {
-  var q = new URLSearchParams(location.search);
+  var q = new URLSearchParams(window.KIKI_Q || location.search); // App 把参数直接写进页面
   var $ = function (id) { return document.getElementById(id); };
   var msg = function (name, v) { try { window.webkit.messageHandlers[name].postMessage(v); } catch (e) {} };
   if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.kikiWindow) document.body.classList.add("app");
