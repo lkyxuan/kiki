@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
+import { baoDoc } from "./bao.js";
 import { Extensions, validSource } from "./extensions.js";
 import { listFeatures, setFeature } from "./features.js";
 import { listApproval, removeAlways, setMode } from "./approval.js";
@@ -219,7 +220,7 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
         mkdirSync(join(agentsDir, name), { recursive: true });
         // 新建弹窗里填的「我负责什么」写进 AGENTS.md，以后在「编辑说明」里改
         const duty = typeof about === "string" ? about.trim().slice(0, 500) : "";
-        writeFileSync(agentFile(name), typeof text === "string" && text ? text : `# ${name}\n\n${duty || `你是我的${name}。`}\n`);
+        writeFileSync(agentFile(name), typeof text === "string" && text ? text : baoDoc(name, duty));
         const face = baoEmoji(emoji);
         if (face) writeFileSync(join(agentsDir, name, "bao.json"), JSON.stringify({ emoji: face }) + "\n");
         return json({ ok: true });

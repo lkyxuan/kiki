@@ -21,11 +21,13 @@ export function createBao(dataDir: string, name: string, duty: string): string {
   if (!validBaoName(name)) throw new Error(`宝名「${name}」不行：只能用汉字、字母、数字、- 和 _，最多 12 个字`);
   const dir = baoDir(dataDir, name);
   if (existsSync(dir)) throw new Error(`已经有宝「${name}」了`);
-  const what = duty.replace(/\s*\n\s*/g, " ").trim() || `${name}相关的事`;
   mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    baoFile(dataDir, name),
-    `# ${name}\n\n## 我负责什么\n${what}\n\n## 我怎么干活\n- 回答简短，结论在前。\n- 需要记下来的东西，写进这个文件夹下的 notes/ 里（一个主题一个 .md）。\n`,
-  );
+  writeFileSync(baoFile(dataDir, name), baoDoc(name, duty));
   return dir;
+}
+
+/** 新宝的 AGENTS.md：「我负责什么」要写在这个小标题下，分派时才读得到 */
+export function baoDoc(name: string, duty: string): string {
+  const what = duty.replace(/\s*\n\s*/g, " ").trim() || `${name}相关的事`;
+  return `# ${name}\n\n## 我负责什么\n${what}\n\n## 我怎么干活\n- 回答简短，结论在前。\n- 需要记下来的东西，写进这个文件夹下的 notes/ 里（一个主题一个 .md）。\n`;
 }
