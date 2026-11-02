@@ -380,7 +380,7 @@ function renderPanel() {
 }
 // 卡片：奇奇（收件箱）里显示全部，某段对话里只显示它自己的
 function renderAsks() {
-  const mine = current === "main" ? asks : asks.filter((a) => a.path === current);
+  const mine = current === "main" ? asks : asks.filter((a) => a.path === current || a.path === peek); // 右栏开着的讨论串要点头，也显示在这里
   $("#asks").innerHTML = mine.map((a) => {
     const s = find(a.path);
     const where = s ? `${esc(a.agent)} › ${esc(s.name)}` : esc(a.agent);
@@ -488,6 +488,7 @@ async function openPeek(lbl, byPath) {
   if (!s) return;
   if (s.name === MAIN_SESSION) return open(s.path); // 主对话放中间
   peek = s.path; peekStream = null;
+  unread.delete(s.path); // 在右边看了就算读过
   $("#peek-title").innerHTML = `<span class="crumb">${esc(s.agent)} › </span>${esc(s.name)}`;
   $("#peek").hidden = false;
   document.body.classList.add("peeking");
