@@ -8,6 +8,8 @@ export interface SessionRecord {
   path: string; // pi 的 JSONL 文件路径
   created: string;
   background?: boolean; // /bg 开出来的
+  summary?: string; // 一句话摘要（30 到 40 字），每次回完话后台更新，路由和主对话看它
+  active?: string; // 最近一次有回答的时间，按它挑最近活跃的对话
 }
 
 interface RegistryData {
@@ -67,7 +69,18 @@ export class Registry {
     if (!rec) return;
     rec.path = newPath;
     rec.created = new Date().toISOString();
+    delete rec.summary; // 清空了，旧摘要不再对
+    delete rec.active;
     for (const [chat, p] of Object.entries(this.data.chats)) if (p === oldPath) this.data.chats[chat] = newPath;
+    this.save();
+  }
+
+  /** 记下这段对话的新摘要和活跃时间；对话已删 / 已换文件就什么都不做。 */
+  setSummary(path: string, summary: string | undefined, at = new Date()) {
+    const rec = this.byPath(path);
+    if (!rec) return;
+    if (summary) rec.summary = summary;
+    rec.active = at.toISOString();
     this.save();
   }
 
