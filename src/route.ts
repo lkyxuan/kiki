@@ -7,7 +7,9 @@ import { MAIN_SESSION, validBaoName } from "./bao.js";
 export interface RouteCandidate {
   agent: string;
   desc: string; // 这个宝负责什么
-  sessions: { label: string; recent: string[]; background?: boolean }[];
+  /** 主对话、当前对话和最近活跃的几段讨论串；每段一句摘要，没有摘要时退回用户最近说的一句 */
+  sessions: { label: string; summary?: string; recent: string[]; background?: boolean }[];
+  more?: number; // 没列出来的较早讨论串有几段（交给主对话，它看得到全部）
 }
 
 export type Mode = "chat" | "background";
@@ -61,9 +63,10 @@ export function buildRouteInput(opts: {
     if (c.sessions.length === 0) lines.push("（还没有对话）");
     for (const s of c.sessions) {
       const tag = [s.label === opts.current ? "【当前】" : "", s.background ? "【后台任务】" : ""].join("");
-      const recent = s.recent.length ? `：最近说过 ${s.recent.map((r) => `「${r}」`).join(" ")}` : "";
-      lines.push(`- ${s.label}${tag}${recent}`);
+      const about = s.summary ? `：${s.summary}` : s.recent.length ? `：最近说过 ${s.recent.map((r) => `「${r}」`).join(" ")}` : "";
+      lines.push(`- ${s.label}${tag}${about}`);
     }
+    if (c.more) lines.push(`- （还有 ${c.more} 段较早的讨论串，接着那些聊的交给主对话）`);
   }
   if (opts.onlyAgent) lines.push(`\n用户指定了宝「${opts.onlyAgent}」，只能在它下面 continue 或 new。`);
   lines.push(`\n用户当前所在：${opts.current ?? "无"}`);
