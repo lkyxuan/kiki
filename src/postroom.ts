@@ -11,7 +11,7 @@
 //
 // 不同的接法（信箱、A2A、ACP）都实现同一个 ExternalAgent 接口：看状态、派任务、拿结果。
 import { EventEmitter } from "node:events";
-import { existsSync, type FSWatcher, mkdirSync, watch as fsWatch, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
@@ -120,32 +120,52 @@ const TO_KIKI = "to-kiki"; // 对方往这里放给 Kiki 的消息
 const TO_AGENT = "to-agent"; // Kiki 往这里放派给对方的活
 const STATUS_FILE = "status.json"; // 对方自己写的状态
 const SETTLE_MS = 2000; // 刚写的文件等一会儿再拿，免得读到一半
+const FAST_MS = 2000; // 多久看一眼信箱文件夹
 
 /** 最笨也最通用的接法：一个文件夹，谁都能读写（自家脚本、同步盘、别的机器挂进来）。
- *  放进文件马上就收（盯着文件夹），每分钟的巡视只是兜底。 */
+ *  每 2 秒看一眼文件夹里有没有新文件（只列文件名，很便宜），有就马上收；不用系统的文件通知，
+ *  因为 macOS、同步盘、软链接下它时灵时不灵。每分钟的巡视只是兜底。 */
 export class MailboxAgent implements ExternalAgent {
   readonly kind = "mailbox";
-  private watcher?: FSWatcher;
+  private timer?: NodeJS.Timeout;
+  private last = "";
   constructor(
     readonly name: string,
     readonly dir: string,
     wake?: () => void,
   ) {
     for (const d of [TO_KIKI, TO_AGENT]) mkdirSync(join(dir, d), { recursive: true });
-    if (wake)
+    if (wake) {
+      this.timer = setInterval(() => {
+        let names: string[];
+        try {
+          names = readdirSync(join(dir, TO_KIKI)).filter((f) => !f.startsWith(".") && /\.(md|txt|json)$/i.test(f));
+        } catch {
+          return;
+        }
+        const key = names.sort().join("\n");
+        // 有文件在等就叫醒（刚写的会等它写完才拿，所以文件还在时每轮都叫一次）
+        if (names.length && (key !== this.last || this.waiting(names))) wake();
+        this.last = key;
+      }, FAST_MS);
+      this.timer.unref(); // 不因为这个让进程退不出去
+    }
+  }
+
+  /** 还有文件放够了时间、可以拿了 */
+  private waiting(names: string[]) {
+    const now = Date.now();
+    return names.some((f) => {
       try {
-        // 刚写的文件要等它写完（SETTLE_MS）才拿，所以晚一点再收
-        // 再补一次：系统通知可能来得早或晚（macOS 会攒一会儿），文件那时可能还没“写完”
-        this.watcher = fsWatch(join(dir, TO_KIKI), () => {
-          setTimeout(wake, SETTLE_MS + 200).unref();
-          setTimeout(wake, SETTLE_MS * 2 + 500).unref();
-        });
-        this.watcher.unref(); // 不因为盯着文件夹就让进程退不出去
-      } catch {} // 有的同步盘不支持盯，靠每分钟巡视
+        return now - statSync(join(this.dir, TO_KIKI, f)).mtimeMs >= SETTLE_MS;
+      } catch {
+        return false;
+      }
+    });
   }
 
   close() {
-    this.watcher?.close();
+    clearInterval(this.timer);
   }
 
   async status(): Promise<AgentStatus> {

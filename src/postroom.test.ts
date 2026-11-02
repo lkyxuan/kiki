@@ -239,7 +239,7 @@ test("信箱放进文件马上收，不等每分钟巡视", async () => {
   const { pr, box, delivered } = setup();
   await pr.poll(); // 接上信箱，开始盯文件夹
   writeFileSync(join(box, "to-kiki", "now.md"), "急事");
-  // 没有手动 poll：靠盯文件夹自己收。最多等 8 秒（macOS 的文件通知会晚一点）
+  // 没有手动 poll：靠信箱自己每 2 秒看一眼。最多等 8 秒
   for (let i = 0; i < 80 && !delivered.length; i++) {
     await new Promise((r) => setTimeout(r, 100));
     await pr.settled();
