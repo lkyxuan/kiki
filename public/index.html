@@ -24,7 +24,7 @@
   svg.i { width: 16px; height: 16px; flex: none; }
 
   /* 左栏：奇奇 + 我的宝（像 macOS 的侧栏：浅一档的底色、圆角选中条） */
-  aside { width: 256px; flex: none; background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: auto; padding: 12px 10px; font-size: 14px; }
+  aside { width: 256px; flex: none; background: var(--side); border-right: 1px solid var(--divider); display: flex; flex-direction: column; overflow: auto; padding: 12px 10px; font-size: 14px; }
   .item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; min-height: 32px; padding: 5px 10px; border-radius: 7px; white-space: nowrap; overflow: hidden; transition: background .12s; }
   .item:hover { background: var(--hover); }
   .item.on { background: var(--active); font-weight: 500; }
@@ -124,7 +124,7 @@
   .via { color: var(--muted); }
   .via .how { margin-left: 6px; font-size: 12px; color: var(--faint); }
   /* 右栏里打开的对话（点小卡片打开）：能看、能接着说，也能挪到中间 */
-  #peek { width: 420px; flex: none; border-left: 1px solid var(--line); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+  #peek { width: 420px; flex: none; border-left: 1px solid var(--divider); background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
   #peek[hidden] { display: none; }
   #peek .peek-head { display: flex; align-items: center; gap: 8px; padding: 12px 10px 12px 16px; border-bottom: 1px solid var(--line); }
   #peek .peek-head .t { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -174,7 +174,7 @@
   .send svg { width: 18px; height: 18px; }
 
   /* 最右一列：这个宝的长期情况（等你点头、出问题、正在跑、定时任务、后台任务），和短期对话分开，一直在 */
-  #panel { width: 280px; flex: none; border-left: 1px solid var(--line); background: var(--side); overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 18px; }
+  #panel { width: 280px; flex: none; border-left: 1px solid var(--divider); background: var(--side); overflow: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 18px; }
   body.no-panel #panel { display: none; }
   #panel .ptitle { font-weight: 600; font-size: 15px; margin: -4px 4px -6px; }
   #panel .row .bad { color: var(--err); flex: none; width: 14px; text-align: center; }
