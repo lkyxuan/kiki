@@ -21,6 +21,7 @@ import { type Live, type Step, describeTool, stepsFromMessages } from "./activit
 import { baoFile, createBao } from "./bao.js";
 import { explainError } from "./errors.js";
 import { existsSync as fileExists, readFileSync as readText, writeFileSync as writeText } from "node:fs";
+import { pickedIds, readPrefs } from "./modelprefs.js";
 import { imageNames, imageNote, readImage, uploadsDir } from "./images.js";
 
 /** 模型菜单里一项 */
@@ -29,6 +30,7 @@ export interface ModelChoice {
   name: string;
   image: boolean; // 能不能看图
   provider: string;
+  providerName?: string;
 }
 
 /**
@@ -36,8 +38,8 @@ export interface ModelChoice {
  * DeepSeek 官方接口发图会报错；当成只收文字后，切回 DeepSeek 时前面聊过的图会被 pi 换成一句“这里有张图”，不会把对话弄坏。
  */
 const TEXT_ONLY = new Set(["deepseek"]);
-/** 菜单里列哪些服务商的模型（ChatGPT 订阅只列 Codex 那几个，免得一长串老模型）。 */
-const MENU_PROVIDERS = ["deepseek", "openai"];
+/** 不进模型菜单的服务商：openai-codex 是老入口，已被 openai 的 ChatGPT 登录取代。 */
+const MENU_SKIP = new Set(["openai-codex"]);
 
 export interface ChatLine {
   role: "user" | "assistant";
@@ -169,22 +171,41 @@ export class Agents extends EventEmitter {
     const rt = await this.runtime;
     const codex = new Set(rt.getModels("openai-codex").map((m) => m.id)); // ChatGPT 订阅能用的那几个
     const list: ModelChoice[] = [];
-    for (const provider of MENU_PROVIDERS) {
-      let avail: readonly any[] = [];
-      try {
-        avail = await rt.getAvailable(provider);
-      } catch {}
-      for (const m of avail) {
-        if (provider === "openai" && rt.isUsingOAuth("openai") && !codex.has(m.id)) continue;
-        list.push(this.choice(m));
-      }
+    // 所有已经配好（填了密钥或登录了）的服务商的模型
+    let avail: readonly any[] = [];
+    try {
+      avail = await rt.getAvailable();
+    } catch {}
+    // 设置里关掉的服务商不列；每家只列勾选的模型（见 modelprefs.ts）
+    const prefs = readPrefs(this.dataDir);
+    const usable = avail.filter(
+      (m) => !MENU_SKIP.has(m.provider) && !(m.provider === "openai" && rt.isUsingOAuth("openai") && !codex.has(m.id)), // ChatGPT 订阅只列 Codex 那几个
+    );
+    const byProvider = new Map<string, string[]>();
+    for (const m of usable) byProvider.set(m.provider, [...(byProvider.get(m.provider) ?? []), m.id]);
+    const picked = new Map([...byProvider].map(([p, ids]) => [p, pickedIds(prefs, p, ids)]));
+    for (const m of usable) {
+      if (prefs.off.includes(m.provider)) continue;
+      if (!picked.get(m.provider)!.has(m.id)) continue;
+      list.push(this.choice(m));
     }
+    const name = (id: string) => (rt.getProvider(id) as any)?.name ?? id;
+    for (const c of list) c.providerName = name(c.provider);
     if (!list.some((c) => c.spec === this.modelSpec)) {
       try {
         list.unshift(this.choice(await this.model()));
       } catch {}
     }
     return list;
+  }
+
+  /** 设置页用：某家服务商能用的全部模型，标出哪些已勾选进菜单。 */
+  async providerModels(provider: string): Promise<(ModelChoice & { checked: boolean })[]> {
+    const rt = await this.runtime;
+    const codex = new Set(rt.getModels("openai-codex").map((m) => m.id));
+    const ms = rt.getModels(provider).filter((m) => !(provider === "openai" && rt.isUsingOAuth("openai") && !codex.has(m.id)));
+    const picked = pickedIds(readPrefs(this.dataDir), provider, ms.map((m) => m.id));
+    return ms.map((m) => ({ ...this.choice(m), checked: picked.has(m.id) }));
   }
 
   private choice(m: any): ModelChoice {

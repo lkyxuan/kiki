@@ -10,7 +10,8 @@ import type { Approvals, Decision } from "./approval.js";
 import { rejectReason } from "./guard.js";
 import type { Registry } from "./registry.js";
 import type { Router } from "./router.js";
-import { ChatGPTLogin } from "./chatgpt.js";
+import { Logins } from "./login.js";
+import { setProviderModels, setProviderOn } from "./modelprefs.js";
 import { imageMime, saveImage, uploadsDir, validImageName } from "./images.js";
 import { baoLook, setEnvLine, settingsApi } from "./settings.js";
 import { type Updater, VERSION } from "./update.js";
@@ -45,7 +46,7 @@ export function startServer(opts: {
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
   const clients = new Set<ServerResponse>();
   const settings = settingsApi({ dataDir: opts.dataDir, port: opts.port });
-  const chatgpt = new ChatGPTLogin(() => agents.modelRuntime(), opts.dataDir, agents.engineDir);
+  const logins = new Logins(() => agents.modelRuntime(), opts.dataDir, agents.engineDir);
   // 模型菜单：现在用的、能选的、ChatGPT 登没登录
   const modelInfo = async () => {
     const models = await agents.modelChoices();
@@ -53,7 +54,8 @@ export function startServer(opts: {
       current: agents.currentModel,
       models,
       vision: (await agents.visionChoice(models))?.spec ?? null, // 现在的模型看不了图时，先交给它看
-      chatgpt: { loggedIn: await chatgpt.loggedIn().catch(() => false), login: chatgpt.state },
+      chatgpt: { loggedIn: await logins.loggedIn("openai").catch(() => false), login: logins.state.provider === "openai" ? logins.state : { status: "idle" } },
+      login: logins.state, // 正在进行的登录（任何一家）
     };
   };
   const saveEnv = (key: string, value: string) => {
@@ -193,15 +195,45 @@ export function startServer(opts: {
     if (url.pathname.startsWith("/api/models/chatgpt/") && req.method === "POST") {
       const action = url.pathname.slice("/api/models/chatgpt/".length);
       try {
-        if (action === "start") await chatgpt.start();
-        else if (action === "code") chatgpt.submit(String((await body()).input ?? ""));
-        else if (action === "cancel") chatgpt.cancel();
-        else if (action === "logout") await chatgpt.logout();
+        if (action === "start") await logins.start("openai", "oauth");
+        else if (action === "code") await logins.answer(String((await body()).input ?? ""));
+        else if (action === "cancel") logins.cancel();
+        else if (action === "logout") await logins.logout("openai");
         else return json({ error: "not found" }, 404);
       } catch (e) {
         return json({ error: (e as Error).message }, 400);
       }
       return json(await modelInfo());
+    }
+    // 各家服务商：GET 列表；POST /api/models/login/start {provider, type: api_key|oauth}、answer {value}、cancel、logout {provider}
+    if (url.pathname === "/api/models/providers") return json({ providers: await logins.providers(), login: logins.state });
+    // 设置里的开关和勾选：GET /api/models/provider?id= 看这家的模型；POST /api/models/prefs {provider, on?, models?}
+    if (url.pathname === "/api/models/provider") return json({ models: await agents.providerModels(url.searchParams.get("id") ?? "") });
+    if (url.pathname === "/api/models/prefs" && req.method === "POST") {
+      const b = await body();
+      const id = String(b.provider ?? "");
+      if (!(await logins.providers()).some((p) => p.id === id)) return json({ error: "没有这家服务商" }, 400);
+      if (typeof b.on === "boolean") setProviderOn(opts.dataDir, id, b.on);
+      if (Array.isArray(b.models)) setProviderModels(opts.dataDir, id, b.models);
+      push("model", {});
+      return json({ providers: await logins.providers(), login: logins.state });
+    }
+    if (url.pathname.startsWith("/api/models/login/") && req.method === "POST") {
+      const action = url.pathname.slice("/api/models/login/".length);
+      const b = await body();
+      try {
+        if (action === "start") {
+          if (b.type !== "api_key" && b.type !== "oauth") return json({ error: "type 要是 api_key 或 oauth" }, 400);
+          await logins.start(String(b.provider ?? ""), b.type);
+        } else if (action === "answer") await logins.answer(String(b.value ?? ""));
+        else if (action === "cancel") logins.cancel();
+        else if (action === "logout") await logins.logout(String(b.provider ?? ""));
+        else return json({ error: "not found" }, 404);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      push("model", {});
+      return json({ providers: await logins.providers(), login: logins.state });
     }
 
     // 图片：POST /api/image {data: data:URL} 存起来，返回放进消息里的标记；GET /api/image/<名字> 看图

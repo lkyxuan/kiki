@@ -206,16 +206,19 @@
   #model-btn { height: 32px; padding: 0 10px; border-radius: 16px; font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 4px; max-width: 180px; }
   #model-btn:hover { background: var(--hover); color: var(--text); }
   #model-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #model-menu { position: absolute; right: 0; bottom: 40px; width: 300px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: var(--shadow); padding: 6px; z-index: 20; font-size: 13.5px; }
+  #model-menu { position: absolute; right: 0; bottom: 40px; width: 320px; max-height: 70vh; overflow: auto; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: var(--shadow); padding: 6px; z-index: 20; font-size: 13.5px; }
   #model-menu .opt { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; text-align: left; }
   #model-menu .opt:hover { background: var(--hover); }
   #model-menu .opt .n { flex: 1; }
   #model-menu .opt .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; }
   #model-menu .opt .ok { width: 14px; color: var(--accent); }
+  #model-menu .opts { max-height: 340px; overflow: auto; }
+  #model-menu .grp { padding: 8px 10px 2px; font-size: 11.5px; font-weight: 600; }
   #model-menu .sep { height: 1px; background: var(--divider); margin: 6px 4px; }
   #model-menu .sub { padding: 4px 10px 6px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
   #model-menu .sub a { color: var(--accent); }
   #model-menu .row { display: flex; gap: 6px; padding: 0 10px 6px; }
+  #model-menu select { flex: 1; min-width: 0; font: inherit; font-size: 12.5px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
   #model-menu input { flex: 1; min-width: 0; font: inherit; font-size: 12.5px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; outline: none; }
   #model-menu .row button, #model-menu .link { font-size: 12.5px; color: var(--accent); padding: 4px 6px; border-radius: 6px; }
   #model-menu .row button:hover, #model-menu .link:hover { background: var(--hover); }
@@ -1000,7 +1003,7 @@ document.addEventListener("click", (e) => { const img = e.target.closest?.("img.
 
 // ===== 模型按钮：显示现在用的模型，点开可以换，也可以用 ChatGPT 订阅登录 =====
 let models = { current: "", models: [], chatgpt: { loggedIn: false, login: { status: "idle" } } };
-let modelNote = "", loginPoll = null;
+let modelNote = "", loginPoll = null, modelQuery = "";
 const modelName = () => models.models.find((m) => m.spec === models.current)?.name || models.current.split("/").pop() || "模型";
 const canSee = () => !!models.models.find((m) => m.spec === models.current)?.image;
 const visionName = () => models.models.find((m) => m.spec === models.vision)?.name;
@@ -1018,11 +1021,33 @@ function renderModels() {
   if (menu.hidden) return;
   const g = models.chatgpt, L = g.login || {};
   let h = modelNote ? `<div class="sub">${esc(modelNote)}</div><div class="sep"></div>` : "";
-  h += models.models.map((m) => `<button class="opt" role="menuitemradio" aria-checked="${m.spec === models.current}" data-model="${esc(m.spec)}"><span class="ok">${m.spec === models.current ? "✓" : ""}</span><span class="n">${esc(m.name)}</span>${m.image ? '<span class="tag">能看图</span>' : ""}</button>`).join("");
+  // 模型多了按服务商分组，超过 12 个给个搜索框
+  const many = models.models.length > 12, mq = (modelQuery || "").toLowerCase();
+  if (many) h += `<div class="row"><input id="model-q" placeholder="搜索模型" value="${esc(modelQuery)}"></div>`;
+  // 现在用的那家排最前；不搜索时每家最多列 8 个（加上现在用的），其余搜索才出来
+  const curP = models.current.split("/")[0], LIMIT = 8;
+  const all = models.models.filter((m) => !mq || (m.name + " " + m.spec + " " + (m.providerName || "")).toLowerCase().includes(mq));
+  const order = [...new Set([curP, ...all.map((m) => m.provider)])].filter((p) => all.some((m) => m.provider === p));
+  const groups = order.length > 1;
+  let shown = [];
+  const more = {};
+  for (const p of order) {
+    const ms = all.filter((m) => m.provider === p);
+    const pick = mq ? ms : ms.filter((m, i) => i < LIMIT || m.spec === models.current);
+    if (pick.length < ms.length) more[p] = ms.length - pick.length;
+    shown.push(...pick);
+  }
+  let last = "";
+  h += '<div class="opts">' + shown.map((m, i) => {
+    const head = groups && m.provider !== last ? `<div class="sub grp">${esc(m.providerName || m.provider)}</div>` : "";
+    last = m.provider;
+    const tail = more[m.provider] && shown[i + 1]?.provider !== m.provider ? `<div class="sub">还有 ${more[m.provider]} 个，搜索就能找到</div>` : "";
+    return head + `<button class="opt" role="menuitemradio" aria-checked="${m.spec === models.current}" data-model="${esc(m.spec)}"><span class="ok">${m.spec === models.current ? "✓" : ""}</span><span class="n">${esc(m.name)}</span>${m.image ? '<span class="tag">能看图</span>' : ""}</button>` + tail;
+  }).join("") + "</div>";
   const eyes = models.models.filter((m) => m.image);
   if (!canSee() && eyes.length) { // 现在的模型看不了图：选谁先帮它看
-    h += `<div class="sep"></div><div class="sub">${esc(modelName())} 看不了图。你发的图先交给下面这个模型读成文字：</div>`;
-    h += eyes.map((m) => `<button class="opt" role="menuitemradio" aria-checked="${m.spec === models.vision}" data-vision="${esc(m.spec)}"><span class="ok">${m.spec === models.vision ? "✓" : ""}</span><span class="n">${esc(m.name)}</span><span class="tag">看图用</span></button>`).join("");
+    h += `<div class="sep"></div><div class="sub">${esc(modelName())} 看不了图。你发的图先交给这个模型读成文字：</div>`;
+    h += `<div class="row"><select id="vision-pick" aria-label="看图用的模型">${eyes.map((m) => `<option value="${esc(m.spec)}"${m.spec === models.vision ? " selected" : ""}>${esc((m.providerName ? m.providerName + " · " : "") + m.name)}</option>`).join("")}</select></div>`;
   }
   h += '<div class="sep"></div>';
   if (g.loggedIn) h += '<div class="sub">已用 ChatGPT 订阅登录。<button class="link" data-gpt="logout">退出登录</button></div>';
@@ -1030,10 +1055,24 @@ function renderModels() {
   else h += `<button class="opt" data-gpt="start"><span class="ok"></span><span class="n">用 ChatGPT 订阅登录…</span><span class="tag">能看图</span></button>${L.status === "error" ? `<div class="sub err">登录失败：${esc(L.error || "")}</div>` : ""}`;
   // 登录中每 2 秒刷新一次菜单：别把正在粘的网址和光标弄丢
   const old = $("#gpt-code"), val = old?.value, focused = old && document.activeElement === old;
+  const mqFocus = document.activeElement?.id === "model-q", mqPos = mqFocus ? document.activeElement.selectionStart : 0;
+  h += '<button class="opt" data-more><span class="ok"></span><span class="n">配置更多模型（Claude、Gemini、OpenRouter…）</span></button>';
   menu.innerHTML = h;
   const now = $("#gpt-code");
   if (now && val) now.value = val;
   if (now && focused) now.focus();
+  const vp = $("#vision-pick");
+  if (vp) vp.onchange = async () => {
+    const r = await fetch("/api/models/vision", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ spec: vp.value }) });
+    const j = await r.json();
+    if (!r.ok) modelNote = j.error; else models = j;
+    renderModels();
+  };
+  const mqIn = $("#model-q");
+  if (mqIn) {
+    mqIn.oninput = () => { modelQuery = mqIn.value; renderModels(); };
+    if (mqFocus) { mqIn.focus(); mqIn.setSelectionRange(mqPos, mqPos); }
+  }
 }
 function openModelMenu(note = "") {
   modelNote = note;
@@ -1049,6 +1088,7 @@ document.addEventListener("click", (e) => { if (!e.target.closest?.(".model-wrap
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#model-menu").hidden) closeModelMenu(); });
 $("#model-menu").addEventListener("click", async (e) => {
   const opt = e.target.closest("[data-model]"), gpt = e.target.closest("[data-gpt]"), eye = e.target.closest("[data-vision]");
+  if (e.target.closest("[data-more]")) { closeModelMenu(); openSettings("model"); return; }
   if (eye) {
     const r = await fetch("/api/models/vision", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ spec: eye.dataset.vision }) });
     const j = await r.json();
