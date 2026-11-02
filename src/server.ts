@@ -4,10 +4,11 @@
 // 通道边界：任何"通道"（这个网页、以后的微信插件……）都只需要调 router.handle(chatId, text, reply)。
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { networkInterfaces } from "node:os";
 import { join } from "node:path";
 import type { Agents, ChatLine } from "./agents.js";
 import type { Approvals, Decision } from "./approval.js";
-import { rejectReason } from "./guard.js";
+import { rejectReason, tailscaleIp } from "./guard.js";
 import type { Registry } from "./registry.js";
 import type { Router } from "./router.js";
 import { OPEN } from "./tasks.js";
@@ -400,5 +401,43 @@ export function startServer(opts: {
   server.listen(opts.port, "127.0.0.1", () => {
     console.log(`Kiki 已启动：http://localhost:${opts.port}  （数据目录 ${opts.dataDir}）`);
   });
+  if (process.env.KIKI_TAILSCALE_LISTEN !== "0") listenOnTailscale(server, opts.port);
   return server;
+}
+
+/** 本机的 Tailscale IP（100.64.0.0/10）。 */
+export function tailscaleAddresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((a) => a && a.family === "IPv4" && tailscaleIp(a.address))
+    .map((a) => a!.address);
+}
+
+/**
+ * 同一个端口再在 Tailscale 的 IP 上开一扇门，别的设备可以直接填 100.x.x.x:端口 来连。
+ * 只开在 Tailscale 网卡上（局域网、公网都连不到），进来的请求和本机一样过守卫。
+ * Tailscale 可能比 Kiki 晚起来，所以每分钟看一次有没有新 IP。KIKI_TAILSCALE_LISTEN=0 关掉。
+ */
+function listenOnTailscale(main: ReturnType<typeof createServer>, port: number) {
+  const open = new Map<string, ReturnType<typeof createServer>>();
+  const failed = new Set<string>(); // 开不了的不再每分钟重试刷日志
+  const scan = () => {
+    for (const ip of tailscaleAddresses()) {
+      if (open.has(ip) || failed.has(ip)) continue;
+      const s = createServer((req, res) => main.emit("request", req, res));
+      open.set(ip, s);
+      s.on("error", (e) => {
+        console.warn(`Tailscale 地址 ${ip}:${port} 开不了：${(e as Error).message}`);
+        open.delete(ip);
+        failed.add(ip);
+        s.close();
+      });
+      s.listen(port, ip, () => console.log(`远程可连：http://${ip}:${port}（Tailscale 内网）`));
+    }
+  };
+  scan();
+  setInterval(scan, 60_000).unref();
+  main.on("close", () => {
+    for (const s of open.values()) s.close();
+  });
 }
