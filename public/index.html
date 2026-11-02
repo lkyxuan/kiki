@@ -355,6 +355,13 @@
   </div>
 </div>
 <script>
+// 总进度：下载最慢，占 80%；后面 5 步（校验、自检、备份、等空闲、切换）各占 4%
+const UPD_WEIGHTS = [80, 4, 4, 4, 4, 4];
+function updPercent(st) {
+  if (st.of !== UPD_WEIGHTS.length) return Math.round(((st.n - 1) + (st.percent ?? 0) / 100) / st.of * 100);
+  const done = UPD_WEIGHTS.slice(0, st.n - 1).reduce((a, b) => a + b, 0);
+  return Math.min(100, Math.round(done + (UPD_WEIGHTS[st.n - 1] ?? 0) * (st.percent ?? 0) / 100));
+}
 const $ = (s) => document.querySelector(s);
 let tree = { agents: [] };
 let current = "main";
@@ -1211,7 +1218,7 @@ function showUpdating(u) {
   updatingFrom = u.current;
   $("#updating-ver").textContent = u.latest ? `v${u.current} → v${u.latest}` : "";
   const st = u.step;
-  $("#updating-bar").value = st ? Math.round(((st.n - 1) + (st.percent ?? 0) / 100) / st.of * 100) : 0;
+  $("#updating-bar").value = st ? updPercent(st) : 0;
   $("#updating-step").textContent = st ? `第 ${st.n}/${st.of} 步：${st.label}${st.n === 1 && st.percent !== undefined ? ` · ${st.percent}%` : ""}` : (u.message || "准备中…");
 }
 // 切换时 Kiki 会重启几秒，事件流断开：弹窗里说明正在重启，重新连上后版本变了就整页刷新
