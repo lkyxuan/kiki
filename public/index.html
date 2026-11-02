@@ -192,6 +192,30 @@
   /* 设置弹窗：盖在聊天页上，右上角 ×，Esc 或点外面关掉 */
   #sheet { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .18s; }
   #sheet.on { opacity: 1; pointer-events: auto; }
+  .avatar.emoji { background: var(--fill); box-shadow: none; font-size: 14px; font-weight: 400; }
+  .receipt .avatar.emoji { font-size: 17px; }
+  /* 新建宝：小弹窗，只问名字、负责什么、头像 */
+  #newbao { position: fixed; inset: 0; z-index: 21; display: grid; place-items: center; background: var(--scrim); }
+  #newbao[hidden] { display: none; }
+  #newbao form { width: min(400px, calc(100% - 32px)); background: var(--grouped); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 20px 20px 16px; display: grid; gap: 12px; animation: nb-in .2s cubic-bezier(.2,.8,.2,1); }
+  @keyframes nb-in { from { transform: scale(.96) translateY(6px); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { #newbao form { animation: none; } }
+  #newbao h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  #newbao .sub { margin: -8px 0 0; font-size: 12.5px; color: var(--muted); }
+  #newbao label { display: grid; gap: 5px; font-size: 12.5px; color: var(--muted); }
+  #newbao input, #newbao textarea { font: inherit; font-size: 13.5px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; outline: none; resize: none; }
+  #newbao input:focus, #newbao textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  #newbao .faces { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  #newbao .faces button { width: 32px; height: 32px; border-radius: 8px; font-size: 17px; display: grid; place-items: center; background: var(--fill); }
+  #newbao .faces button.on { box-shadow: 0 0 0 2px var(--accent); }
+  #newbao .faces .letter { font-size: 13px; font-weight: 700; color: #fff; }
+  #newbao .faces input { width: 64px; text-align: center; padding: 6px; }
+  #newbao .err { color: #e0475f; font-size: 12.5px; min-height: 0; margin: -4px 0 0; }
+  #newbao .err:empty { display: none; }
+  #newbao .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  #newbao .btns button { font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 7px; background: var(--fill); color: var(--text); }
+  #newbao .btns .primary { background: var(--accent); color: #fff; }
+  #newbao .btns .primary:disabled { opacity: .5; }
   #sheet[hidden] { display: none; } /* 关着时彻底移出 Tab 键顺序 */
   #updating[hidden] { display: none !important; } /* 行内 display:grid 会盖过 hidden，必须单独写 */
   #sheet .win { width: min(960px, calc(100% - 48px)); height: min(88vh, 920px); background: var(--grouped); border-radius: 14px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; position: relative; transform: scale(.97) translateY(6px); transition: transform .22s cubic-bezier(.2,.8,.2,1); }
@@ -248,6 +272,17 @@
     </div>
   </div>
 </section>
+<div id="newbao" role="dialog" aria-modal="true" aria-labelledby="newbao-title" hidden>
+  <form autocomplete="off">
+    <h2 id="newbao-title">新建一个宝</h2>
+    <p class="sub">其他都用默认的，以后在「编辑说明」里随时改。</p>
+    <label>名字<input name="name" maxlength="40" placeholder="比如 工作、家里、学英语" required></label>
+    <label>我负责什么（可不填）<textarea name="about" rows="2" maxlength="500" placeholder="比如：帮我管工作上的项目、会议和邮件"></textarea></label>
+    <div><label style="margin-bottom:5px">头像</label><div class="faces"></div></div>
+    <p class="err" role="alert"></p>
+    <div class="btns"><button type="button" class="cancel">取消</button><button type="submit" class="primary">创建</button></div>
+  </form>
+</div>
 <div id="sheet" role="dialog" aria-modal="true" aria-label="设置" hidden>
   <div class="win">
     <button class="close" id="sheet-close" aria-label="关闭设置" title="关闭（Esc）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -300,7 +335,8 @@ function md(src) {
 // 每个宝一个固定颜色（按名字算），头像显示名字第一个字
 const COLORS = ["#3a7bf0", "#2f9e57", "#e07b12", "#9a55d6", "#e0475f", "#1f9aa8"]; // 接近 macOS 系统色，白字仍看得清
 function color(name) { let h = 0; for (const c of name) h = (h * 31 + c.codePointAt(0)) >>> 0; return COLORS[h % COLORS.length]; }
-const avatar = (name) => `<span class="avatar" style="background:${color(name)}">${esc([...name][0].toUpperCase())}</span>`;
+const emojiOf = (name) => tree?.agents?.find((a) => a.name === name)?.emoji;
+const avatar = (name) => { const e = emojiOf(name); return e ? `<span class="avatar emoji">${esc(e)}</span>` : `<span class="avatar" style="background:${color(name)}">${esc([...name][0].toUpperCase())}</span>`; };
 const PLUS = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
 function find(path) {
@@ -569,13 +605,45 @@ function newSession(agent, btn) {
   });
 }
 
+// 新建宝：弹一个小窗，填名字（必填）、负责什么、挑个头像；建好直接进它的主对话
+const FACES = ["", "💼", "🏠", "📚", "💰", "🏃", "🍳", "✈️", "🎨", "💻", "❤️", "🌱"]; // "" = 名字首字
 function newBao() {
-  inlineInput($("#agents"), "new-input new-bao-input", "宝的名字，比如 work", async (name) => {
-    const r = await fetch("/api/settings/agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, create: true }) });
-    const data = await r.json();
-    if (!r.ok) return data.error;
-    await loadTree();
-  });
+  const box = $("#newbao"), f = box.querySelector("form"), faces = box.querySelector(".faces"), err = box.querySelector(".err");
+  let face = "";
+  const drawFaces = () => {
+    const nm = f.name.value.trim() || "宝";
+    faces.innerHTML = FACES.map((e) => `<button type="button" data-face="${e}" class="${e === face ? "on" : ""}${e ? "" : " letter"}" ${e ? "" : `style="background:${color(nm)}"`} aria-label="${e ? `头像 ${e}` : "用名字首字"}">${e || esc([...nm][0].toUpperCase())}</button>`).join("")
+      + `<input data-own maxlength="8" placeholder="自己填" aria-label="自己填一个 emoji" value="${FACES.includes(face) ? "" : esc(face)}">`;
+  };
+  f.reset(); err.textContent = ""; drawFaces();
+  box.hidden = false;
+  const last = document.activeElement;
+  f.name.focus();
+  const close = () => { box.hidden = true; box.onkeydown = f.onsubmit = faces.onclick = faces.oninput = f.name.oninput = box.onclick = null; last?.focus?.(); };
+  f.name.oninput = () => { if (!face) faces.querySelector(".letter").textContent = [...(f.name.value.trim() || "宝")][0].toUpperCase(), faces.querySelector(".letter").style.background = color(f.name.value.trim() || "宝"); };
+  faces.onclick = (e) => { const b = e.target.closest("[data-face]"); if (!b) return; face = b.dataset.face; drawFaces(); };
+  faces.oninput = (e) => { if (!e.target.matches("[data-own]")) return; face = e.target.value.trim(); faces.querySelectorAll("[data-face]").forEach((b) => b.classList.toggle("on", b.dataset.face === face)); };
+  box.querySelector(".cancel").onclick = close;
+  box.onclick = (e) => { if (e.target === box) close(); };
+  box.onkeydown = (e) => {
+    if (e.key === "Escape") { e.stopPropagation(); close(); }
+    if (e.key === "Enter" && e.target === f.about && !e.shiftKey && !e.isComposing) { e.preventDefault(); f.requestSubmit(); }
+  };
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const name = f.name.value.trim(), btn = f.querySelector(".primary");
+    if (!name) return f.name.focus();
+    btn.disabled = true; err.textContent = "";
+    try {
+      const r = await fetch("/api/settings/agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, create: true, about: f.about.value.trim(), emoji: face }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { err.textContent = data.error || "没建成，再试一次"; return; }
+      close();
+      await loadTree();
+      await openBao(name); // 直接进新宝的主对话
+    } catch { err.textContent = "连不上 Kiki，再试一次"; }
+    finally { btn.disabled = false; }
+  };
 }
 
 async function loadTree() {
@@ -602,7 +670,7 @@ try { if (localStorage.getItem("kiki.panel") === "off") document.body.classList.
 if (document.documentElement.classList.contains("kiki-fullsize")) {
   const winMsg = (m) => { try { window.webkit.messageHandlers.kikiWindow.postMessage(m); } catch {} };
   const dragZone = (e) => e.button === 0 && (e.clientY < 28 || e.target.closest("header"))
-    && !e.target.closest("button, a, input, textarea, select, [data-path], [data-bao], [data-thread], #sheet");
+    && !e.target.closest("button, a, input, textarea, select, [data-path], [data-bao], [data-thread], #sheet, #newbao");
   document.addEventListener("mousedown", (e) => { if (e.detail === 1 && dragZone(e)) winMsg("drag"); });
   document.addEventListener("dblclick", (e) => { if (dragZone(e)) winMsg("zoom"); });
 }
