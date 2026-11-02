@@ -86,17 +86,21 @@ flowchart LR
 
 ## 🍎 安装成 Mac App
 
-推荐的用法：Kiki 装在常开的 Mac mini 上，你在 MacBook、iPhone 上远程用。在 Mac mini 的“终端”里跑一行：
+需要 macOS 12 或以上，Apple 芯片和 Intel 都支持。任何一台 Mac 都能装；想在手机上也能用，就装在一台常开的 Mac（比如 Mac mini）上。两种装法任选一种：
+
+**方法一：终端里跑一行（推荐）**。自动下载、核对、装好、启动，不会被系统拦：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash
 ```
 
+**方法二：下载安装包**。到 [发布页](https://github.com/lkyxuan/kiki/releases/latest) 下载 `.dmg`（Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`），打开后把 Kiki 拖进「应用程序」，再从「应用程序」里打开。Kiki 还没有苹果开发者签名，第一次打开会提示无法验证开发者：点「完成」，到「系统设置 → 隐私与安全性」拉到最下面，点「仍要打开」。
+
 - **开箱即用**：Kiki.app 自带运行环境和 Kiki 内核，不用另装 Node，登录后自动在后台启动，崩溃自动拉起。
 - **自动更新**：有新版本时网页右上角会提示，默认在没有对话运行时自动安装，失败自动回滚。
 - **安全远程**：Kiki 只监听本机，远程访问通过 [Tailscale](https://tailscale.com) 加密连接，只有你自己的设备能连上。
 
-装好后编辑 `~/kiki-data/.env` 填入模型 API Key，再重启 Kiki 生效：`launchctl kickstart -k gui/$(id -u)/com.lkyxuan.kiki`。完整的安装、更新、远程使用和卸载说明见 **[Mac App 指南](docs/mac-app.md)**。
+第一次打开时选「在这台电脑上运行」，然后点左下角「设置 → 模型与密钥」，粘贴 [DeepSeek API 密钥](https://platform.deepseek.com/api_keys)，保存后就能开始聊。完整的安装、更新、远程使用和卸载说明见 **[Mac App 指南](docs/mac-app.md)**。
 
 ## 🚀 快速开始
 
