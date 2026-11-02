@@ -66,7 +66,7 @@ curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install
 
 **Option 2: download the installer**
 
-Grab the `.dmg` from the [releases page](https://github.com/lkyxuan/kiki/releases/latest) (arm64 for Apple silicon, x64 for Intel) and drag Kiki into Applications.
+Grab the `.dmg` from the [releases page](https://github.com/lkyxuan/kiki/releases/latest) (arm64 for Apple silicon, x64 for Intel) and drag Kiki into Applications, then open it **from Applications**. Kiki isn't signed by Apple yet, so the first launch shows an "unverified developer" warning: click Done, then go to System Settings → Privacy & Security, scroll to the bottom and click Open Anyway.
 
 Open Kiki, follow the prompt to add a model key in Settings, and start chatting.
 

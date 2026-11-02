@@ -66,7 +66,7 @@ curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install
 
 **方式二：下载安装包**
 
-到 [发布页](https://github.com/lkyxuan/kiki/releases/latest) 下载 `.dmg`（Apple 芯片选 arm64，Intel 选 x64），把 Kiki 拖进「应用程序」再打开。
+到 [发布页](https://github.com/lkyxuan/kiki/releases/latest) 下载 `.dmg`（Apple 芯片选 arm64，Intel 选 x64），把 Kiki 拖进「应用程序」，**从「应用程序」里**打开。Kiki 还没有苹果签名，第一次打开会提示无法验证开发者：点「完成」，到「系统设置 → 隐私与安全性」拉到最下面点「仍要打开」。
 
 装好后打开 Kiki，按引导在设置里填一个模型密钥就能开始聊。
 
