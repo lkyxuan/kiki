@@ -22,7 +22,16 @@
   .nav-item.on { background: var(--accent); color: var(--on-accent); }
   .nav-item .ic { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; flex: none; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.12); }
   .nav-item .ic svg { width: 14px; height: 14px; }
-  #ver { margin-top: auto; padding: 10px 8px 2px; white-space: pre-line; color: var(--faint); font-size: 11px; word-break: break-all; line-height: 1.5; }
+  /* 左下角：版本号 + 更新按钮，点了右边显示更新详情 */
+  #ver-box { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 8px 6px 2px 8px; border-top: 1px solid var(--line); }
+  #ver { flex: 1; min-width: 0; color: var(--faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #ver-btn { flex: none; min-height: 24px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--raised); box-shadow: var(--shadow-sm); font-size: 12px; font-weight: 500; white-space: nowrap; }
+  #ver-btn:hover { background: var(--hover); }
+  #ver-btn.new { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  #ver-btn.on { border-color: var(--accent); color: var(--accent); }
+  .about-kiki { display: flex; align-items: center; gap: 14px; }
+  .about-kiki img { border-radius: 12px; flex: none; }
+  .about-kiki b { font-size: 16px; }
   .content { flex: 1; min-width: 0; }
   .pane { display: none; }
   .pane.on { display: block; }
@@ -112,7 +121,7 @@
     nav { width: 100%; height: auto; position: sticky; top: 0; z-index: 2; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; }
     #nav-items { flex-direction: row; overflow-x: auto; }
     .nav-item { width: auto; }
-    #ver { display: none; }
+    #ver-box { display: none; }
     .wrap { padding: 18px 16px 48px; }
     .top { flex-direction: row; align-items: center; padding-bottom: 6px; }
     .top h1 { font-size: 17px; }
@@ -128,7 +137,10 @@
     <h1>设置</h1>
   </div>
   <div id="nav-items"></div>
-  <small id="ver"></small>
+  <div id="ver-box">
+    <span id="ver"></span>
+    <button id="ver-btn" type="button">检查更新</button>
+  </div>
 </nav>
 <main class="content">
 <div class="wrap">
@@ -138,6 +150,34 @@
     <button class="btn primary" id="restart">立即重启</button>
     <span class="msg" id="restart-msg"></span>
   </div>
+
+  <section class="pane" id="pane-update" data-title="软件更新" data-nav="no">
+    <h2>软件更新</h2>
+    <div class="card about-kiki">
+      <img src="/icon.svg" alt="" width="52" height="52">
+      <div><b>Kiki</b><div class="msg" id="about-ver">读取中…</div><div class="mono msg" id="about-env" title="配置文件"></div></div>
+    </div>
+    <div class="card">
+      <div id="upd" class="msg">查询中…</div>
+      <div id="upd-prog" hidden style="margin: 8px 0">
+        <progress max="100" value="0" style="width: 100%; height: 8px; accent-color: var(--accent, #2f7d4f)"></progress>
+        <div class="msg" id="upd-step"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="auto"> 空闲时自动更新</label>
+      <div class="row" style="margin-top: 6px">
+        <button class="btn" id="check">检查更新</button>
+        <button class="btn primary" id="apply" hidden>现在更新</button>
+      </div>
+      <details id="upd-details" style="margin-top: 10px">
+        <summary class="msg" style="cursor: pointer">详情</summary>
+        <div class="msg" id="upd-info" style="margin-top: 6px"></div>
+        <div class="msg" style="margin-top: 8px">这一版改了什么</div>
+        <pre id="upd-notes" class="mono" style="white-space: pre-wrap; max-height: 200px; overflow: auto; margin: 4px 0; font-size: 12px"></pre>
+        <div class="msg" style="margin-top: 8px">更新日志 <span class="mono">~/Library/Logs/Kiki/update.log</span></div>
+        <pre id="upd-log" class="mono" style="white-space: pre-wrap; max-height: 260px; overflow: auto; margin: 4px 0; font-size: 12px"></pre>
+      </details>
+    </div>
+  </section>
 
   <section class="pane" id="pane-look" data-title="外观">
     <h2>外观 <small>只影响这台设备</small></h2>
@@ -260,29 +300,6 @@
     </div>
   </section>
 
-  <section class="pane" id="pane-update" data-title="更新">
-    <h2>更新</h2>
-    <div class="card">
-      <div id="upd" class="msg">查询中…</div>
-      <div id="upd-prog" hidden style="margin: 8px 0">
-        <progress max="100" value="0" style="width: 100%; height: 8px; accent-color: var(--accent, #2f7d4f)"></progress>
-        <div class="msg" id="upd-step"></div>
-      </div>
-      <label class="check"><input type="checkbox" id="auto"> 空闲时自动更新</label>
-      <div class="row" style="margin-top: 6px">
-        <button class="btn" id="check">检查更新</button>
-        <button class="btn primary" id="apply" hidden>现在更新</button>
-      </div>
-      <details id="upd-details" style="margin-top: 10px">
-        <summary class="msg" style="cursor: pointer">详情</summary>
-        <div class="msg" id="upd-info" style="margin-top: 6px"></div>
-        <div class="msg" style="margin-top: 8px">这一版改了什么</div>
-        <pre id="upd-notes" class="mono" style="white-space: pre-wrap; max-height: 200px; overflow: auto; margin: 4px 0; font-size: 12px"></pre>
-        <div class="msg" style="margin-top: 8px">更新日志 <span class="mono">~/Library/Logs/Kiki/update.log</span></div>
-        <pre id="upd-log" class="mono" style="white-space: pre-wrap; max-height: 260px; overflow: auto; margin: 4px 0; font-size: 12px"></pre>
-      </details>
-    </div>
-  </section>
 </div>
 </main>
 </div>
@@ -303,10 +320,9 @@ const ICONS = {
   ext: ["#34c759", W('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>')],
   mcp: ["#30b0c7", W('<path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/>')],
   remote: ["#32ade6", W('<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/>')],
-  update: ["#8e8e93", W('<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>')],
 };
 const panes = [...document.querySelectorAll(".pane")];
-$("#nav-items").innerHTML = panes.map((p) => {
+$("#nav-items").innerHTML = panes.filter((p) => p.dataset.nav !== "no").map((p) => {
   const id = p.id.slice(5), [bg, svg] = ICONS[id] || ["#8e8e93", ""];
   return `<button class="nav-item" data-pane="${id}"><span class="ic" style="background:${bg}">${svg}</span>${esc(p.dataset.title)}</button>`;
 }).join("");
@@ -318,8 +334,8 @@ function showPane(id) {
     b.classList.toggle("on", on);
     if (on) { b.setAttribute("aria-current", "page"); b.scrollIntoView({ block: "nearest", inline: "nearest" }); } else b.removeAttribute("aria-current");
   }
-  try { localStorage.setItem("kiki.settingsPane", id); } catch {}
   if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
+  $("#ver-btn").classList.toggle("on", id === "update");
   window.scrollTo(0, 0);
 }
 $("#nav-items").onclick = (e) => { const b = e.target.closest("[data-pane]"); if (b) showPane(b.dataset.pane); };
@@ -331,7 +347,12 @@ $("#nav-items").onkeydown = (e) => {
   e.preventDefault(); showPane(next.dataset.pane); next.focus();
 };
 window.addEventListener("hashchange", () => showPane(location.hash.slice(1)));
-showPane(location.hash.slice(1) || (() => { try { return localStorage.getItem("kiki.settingsPane"); } catch { return null; } })() || "look");
+showPane(location.hash.slice(1) || "look");
+// 左下角按钮：打开更新详情；有新版本时直接是「更新到 vX」
+$("#ver-btn").onclick = () => {
+  showPane("update");
+  if (!$("#ver-btn").classList.contains("new")) $("#check").click();
+};
 
 // 外观
 function syncLook() { for (const r of document.querySelectorAll('input[name=theme]')) r.checked = r.value === kikiTheme.get(); }
@@ -361,8 +382,9 @@ const SRC = {
 
 async function load() {
   S = await api("/api/settings");
-  $("#ver").textContent = `Kiki v${S.version}\n${S.envFile}`;
-  $("#ver").title = "配置文件";
+  $("#about-ver").textContent = `版本 ${S.version}`;
+  $("#about-env").textContent = S.envFile;
+  if (!$("#ver").textContent) $("#ver").textContent = `Kiki v${S.version}`;
   for (const k of ["MODEL", "DEEPSEEK_API_KEY", "DEFAULT_AGENT"]) {
     const e = S.env[k];
     const input = $("#" + k);
@@ -491,6 +513,10 @@ async function loadUpdate() {
   else if (u.checkedAt) t += "，已是最新";
   if (!u.canApply) t += "<br>开发模式下用 git pull 更新";
   el.innerHTML = t;
+  $("#ver").textContent = `Kiki v${u.current}`;
+  const vb = $("#ver-btn"), avail = u.status === "available";
+  vb.classList.toggle("new", avail);
+  vb.textContent = avail ? `更新到 v${u.latest}` : busy ? "更新中…" : "检查更新";
   $("#apply").hidden = !(u.status === "available" && u.canApply);
   // 进度条：6 步（下载、校验、自检、备份、等对话、切换），下载那步按字节算百分比
   const st = (u.status === "downloading" || u.status === "installing") && u.step;
