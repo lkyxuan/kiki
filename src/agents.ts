@@ -19,6 +19,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { type Live, type Step, describeTool, stepsFromMessages } from "./activity.js";
 import { baoFile, createBao } from "./bao.js";
+import { explainError } from "./errors.js";
 
 export interface ChatLine {
   role: "user" | "assistant";
@@ -236,7 +237,9 @@ export class Agents extends EventEmitter {
     const prev = this.queues.get(path) ?? Promise.resolve();
     const run = prev.catch(() => {}).then(async () => {
       const s = await this.get(agent, path);
-      await s.prompt(text);
+      await s.prompt(text).catch((e) => {
+        throw new Error(explainError((e as Error).message));
+      });
       return lastReply(s);
     });
     this.queues.set(path, run);
@@ -291,7 +294,7 @@ export class Agents extends EventEmitter {
       systemPrompt: system,
       messages: [{ role: "user", content: user, timestamp: Date.now() }],
     });
-    if (msg.stopReason === "error") throw new Error(msg.errorMessage ?? "模型出错");
+    if (msg.stopReason === "error") throw new Error(explainError(msg.errorMessage ?? "模型出错"));
     return (msg.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("").trim();
   }
 
@@ -351,7 +354,7 @@ function lastReply(s: AgentSession): string {
   for (let i = msgs.length - 1; i >= 0; i--) {
     const m = msgs[i];
     if (m.role !== "assistant") continue;
-    if (m.stopReason === "error") return `出错了：${m.errorMessage ?? "未知错误"}`;
+    if (m.stopReason === "error") return `出错了：${explainError(m.errorMessage ?? "未知错误")}`;
     const text = (m.content ?? [])
       .filter((c: any) => c.type === "text")
       .map((c: any) => c.text)
