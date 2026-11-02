@@ -307,7 +307,8 @@ export interface InboxItem {
   re?: string;
   bao?: string;
   attention?: boolean;
-  status: "new" | "routed" | "replied" | "notified" | "failed";
+  status: "new" | "routed" | "replied" | "notified" | "triaged" | "failed";
+  verdict?: string; // 奇奇看过后的一句话（为什么要你看 / 说了什么）
   internal?: boolean; // Kiki 自己的来源（后台任务、定时任务）
   route?: false; // 只通知你、不再交给奇奇分派（比如后台任务的结果已经回报到原对话了）
   path?: string; // 结果写在了哪段对话（pi JSONL 路径；"main" 是奇奇）。你打开过那段就算读过
@@ -411,6 +412,12 @@ export class Postroom extends EventEmitter {
   answer: (item: InboxItem, sent: OutboxItem) => Promise<boolean> = async () => false;
   /** 只通知、不分派的那种：经通知通道告诉你。server.ts 接上 */
   notify: (item: InboxItem) => Promise<void> = async () => {};
+  /** 奇奇看信（triage.ts）：判断要不要提醒、要不要交给宝、改关注清单。没接或出错就照老办法全交给奇奇 */
+  triage?: (item: InboxItem) => Promise<{ important: boolean; why?: string; route: boolean; add?: string; crossed: string[]; doneWhy?: string; follow: { text: string; link: string }[] } | undefined>;
+  /** 关注清单里连着对话的事有了新消息：交回那段对话（"宝/对话名"），让它带着原来的上下文出下一步。返回给你看的一句话。server.ts 接上 */
+  followUp: (session: string, watch: string, item: InboxItem) => Promise<string> = async () => {
+    throw new Error("还没接上");
+  };
   /** 你现在是不是正开着这段对话。server.ts 按网页报上来的接上 */
   isViewing: (path: string) => boolean = () => false;
   /** 外部 agent 要做收不回来的动作时问你。main.ts 接到审批卡片 */
@@ -581,6 +588,32 @@ export class Postroom extends EventEmitter {
       await this.notify(item).catch(() => {});
     }
     try {
+      // 奇奇看信：新来的、还没写进任何对话的消息（不是回复派活、不是任务结果），先读一遍再决定
+      if (this.triage && !sent && !item.path) {
+        const v = await this.triage(item).catch(() => undefined);
+        if (v) {
+          item = { ...item, verdict: v.why };
+          if (v.important && !item.urgent) {
+            item = { ...item, urgent: `奇奇觉得要看：${v.why ?? ""}` };
+            await this.notify(item);
+          }
+          for (const c of v.crossed)
+            await this.notify({ ...item, urgent: undefined, title: `关注的事有了结果：${c}`, text: `已从关注清单划掉。${v.doneWhy ?? v.why ?? ""}` });
+          // 连着任务的事有了新消息（比如一周前报名的项目来了新邮件）：交回那个任务的对话，并告诉你
+          if (v.follow.length) {
+            for (const f of v.follow) {
+              const where = await this.followUp(f.link, f.text, item).catch((e) => `没交回去：${(e as Error).message}`);
+              await this.notify({ ...item, title: `「${f.text}」有新消息`, text: `${v.why ?? item.title ?? ""}\n${where}` });
+            }
+            this.inbox.put({ ...item, status: "routed", routedTo: `→ ${v.follow.map((f) => f.link).join("、")} · 接着办` });
+            return;
+          }
+          if (!v.route || item.route === false) {
+            this.inbox.put({ ...item, status: "triaged" }); // 记在收件箱里（以后的简报会用），不惊动宝
+            return;
+          }
+        }
+      }
       if (item.route === false) {
         // 结果已经写在某段对话里了（或者只是个提醒）：你正开着那段就不打扰，不在才提醒
         const path = item.path ?? MAIN_PATH;

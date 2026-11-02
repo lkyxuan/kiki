@@ -244,3 +244,26 @@ test("信箱放进文件马上收，不等每分钟巡视", async () => {
   assert.equal(delivered.length, 1);
   pr.stop();
 });
+
+test("奇奇看信：不重要的只记下不惊动宝；重要的提醒；连着任务的交回那段对话", async () => {
+  const { pr, drop, delivered } = setup();
+  const notified: string[] = [];
+  const followed: string[] = [];
+  pr.notify = async (it) => void notified.push(it.title ?? "");
+  pr.followUp = async (s) => (followed.push(s), "已交回");
+  const verdicts: any[] = [
+    { important: false, route: false, crossed: [], follow: [] },
+    { important: true, why: "扣款失败", route: true, crossed: [], follow: [] },
+    { important: false, route: false, crossed: [], follow: [{ text: "报名黑客松", link: "工作宝/报名" }] },
+  ];
+  pr.triage = async () => verdicts.shift();
+  drop("1.md", "---\ntitle: 周报\n---\n例行");
+  drop("2.md", "---\ntitle: 账单\n---\n扣款失败");
+  drop("3.md", "---\ntitle: 黑客松\n---\n请补交材料");
+  await pr.poll();
+  await pr.settled();
+  assert.equal(delivered.length, 1); // 只有账单交给了奇奇
+  assert.deepEqual(followed, ["工作宝/报名"]);
+  assert.deepEqual(notified, ["账单", "「报名黑客松」有新消息"]);
+  assert.equal(pr.inbox.rows.find((r) => r.title === "周报")?.status, "triaged");
+});

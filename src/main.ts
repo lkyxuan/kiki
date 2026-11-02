@@ -21,6 +21,7 @@ import { A2AAgent } from "./a2a.js";
 import { AcpAgent } from "./acp.js";
 import { WatchAgent } from "./watch.js";
 import { Notifier } from "./notify.js";
+import { makeTriage } from "./triage.js";
 import { startServer } from "./server.js";
 import { FileTaskStore } from "./tasks.js";
 import { Updater, VERSION } from "./update.js";
@@ -108,6 +109,8 @@ postroom.approve = async (req) => {
   const r = await approvals.gate(req, { agent: rec?.agent ?? DEFAULT_BAO, path: req.origin ?? "", detail: req.detail });
   return r.ok;
 };
+// 奇奇看信：每条新消息先用便宜模型读一遍，判断要不要提醒、要不要交给宝，顺手维护 关注清单.md
+postroom.triage = makeTriage(dataDir, (sys, user) => agents.complete(sys, user, process.env.TRIAGE_MODEL || process.env.SUMMARY_MODEL || undefined));
 // 通知通道：要告诉你的事从这里发出去。现在只有 Kiki 界面（server.ts 挂上），以后的 Telegram、微信做成插件也挂这里
 const notifier = new Notifier();
 // 设置页关掉的能力不挂给 agent（新开的对话生效）

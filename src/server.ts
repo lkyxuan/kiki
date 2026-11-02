@@ -148,6 +148,16 @@ export function startServer(opts: {
     };
     // 网页报上来你正开着哪几段对话（中间 + 右栏），90 秒内没再报就当你不在了
     pr.isViewing = (p) => (viewing.get(p) ?? 0) > Date.now() - 90_000;
+    pr.followUp = async (session, watch, it) => {
+      const rec = registry.find(session)[0];
+      if (!rec) throw new Error(`找不到对话「${session}」`);
+      const msg = `【收发室】你之前办的「${watch}」有新消息（来自 ${it.from}）：\n\n${it.title ? `${it.title}\n` : ""}${it.text}\n\n（请对照之前做过的事，用几句话说清楚现在需要用户做什么，或者你接下来做什么。）`;
+      agents
+        .send(rec.agent, rec.path, msg)
+        .then((r) => agents.announce(rec.path, r))
+        .catch((e) => agents.announce(rec.path, `出错了：${(e as Error).message}`));
+      return `已交回 [${rec.name === "主对话" ? rec.agent : rec.name}](kiki:${rec.agent}/${rec.name})，它会带着之前的上下文给出下一步。`;
+    };
     pr.on("change", () => push("tree", tree()));
     // 分派失败、外部 agent 出错：也经通知通道说一声（不只是情况栏里一行）
     pr.on("attention", (a: { title: string; why: string; from: string }) =>
