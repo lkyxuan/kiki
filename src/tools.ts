@@ -53,16 +53,18 @@ export function kikiTools(opts: { host: ToolHost; dataDir: string; listBaos: () 
   const relay: ToolDefinition = {
     name: "kiki_relay",
     label: "给别的对话捎话",
-    description: "往另一段已有对话（宝名/对话名）发一句话，让那边的 agent 处理；那边回答后，回答会记回这段对话。立刻返回，不用等。",
-    promptSnippet: "kiki_relay：把一句话或一个结论捎给另一段对话",
+    description:
+      "把一件事交给别的宝或另一段已有对话：target 只写宝名就进那个宝的主对话（由它决定怎么办），写「宝名/对话名」就进那段讨论串。那边回答后，回答会记回这段对话。立刻返回，不用等。",
+    promptSnippet: "kiki_relay：属于别的宝的事交给那个宝；结论捎给另一段对话",
     promptGuidelines: [
-      "这边得出的结论、决定或要那边做的事，属于另一段已有对话时，直接用 kiki_relay 捎过去，不要先问用户；捎完一句话告诉用户捎给了谁，对话写成 [对话名](kiki:宝/对话名)。",
-      "捎的话要自带上下文，让那边不看这边的聊天也能懂。",
-      "只在用户要求、或者这边的结论明确需要那边知道时才捎，不要顺手多捎。",
+      "用户在这里说的事属于别的宝的领域（对照宝目录里每个宝负责什么）：用 kiki_relay 交给那个宝（target 写宝名；明确属于它某段讨论串就写「宝名/对话名」），不要在这里展开回答，也不要先问用户。交完在这里一句话说明交给了谁，写成 [宝名](kiki:宝名/主对话) 或 [对话名](kiki:宝/对话名)。只有属于本宝、本对话的事才原地答。",
+      "这边得出的结论、决定，那边需要知道的，也用 kiki_relay 捎过去。",
+      "交过去的话要自带上下文（用户原话 + 必要的背景），让那边不看这边的聊天也能懂。",
+      "和别的宝无关的闲话、这边自己能收尾的小结论，不用捎。",
     ],
     parameters: Type.Object({
-      target: Type.String({ description: "宝名/对话名，比如 dev/路由器" }),
-      text: Type.String({ description: "要捎的话" }),
+      target: Type.String({ description: "宝名（进它的主对话），或 宝名/对话名（进那段讨论串）" }),
+      text: Type.String({ description: "交过去的话，自带上下文" }),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx) {
       try {

@@ -399,3 +399,14 @@ test("拆分里交给主对话的后台活不分叉主对话", async () => {
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual(ctl.forks, []);
 });
+
+test("kiki_relay 只写宝名：交给那个宝的主对话", async () => {
+  const { router, say, reg, ctl } = setup();
+  await router.ensureMains();
+  await say("/new dev 路由器");
+  const from = reg.current("app")!.path;
+  const r = await router.relay(from, "life", "用户问：周末去哪玩");
+  assert.match(r, /已捎给 life\/主对话/);
+  await new Promise((x) => setTimeout(x, 10));
+  assert.match(ctl.sends.at(-1)!, /^【从「dev\/路由器」捎来的话】\n用户问：周末去哪玩/);
+});

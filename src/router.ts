@@ -440,7 +440,7 @@ export class Router {
   private resolve(target: string): SessionRecord {
     const t = target.trim().replace(/^\//, "");
     const i = t.indexOf("/");
-    const rec = i > 0 ? this.registry.get(t.slice(0, i), t.slice(i + 1)) : undefined;
+    const rec = i > 0 ? this.registry.get(t.slice(0, i), t.slice(i + 1)) : this.registry.get(t, MAIN_SESSION); // 只写宝名 = 那个宝的主对话
     if (rec) return rec;
     const hits = this.registry.find(t);
     if (hits.length === 1) return hits[0];
