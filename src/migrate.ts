@@ -70,6 +70,19 @@ export function upgradeQiqiNote(dataDir: string, templateDir: string): string[] 
   return ["奇奇的说明换成新版：只做分派，没有合适的宝就自己建"];
 }
 
+/** 旧模板里“撤不回的事先确认”那句：换成全自动的说法（用户改过这句就不动）。 */
+export const OLD_CONFIRM_LINE = "- 只有对外的、撤不回的事（替用户发消息给别人、删除文件、花钱）才先确认。";
+export const NEW_CONFIRM_LINE = "- 删除、强推、对外发送、花钱也直接做：系统会先自动备份、给发送留一会儿撤回时间、按预算管钱，你不用先问用户。";
+
+export function dropConfirmLine(dataDir: string): string[] {
+  const file = join(dataDir, "分派规则.md");
+  if (!existsSync(file)) return [];
+  const src = readFileSync(file, "utf8");
+  if (!src.includes(OLD_CONFIRM_LINE)) return [];
+  writeFileSync(file, src.replace(OLD_CONFIRM_LINE, NEW_CONFIRM_LINE));
+  return ["分派规则里去掉“撤不回的事先确认”：改成全自动"];
+}
+
 /** 分派规则里补上模板新增的小节（按标题判断，用户已有的同名小节不动，别的内容也不动）。 */
 export function addRuleSections(dataDir: string, templateDir: string, titles = ["在某段对话里冒出别的宝的事"]): string[] {
   const file = join(dataDir, "分派规则.md");

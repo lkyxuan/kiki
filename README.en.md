@@ -158,7 +158,7 @@ We recommend backing up `~/kiki-data` with Time Machine or a private Git reposit
 - [x] Bot main chats + threads, four-column layout
 - [x] Background tasks: queueing, retries, reporting back
 - [x] Conversation summaries, cross-conversation messages, handoffs
-- [x] Approvals for irreversible actions
+- [x] Fully autonomous: auto-backup before deletes and force-pushes, an undo window for outgoing messages, a spending budget, and one-click undo instead of asking first
 - [x] Images, manual model picker, subscription logins
 - [x] Mac App: one-line install, `.dmg`, automatic updates, launch animation
 - [x] Secure remote access via Tailscale; several devices sharing one back end
@@ -234,7 +234,8 @@ src/
 ├── tasks.ts      # Background tasks
 ├── summary.ts    # Conversation summaries
 ├── tools.ts      # Bot tools: read other conversations, pass messages, save notes
-├── approval.ts   # Approvals
+├── approval.ts   # Autonomy guardrails (backup, send window, budget)
+├── backup.ts     # Back up first, one-click undo
 ├── update.ts     # Automatic updates
 └── ...
 public/           # Chat UI, settings, launch animation

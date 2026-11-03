@@ -23,7 +23,7 @@
 ## 发布时做了什么
 
 1. 把证书导入一个临时钥匙串（跑完就删）。
-2. `packaging/sign.sh app`：由内向外签名，全部开「加固运行时」并打时间戳。依赖里的原生模块（`.node`）先签；自带的 Node 带上 `packaging/entitlements.plist` 里的权限（JIT、加载原生模块）；`Contents/MacOS/kiki-server` 脚本单独签；最后签整个 App。
+2. `packaging/sign.sh app`：由内向外签名，全部开「加固运行时」并打时间戳。依赖里的原生模块（`.node`）先签；自带的 Node 包在「Kiki 后台」小 App（`Contents/Helpers/KikiAgent.app`）里，带上 `packaging/entitlements.plist` 里的权限（JIT、加载原生模块、自动化和日历/通讯录/照片/麦克风/摄像头这些隐私权限）；`Contents/MacOS/kiki-server` 脚本单独签；最后签整个 App。
 3. `packaging/sign.sh notarize-app`：App 交给苹果公证，通过后把票据钉进 App，再打成自动更新用的 `.zip`。
 4. `packaging/sign.sh dmg`：`.dmg` 签名、公证、钉票据。
 5. 公证没通过，这一版直接不发布，日志里有苹果给的原因。
@@ -35,3 +35,10 @@
 - 已经装好的（本地签名的）Kiki 会照常升到第一个签名版。
 - 从签名版开始，更新前会用 `codesign -R` 核对新版本：签名完整、证书链通到苹果、是 Developer ID 证书、团队 ID 和自己相同；不满足就放弃这次更新（`src/update.ts`）。
 - 换成签名版后，系统可能会再问一次辅助功能、屏幕录制之类的权限；给过一次以后，后续更新不会再问。
+
+## 系统权限（隐私与安全性）
+
+- 真正干活的是 launchd 跑的「Kiki 后台」（`Contents/Helpers/KikiAgent.app`，标识 `com.lkyxuan.kiki.agent`），系统的隐私权限都记在它头上，设置里显示“Kiki 后台”。`Resources/node/bin/node` 只是指向它的链接。
+- 加固运行时下，没在 `entitlements.plist` 里声明的隐私权限，系统连弹窗都不出、直接拒；要用的说明文字写在 `packaging/agent-Info.plist`。以后要加新权限，两边都要加。
+- 第一次打开 Kiki 会自动进设置的「Mac 权限」页，“一键申请全部”由后台自己依次弹出辅助功能、屏幕录制、各 App 的自动化对话框；完全磁盘访问苹果不给弹窗，会打开设置页并在 Finder 里指出“Kiki 后台”（`src/macperm.ts`）。
+- 签名标识和团队 ID 不变，自动更新后已经给过的权限还在。

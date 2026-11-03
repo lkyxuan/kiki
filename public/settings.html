@@ -305,15 +305,39 @@
     </div>
   </section>
 
-  <section class="pane" id="pane-approval" data-title="审批">
-    <h2>审批 <small>收不回来的动作，做之前先问你一句；改了马上生效</small></h2>
+  <section class="pane" id="pane-approval" data-title="全自动">
+    <h2>全自动 <small>Kiki 不先问你，危险的动作由系统兜底，做完记下来能撤回；改了马上生效</small></h2>
     <div class="card">
     <div id="approval" class="msg">读取中…</div>
     </div>
-    <h3 class="sub">以后都同意的 <small>在卡片上点过“以后这类都同意”的，删掉就会重新问</small></h3>
+    <h3 class="sub">对外发送 <small>Kiki 替你给别人发微信、邮件、帖子时，默认直接发</small></h3>
+    <div class="card">
+    <div class="field"><label for="send-allow">白名单（人名、邮箱、群名、频道，一行一个；只在下面两种情况用得上）</label><textarea id="send-allow" style="min-height: 90px" placeholder="比如&#10;我自己&#10;someone@example.com&#10;家庭群"></textarea></div>
+    <div class="row"><label for="send-delay" class="msg">待发多久</label><input type="text" id="send-delay" inputmode="numeric" style="max-width: 90px"><span class="msg">秒（默认 0 = 马上发；设了就先等这么久，期间能撤回，白名单里的不等）</span></div>
+    <p class="msg">外来的邮件、外部 agent 让 Kiki 发给白名单外的人，一律不发，防钓鱼。</p>
+    </div>
+    <h3 class="sub">花钱 <small>预算内直接付，超了才问你</small></h3>
+    <div class="card">
+    <div class="row"><label for="per-tx" class="msg">单笔上限</label><input type="text" id="per-tx" inputmode="decimal" style="max-width: 100px"><label for="monthly" class="msg">每月上限</label><input type="text" id="monthly" inputmode="decimal" style="max-width: 100px"><span class="msg" id="spent"></span></div>
+    <div class="row"><button class="btn primary" id="auto-save">保存</button><span class="msg" id="auto-msg"></span></div>
+    </div>
+    <h3 class="sub">Kiki 做了什么 <small>自动做掉的删除、强推、发送、花钱，能撤回的点撤回</small></h3>
+    <div class="card">
+    <div id="actions" class="msg">读取中…</div>
+    </div>
+    <h3 class="sub">以后都同意的 <small>在卡片上点过“以后这类都同意 / 直接发”的，删掉就恢复默认</small></h3>
     <div class="card">
     <div id="always" class="msg">读取中…</div>
-    <p class="msg">读密码、写代码、装依赖这些都直接做，不会问。问的时候只暂停那一步，别的对话照常跑。<span id="ap-msg"></span></p>
+    <p class="msg">读密码、写代码、装依赖这些本来就直接做。<span id="ap-msg"></span></p>
+    </div>
+  </section>
+
+  <section class="pane" id="pane-macperm" data-title="Mac 权限">
+    <h2>Mac 权限 <small>装好后一次给全，以后 Kiki 做事就不会被系统弹窗卡住</small></h2>
+    <div class="card">
+    <div class="row"><button class="btn primary" id="mp-all">一键申请全部</button><span class="msg" id="mp-msg">会依次弹出系统对话框，每个点“允许”或“好”就行</span></div>
+    <div id="macperm" class="msg">读取中…</div>
+    <p class="msg">权限给的是“Kiki 后台”（真正干活的那部分），系统设置里也显示这个名字。苹果规定开关只能你亲手点；完全磁盘访问没有弹窗，点“去打开”会打开系统设置那一页，并在 Finder 里指出“Kiki 后台”，把它拖进列表再打开开关。这些都发生在跑 Kiki 的那台 Mac 上（连远程时是远程那台）。</p>
     </div>
   </section>
 
@@ -381,6 +405,7 @@ const ICONS = {
   providers: ["#5856d6", W('<rect x="4" y="4" width="16" height="6" rx="2"/><rect x="4" y="14" width="16" height="6" rx="2"/><path d="M8 7h.01M8 17h.01"/>')],
   about: ["#007aff", W('<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/>')],
   baos: ["#af52de", W('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>')],
+  macperm: ["#8e8e93", W('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>')],
   approval: ["#ff3b30", W('<path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/>')],
   ext: ["#34c759", W('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>')],
   mcp: ["#30b0c7", W('<path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/>')],
@@ -678,21 +703,27 @@ $("#new-pkg-go").onclick = async () => {
 };
 loadExtensions();
 
-const MODES = [["allow", "直接做"], ["ask", "先问"], ["deny", "不做"]];
+const MODES = [["allow", "直接做（带兜底）"], ["ask", "先问"], ["deny", "不做"]];
+const AUTO_DESC = { delete: "先自动备份再删，能撤回", force: "先把远程分支存一份再推，能撤回", send: "直接发", spend: "预算内直接付，超了才问" };
 async function loadApproval() {
   let r;
   try { r = await api("/api/settings/approval"); } catch (e) { $("#approval").textContent = e.message; return; }
   $("#approval").className = "";
   $("#approval").innerHTML = r.categories.map((c) => `
-    <div class="toggle-row" data-id="${esc(c.id)}"><div class="t"><b>${esc(c.name)}</b><span>${esc(c.desc)}</span></div>
+    <div class="toggle-row" data-id="${esc(c.id)}"><div class="t"><b>${esc(c.name)}</b><span>${esc(c.mode === "allow" ? AUTO_DESC[c.id] : c.desc)}</span></div>
       <select aria-label="${esc(c.name)}">${MODES.map(([v, l]) => `<option value="${v}" ${c.mode === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>`).join("");
   for (const row of document.querySelectorAll("#approval .toggle-row")) {
     const sel = row.querySelector("select");
     sel.onchange = async () => {
-      try { await api("/api/settings/approval/mode", { category: row.dataset.id, mode: sel.value }); say("#ap-msg", "已保存", "ok"); }
+      try { await api("/api/settings/approval/mode", { category: row.dataset.id, mode: sel.value }); say("#ap-msg", "已保存", "ok"); loadApproval(); }
       catch (e) { say("#ap-msg", e.message, "err"); loadApproval(); }
     };
   }
+  $("#send-allow").value = r.sendAllow.join("\n");
+  $("#send-delay").value = r.sendDelaySec;
+  $("#per-tx").value = r.budget.perTx;
+  $("#monthly").value = r.budget.monthly;
+  $("#spent").textContent = `这个月已自动花 ${r.spent.total}`;
   const box = $("#always");
   box.className = r.always.length ? "" : "msg";
   box.innerHTML = r.always.length ? r.always.map((a) => `
@@ -704,7 +735,58 @@ async function loadApproval() {
       catch (e) { say("#ap-msg", e.message, "err"); }
     };
   }
+  loadActions();
 }
+$("#auto-save").onclick = async () => {
+  try {
+    await api("/api/settings/approval/auto", { sendAllow: $("#send-allow").value, sendDelaySec: $("#send-delay").value, perTx: $("#per-tx").value, monthly: $("#monthly").value });
+    say("#auto-msg", "已保存", "ok");
+  } catch (e) { say("#auto-msg", e.message, "err"); }
+};
+async function loadActions() {
+  let list;
+  try { list = await api("/api/actions?limit=30"); } catch (e) { $("#actions").textContent = e.message; return; }
+  const box = $("#actions");
+  box.className = list.length ? "" : "msg";
+  box.innerHTML = list.length ? list.map((a) => `
+    <div class="toggle-row" data-id="${esc(a.id)}"><div class="t"><b>${esc(a.categoryName)} · ${esc(new Date(a.time).toLocaleString())}</b><span title="${esc(a.detail)}">${esc(a.note)}${a.undoNote ? ` · 撤回：${esc(a.undoNote)}` : ""}</span></div>
+      ${a.undone ? '<span class="msg">已撤回</span>' : a.undo ? '<button class="btn undo">撤回</button>' : '<span class="msg">撤不回</span>'}</div>`).join("")
+    : "还没有。Kiki 自动删了、推了、发了、花了什么，都会记在这里。";
+  for (const row of document.querySelectorAll("#actions .toggle-row")) {
+    const b = row.querySelector(".undo");
+    if (b) b.onclick = async () => {
+      b.disabled = true;
+      try { const r = await api("/api/actions/undo", { id: row.dataset.id }); say("#ap-msg", r.note || "已撤回", "ok"); }
+      catch (e) { say("#ap-msg", e.message, "err"); }
+      loadActions();
+    };
+  }
+}
+let mpTimer = 0;
+async function loadMacPerm() {
+  let r;
+  try { r = await api("/api/settings/mac-permissions"); } catch (e) { $("#macperm").textContent = e.message; return; }
+  const box = $("#macperm");
+  if (!r.mac) { box.textContent = "Kiki 现在不是跑在 Mac 上，不用设置这些。"; $("#mp-all").hidden = true; return; }
+  if (!r.asked) api("/api/settings/mac-permissions/seen", {}).catch(() => {});
+  box.className = "";
+  const ST = { on: '<span class="msg ok">已开</span>', off: '<span class="msg err">没开</span>', unknown: "" };
+  box.innerHTML = r.items.map((p) => `
+    <div class="toggle-row" data-id="${esc(p.id)}"><div class="t"><b>${esc(p.name)}</b><span>${esc(p.why)}</span></div>
+      ${ST[p.status] || ""}<button class="btn mp-open">去打开</button></div>`).join("");
+  for (const row of document.querySelectorAll("#macperm .toggle-row"))
+    row.querySelector(".mp-open").onclick = () => api("/api/settings/mac-permissions/open", { id: row.dataset.id }).catch((e) => say("#mp-msg", e.message, "err"));
+  $("#mp-all").disabled = r.requesting;
+  if (r.requesting) say("#mp-msg", `正在申请：${r.step}…（看看屏幕上的系统对话框）`);
+  else if (mpTimer) say("#mp-msg", r.items.every((p) => p.status !== "off") ? "申请完了。完全磁盘访问记得在打开的设置页里打开开关。" : "有几项没开，点旁边的“去打开”再开一下。", "ok");
+  clearTimeout(mpTimer);
+  mpTimer = r.requesting ? setTimeout(loadMacPerm, 1500) : 0;
+}
+$("#mp-all").onclick = async () => {
+  try { await api("/api/settings/mac-permissions/request", {}); mpTimer = 1; setTimeout(loadMacPerm, 500); }
+  catch (e) { say("#mp-msg", e.message, "err"); }
+};
+loadMacPerm();
 loadApproval();
 
 async function loadMcp() {

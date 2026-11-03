@@ -3,7 +3,9 @@
 RES="$(cd "$(dirname "$0")/../Resources" && pwd)"
 export KIKI_APP="$(cd "$RES/../.." && pwd)"   # 告诉 Kiki 自己装在哪，自动更新要用
 export DATA_DIR="${DATA_DIR:-$HOME/kiki-data}"
-NODE="$RES/node/bin/node"
+# 直接跑「Kiki 后台」小 App 里的 Node：系统隐私权限认的是它（老版本没有这个小 App，就用原来的位置）
+NODE="$RES/../Helpers/KikiAgent.app/Contents/MacOS/kiki-node"
+[ -x "$NODE" ] || NODE="$RES/node/bin/node"
 MAIN="$RES/app/dist/main.js"
 ENVF="$DATA_DIR/.env"
 # 工作目录放在数据目录，Kiki 会读这里的 .env；第一次启动时数据目录还没建，先待在家目录

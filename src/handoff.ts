@@ -73,6 +73,6 @@ export function handoffTool(opts: {
 /** 新对话收到的第一条消息。 */
 export function briefMessage(fromLabel: string | undefined, brief: string, mode: "chat" | "background") {
   const head = fromLabel ? `这是从「${fromLabel}」交接过来的一件新事。` : "这是交接过来的一件新事。";
-  const tail = mode === "background" ? "请直接开始做，做完给出结论。" : "先读完，用两三句话确认你理解的目标和下一步，然后等用户。";
+  const tail = mode === "background" ? "请直接开始做，做完给出结论。" : "先用一句话说你理解的目标，然后直接接着聊、或开始做第一步，不要停下来等用户确认。";
   return `${head}\n\n${brief.trim()}\n\n${tail}`;
 }

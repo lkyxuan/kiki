@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { DEFAULT_BAO, migrateToQiqi } from "./migrate.js";
+import { DEFAULT_BAO, dropConfirmLine, migrateToQiqi, NEW_CONFIRM_LINE, OLD_CONFIRM_LINE } from "./migrate.js";
 
 const tpl = join(import.meta.dirname, "..", "data-template");
 
@@ -60,4 +60,13 @@ test("分派规则补上新增的小节，放在「聊还是后台干」前面�
   assert.ok(s.indexOf("## 在某段对话里冒出别的宝的事") < s.indexOf("## 聊还是后台干"));
   assert.match(s, /## 我改过的\n- 自己的/);
   assert.deepEqual(addRuleSections(d, tpl), []);
+});
+
+test("分派规则里“撤不回的事先确认”换成全自动的说法，只换一次", () => {
+  const d = mkdtempSync(join(tmpdir(), "kiki-"));
+  writeFileSync(join(d, "分派规则.md"), `## 不要问，直接做\n\n${OLD_CONFIRM_LINE}\n`);
+  assert.equal(dropConfirmLine(d).length, 1);
+  assert.match(readFileSync(join(d, "分派规则.md"), "utf8"), new RegExp(NEW_CONFIRM_LINE.slice(2, 12)));
+  assert.equal(dropConfirmLine(d).length, 0);
+  assert.equal(readFileSync(join(tpl, "分派规则.md"), "utf8").includes(OLD_CONFIRM_LINE), false);
 });

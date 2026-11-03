@@ -2,7 +2,7 @@
 // ACP（Agent Client Protocol）是 stdin/stdout 上的 JSON-RPC：Kiki 当“编辑器”那一方，
 // 起一个 agent 进程，initialize → 每件活开一个新会话 session/new → session/prompt，
 // 边做边收 session/update 里的文字，做完把整段回答当成回音交给收发室。
-// 对方要权限（session/request_permission）时，按 Kiki 的审批规则判断：只有删除、强推、对外发送、花钱这几类问你，别的直接同意。
+// 对方要权限（session/request_permission）时，按 Kiki 的审批规则判断：删除、强推、对外发送、花钱走兜底（先备份、待发、预算），别的直接同意。
 import { type ChildProcess, spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -192,7 +192,7 @@ export class AcpAgent implements ExternalAgent {
     this.send({ id: m.id, result: { outcome: optionId ? { outcome: "selected", optionId } : { outcome: "cancelled" } } });
   }
 
-  /** 和 Kiki 自己的对话一样的规则：命令过一遍 cc-safety-net，删除类先问，别的直接做。 */
+  /** 和 Kiki 自己的对话一样的规则：命令过一遍 cc-safety-net，危险的走兜底（先备份、待发、预算），别的直接做。 */
   private async allowed(p: any): Promise<boolean> {
     const tc = p.toolCall ?? {};
     const raw = tc.rawInput ?? {};
@@ -209,6 +209,7 @@ export class AcpAgent implements ExternalAgent {
       agent: this.name,
       origin: job?.origin,
       ...hit,
+      ...(command ? { command, cwd: this.cwd } : {}),
       detail: `${this.name}：${String(tc.title ?? "")}\n${command ?? JSON.stringify(raw, null, 2)}`.slice(0, 2000),
     });
   }

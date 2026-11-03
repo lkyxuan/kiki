@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
 import { FIRST_LINE_RULE } from "./ack.js";
+import { AUTONOMY_RULE } from "./autonomy.js";
 import { Agents } from "./agents.js";
 import { roleModel } from "./modelroles.js";
 import { Approvals } from "./approval.js";
@@ -15,7 +16,7 @@ import { lookTool } from "./look.js";
 import { type FeatureId, isOn } from "./features.js";
 import { Summaries } from "./summary.js";
 import { MAIN_SESSION } from "./bao.js";
-import { addRuleSections, DEFAULT_BAO, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
+import { addRuleSections, DEFAULT_BAO, dropConfirmLine, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { ADAPTERS, Postroom, postroomTool } from "./postroom.js";
@@ -57,11 +58,11 @@ if (!existsSync(dataDir)) {
   console.log(`已在 ${dataDir} 建好数据目录，记得改 AGENTS.md（关于我）。`);
 }
 // 老数据目录升级：只留奇奇一个默认宝，旧的 dev、life 挪进 archive/（不删）
-for (const line of [...migrateToQiqi(dataDir, join(root, "data-template")), ...upgradeQiqiNote(dataDir, join(root, "data-template")), ...addRuleSections(dataDir, join(root, "data-template"))])
+for (const line of [...migrateToQiqi(dataDir, join(root, "data-template")), ...upgradeQiqiNote(dataDir, join(root, "data-template")), ...addRuleSections(dataDir, join(root, "data-template")), ...dropConfirmLine(dataDir)])
   console.log(`升级数据目录：${line}`);
 
 const agents = new Agents(dataDir, process.env.MODEL || "deepseek/deepseek-flash");
-// 审批：收不回来的动作先问一句（见 approval.ts）
+// 审批：危险动作系统兜底、做完记一笔能撤回，只有超预算才问你（见 approval.ts）
 const approvals = new Approvals(dataDir);
 agents.extensions.push(approvals.extension());
 // 后台任务各自一个子程序（见 workerhost.ts）：崩了不连累别人，停任务就是关掉它。TASK_ISOLATION=0 改回在主程序里跑
@@ -69,7 +70,7 @@ if (process.env.TASK_ISOLATION !== "0") {
   const here = fileURLToPath(import.meta.url);
   agents.isolation = {
     script: join(dirname(here), `worker${here.endsWith(".ts") ? ".ts" : ".js"}`),
-    approve: (r, signal) => approvals.check(r.toolName, r.input, r.cwd, r.path, signal),
+    approve: (r, signal) => approvals.check(r.toolName, r.input, r.cwd, r.path, signal, r.turn),
   };
 }
 const registry = new Registry(join(dataDir, "registry.json"));
@@ -111,7 +112,7 @@ agents.extensions.push((pi) => {
     const rec = file ? registry.byPath(file) : undefined;
     // 主对话再加：本宝讨论串的摘要，和一行后台任务的数（奇奇看全部，别的宝看自己的）
     const digest = rec?.name === MAIN_SESSION ? [router.threadDigest(rec.agent), router.taskCount(rec.agent === DEFAULT_BAO ? undefined : rec.agent)].filter(Boolean).join("\n\n") : "";
-    return { systemPrompt: [ev.systemPrompt, FIRST_LINE_RULE, digest].filter(Boolean).join("\n\n") };
+    return { systemPrompt: [ev.systemPrompt, FIRST_LINE_RULE, AUTONOMY_RULE, digest].filter(Boolean).join("\n\n") };
   });
 });
 router.isOn = (id) => isOn(dataDir, id);
@@ -127,10 +128,10 @@ Object.assign(ADAPTERS, {
   acp: (cfg, ctx) => new AcpAgent(cfg.name, cfg, ctx),
   watch: (cfg, ctx) => new WatchAgent(cfg.name, cfg, ctx),
 } satisfies typeof ADAPTERS);
-// 外部 agent 要做收不回来的动作：和自己的对话一样走审批，卡片挂在派活的那段对话上
+// 外部 agent 要做危险动作：和自己的对话一样走兜底（先备份、待发、预算），要停下来的卡片挂在派活的那段对话上
 postroom.approve = async (req) => {
   const rec = req.origin ? registry.byPath(req.origin) : undefined;
-  const r = await approvals.gate(req, { agent: rec?.agent ?? DEFAULT_BAO, path: req.origin ?? "", detail: req.detail });
+  const r = await approvals.gate(req, { agent: rec?.agent ?? DEFAULT_BAO, path: req.origin ?? "", detail: req.detail, command: req.command, cwd: req.cwd });
   return r.ok;
 };
 // 奇奇看信：每条新消息先用便宜模型读一遍，判断要不要提醒、要不要交给宝，顺手维护 关注清单.md
