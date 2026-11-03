@@ -200,31 +200,28 @@ export class Approvals extends EventEmitter {
     w.done(decision);
   }
 
+  /** 按设置决定一步要不要做：不做 → false；直接做或点过“以后都同意” → true；否则挂卡片等你点。 */
+  async gate(hit: Hit, where: { agent: string; path: string; detail: string }, signal?: AbortSignal): Promise<{ ok: boolean; why?: "deny" | "no" }> {
+    const state = readState(this.dataDir);
+    const mode = modeOf(state, hit.category);
+    // 先看“不做”：设成不做之后，以前点过的“以后都同意”也不算数
+    if (mode === "deny") return { ok: false, why: "deny" };
+    if (mode === "allow" || state.always.some((a) => a.key === hit.key)) return { ok: true };
+    const d = await this.request({ ...where, category: hit.category, label: hit.label, key: hit.key }, signal);
+    return d === "no" ? { ok: false, why: "no" } : { ok: true };
+  }
+
   /** 给 pi 用的扩展：每次调用工具前过一遍。 */
   extension(): ExtensionFactory {
     return (pi) => {
       pi.on("tool_call", async (ev, ctx) => {
         const hit = await classify(this.dataDir, ev.toolName, ev.input, ctx.cwd);
         if (!hit) return;
-        const state = readState(this.dataDir);
-        const mode = modeOf(state, hit.category);
         const name = nameOf(hit.category);
-        // 先看“不做”：设成不做之后，以前点过的“以后都同意”也不算数
-        if (mode === "deny")
+        const r = await this.gate(hit, { agent: basename(ctx.cwd), path: ctx.sessionManager.getSessionFile() ?? "", detail: detailOf(ev.toolName, ev.input) }, ctx.signal);
+        if (r.why === "deny")
           return { block: true, reason: `用户在 Kiki 设置里把「${name}」设成了不做。不要换个写法绕过去，告诉用户这一步需要他自己来。` };
-        if (mode === "allow" || state.always.some((a) => a.key === hit.key)) return;
-        const decision = await this.request(
-          {
-            agent: basename(ctx.cwd),
-            path: ctx.sessionManager.getSessionFile() ?? "",
-            category: hit.category,
-            label: hit.label,
-            detail: detailOf(ev.toolName, ev.input),
-            key: hit.key,
-          },
-          ctx.signal,
-        );
-        if (decision === "no")
+        if (r.why === "no")
           return { block: true, reason: `用户没有同意这一步（${name}）。不要换个写法再试，告诉用户你停在了哪里、还需要他做什么。` };
       });
     };
