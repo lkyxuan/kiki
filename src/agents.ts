@@ -63,6 +63,7 @@ export class Agents extends EventEmitter {
   extensions: ExtensionFactory[] = [];
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
+  private inflight = new Map<string, number>(); // path -> 还没答完的 send 数（含正在答的）
   private runs = new Map<string, Live>(); // path -> 正在干活的这一轮的进度
   private gone = new Set<string>(); // 已删掉 / 清空的对话：排在后面的消息不再跑
   private labelCache?: Record<string, string>;
@@ -382,9 +383,11 @@ export class Agents extends EventEmitter {
   }
 
   /** 往指定对话发一句话，等它做完，返回最后一条回答的文字。同一段对话里的消息按顺序排队。 */
-  send(agent: string, path: string, text: string): Promise<string> {
+  send(agent: string, path: string, text: string, opts: { onStart?: () => void } = {}): Promise<string> {
     const prev = this.queues.get(path) ?? Promise.resolve();
+    this.inflight.set(path, (this.inflight.get(path) ?? 0) + 1);
     const run: Promise<string> = prev.catch(() => {}).then(async () => {
+      opts.onStart?.(); // 轮到这句了（前面排队的做完了）
       const w = this.remote.get(path);
       if (w) return this.viaWorker(path, run, () => w.send(text));
       const s = await this.get(agent, path);
@@ -404,7 +407,18 @@ export class Agents extends EventEmitter {
       return lastReply(s);
     });
     this.queues.set(path, run);
+    const done = () => {
+      const n = (this.inflight.get(path) ?? 1) - 1;
+      if (n > 0) this.inflight.set(path, n);
+      else this.inflight.delete(path);
+    };
+    run.then(done, done);
     return run;
+  }
+
+  /** 这段对话手上有没有活（正在答或者还有排队的话）：新来的话要排队。 */
+  occupied(path: string) {
+    return (this.inflight.get(path) ?? 0) > 0 || this.isBusy(path);
   }
 
   /** 告诉网页某段对话有了一条完整的回答（不是经网页发出的消息，网页收不到结束信号，靠这个收尾）。 */
