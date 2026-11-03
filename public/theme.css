@@ -1,5 +1,6 @@
 /* Kiki 的颜色和字体：聊天页、设置页共用。
    浅色 / 深色两套，默认跟随系统；设置里「外观」可以固定成其中一套（theme.js 在 <html> 上加 data-theme）。
+   外部主题（~/kiki-data/themes/）先按 data-base 套浅色或深色，再用自己的 theme.css 盖上去。
    配色参考 macOS 系统色：内容区白 / 深灰，侧栏略深一档，分隔线用半透明黑白，强调色是 Kiki 的靛蓝。 */
 :root {
   color-scheme: light;
@@ -36,7 +37,7 @@
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme="light"]):not([data-base="light"]) {
     color-scheme: dark;
     --bg: #19191b; --side: #2a2a2d; --grouped: #1e1e20; --card: #333337; --raised: #252528;
     --line: rgba(255, 255, 255, .08); --line-strong: rgba(255, 255, 255, .14); --divider: #000000;
@@ -52,8 +53,8 @@
     --material: rgba(25, 25, 27, .8);
   }
 }
-/* 手动选了深色：和上面一样的值 */
-:root[data-theme="dark"] {
+/* 手动选了深色（或者外部主题基于深色）：和上面一样的值 */
+:root[data-theme="dark"], :root[data-base="dark"] {
   color-scheme: dark;
   --bg: #19191b; --side: #2a2a2d; --grouped: #1e1e20; --card: #333337; --raised: #252528;
   --line: rgba(255, 255, 255, .08); --line-strong: rgba(255, 255, 255, .14); --divider: #000000;

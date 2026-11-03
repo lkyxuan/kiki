@@ -24,6 +24,7 @@ import { setProviderModels, setProviderOn } from "./modelprefs.js";
 import { imageMime, saveImage, uploadsDir, validImageName } from "./images.js";
 import { baoLook, setEnvLine, settingsApi } from "./settings.js";
 import { type Updater, VERSION } from "./update.js";
+import { listThemes, themeFile } from "./themes.js";
 
 const run = promisify(execFile);
 
@@ -40,7 +41,7 @@ const STATIC: Record<string, string> = {
   "/qiqi-closed.png": "image/png", // 会动的头像：闭眼那一层
   "/qiqi-eyes.js": "text/javascript; charset=utf-8",
   "/theme.css": "text/css; charset=utf-8", // 浅色 / 深色配色，两个页面共用
-  "/theme.js": "text/javascript; charset=utf-8", // 外观切换（跟随系统 / 浅色 / 深色）
+  "/theme.js": "text/javascript; charset=utf-8", // 外观切换（跟随系统 / 浅色 / 深色 / 外部主题）
   "/bots.js": "text/javascript; charset=utf-8", // 宝的默认头像：按名字生成的小机器人
 };
 
@@ -521,6 +522,9 @@ export function startServer(opts: {
       return json({ ok: true, path: fresh });
     }
 
+    // 外部主题（~/kiki-data/themes/ 下的文件夹），设置 › 外观列出来
+    if (url.pathname === "/api/themes") return json({ themes: listThemes(opts.dataDir) });
+
     if (url.pathname === "/api/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       res.write(": hi\n\n");
@@ -545,6 +549,13 @@ export function startServer(opts: {
         if (!res.headersSent) res.writeHead(500, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: (e as Error).message }));
       });
+      return;
+    }
+    // 外部主题的样式、图片、字体
+    if (url.pathname.startsWith("/themes/")) {
+      const f = themeFile(opts.dataDir, url.pathname);
+      res.writeHead(f ? 200 : 404, { "content-type": f ? f.type : "text/plain; charset=utf-8", "cache-control": "no-cache" });
+      res.end(f ? readFileSync(f.file) : "没有这个主题文件");
       return;
     }
     // 装成 App 用的图标和 manifest；其余路径都给那一个页面

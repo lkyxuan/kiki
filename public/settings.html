@@ -162,6 +162,10 @@
   .look input:focus-visible ~ .pic { outline: 3px solid var(--accent-soft); outline-offset: 4px; }
   .pic .half { flex: 1; display: flex; padding: 7px 0 0 7px; }
   .pic .lt { background: #f2f2f5; } .pic .dk { background: #2a2a2d; }
+  /* 外部主题：主题包里有 preview.png 就用它当缩略图，没有就按它基于的浅色 / 深色画 */
+  .pic.ext { background-size: cover; background-position: center; }
+  .looks-hint { margin: 12px 0 2px; font-size: 12.5px; color: var(--faint); }
+  .looks-hint code { font-family: var(--mono); font-size: 12px; }
   .pic .w { flex: 1; border-radius: 4px 0 0 0; display: flex; flex-direction: column; gap: 4px; padding: 6px; }
   .pic .lt .w { background: #fff; box-shadow: -1px -1px 0 rgba(0,0,0,.06); } .pic .dk .w { background: #19191b; box-shadow: -1px -1px 0 rgba(255,255,255,.08); }
   .pic .w i { display: block; height: 5px; border-radius: 3px; background: #5b6cf0; width: 60%; align-self: flex-end; }
@@ -238,7 +242,9 @@
       <label class="look"><input type="radio" name="theme" value="system"><div class="pic"><div class="half lt"><div class="w"><i></i><i></i></div></div><div class="half dk"><div class="w"><i></i><i></i></div></div></div><span>跟随系统</span></label>
       <label class="look"><input type="radio" name="theme" value="light"><div class="pic"><div class="half lt"><div class="w"><i></i><i></i></div></div></div><span>浅色</span></label>
       <label class="look"><input type="radio" name="theme" value="dark"><div class="pic"><div class="half dk"><div class="w"><i></i><i></i></div></div></div><span>深色</span></label>
+      <span id="ext-looks" style="display:contents"></span>
     </div>
+    <p class="looks-hint">想要别的样子？把主题文件夹放进数据目录的 <code>themes/</code> 里，这里就会出现。</p>
     </div>
   </section>
 
@@ -446,9 +452,17 @@ $("#ver-btn").onclick = () => {
 
 // 外观
 function syncLook() { for (const r of document.querySelectorAll('input[name=theme]')) r.checked = r.value === kikiTheme.get(); }
-for (const r of document.querySelectorAll('input[name=theme]')) r.onchange = () => kikiTheme.set(r.value);
+function bindLooks() { for (const r of document.querySelectorAll('input[name=theme]')) r.onchange = () => kikiTheme.set(r.value, r.dataset.base); }
+bindLooks();
 window.addEventListener("storage", syncLook);
 syncLook();
+// 外部主题：~/kiki-data/themes/ 里装好的
+fetch("/api/themes").then((r) => r.json()).then(({ themes }) => {
+  const half = (b) => `<div class="half ${b === "dark" ? "dk" : "lt"}"><div class="w"><i></i><i></i></div></div>`;
+  $("#ext-looks").innerHTML = (themes || []).map((t) => `<label class="look" title="${esc(t.description || t.name)}${t.author ? " · " + esc(t.author) : ""}"><input type="radio" name="theme" value="${esc(t.id)}" data-base="${t.base}"><div class="pic ext" style="background-image:url('/themes/${esc(t.id)}/preview.png')">${half(t.base)}</div><span>${esc(t.name)}</span></label>`).join("");
+  for (const pic of document.querySelectorAll("#ext-looks .pic")) { const img = new Image(); img.onload = () => (pic.innerHTML = ""); img.src = pic.style.backgroundImage.slice(5, -2); }
+  bindLooks(); syncLook();
+}).catch(() => {});
 // 在聊天页的弹窗里：Esc 关掉弹窗
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || e.defaultPrevented) return;
