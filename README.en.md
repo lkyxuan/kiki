@@ -10,7 +10,7 @@
 <p>
   <a href="https://github.com/lkyxuan/kiki/stargazers"><img src="https://img.shields.io/github/stars/lkyxuan/kiki?style=flat-square&logo=github&color=5b6cf0" alt="GitHub Stars"></a>
   <a href="https://github.com/lkyxuan/kiki/releases"><img src="https://img.shields.io/github/v/release/lkyxuan/kiki?style=flat-square&color=5b6cf0" alt="Release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-5b6cf0?style=flat-square" alt="License: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-5b6cf0?style=flat-square" alt="License: FSL-1.1-ALv2"></a>
   <img src="https://img.shields.io/badge/platform-macOS-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS">
   <img src="https://img.shields.io/badge/node-22.19%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22.19+">
   <img src="https://img.shields.io/badge/data-100%25%20local-5b6cf0?style=flat-square" alt="Local first">
@@ -266,7 +266,18 @@ Issues and pull requests are welcome.
 
 ## 📄 License
 
-Kiki is open source under the [MIT License](LICENSE).
+Kiki is released under the [FSL-1.1-ALv2](LICENSE) (Functional Source License):
+
+- Free for personal use, learning, modification, and internal use at your company.
+- You may not use it to build a competing commercial product or service.
+- Each version automatically becomes [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) two years after it is released.
+- Versions previously released under MIT remain MIT.
+
+This repository is the open-source edition of Kiki. It is updated about once a quarter and trails the released app by roughly three months.
+
+### Trademarks
+
+The names "Kiki" and "奇奇" and the Kiki icon are trademarks and are not licensed under the FSL. Forks are welcome, but please give modified versions a different name and icon and do not publish or distribute them as Kiki. Signed and notarized Kiki builds are only released officially.
 
 ## ⭐ Star History
 

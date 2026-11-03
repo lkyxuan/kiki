@@ -10,7 +10,7 @@
 <p>
   <a href="https://github.com/lkyxuan/kiki/stargazers"><img src="https://img.shields.io/github/stars/lkyxuan/kiki?style=flat-square&logo=github&color=5b6cf0" alt="GitHub Stars"></a>
   <a href="https://github.com/lkyxuan/kiki/releases"><img src="https://img.shields.io/github/v/release/lkyxuan/kiki?style=flat-square&color=5b6cf0" alt="Release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-5b6cf0?style=flat-square" alt="License: MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-5b6cf0?style=flat-square" alt="License: FSL-1.1-ALv2"></a>
   <img src="https://img.shields.io/badge/platform-macOS-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS">
   <img src="https://img.shields.io/badge/node-22.19%2B-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22.19+">
   <img src="https://img.shields.io/badge/data-100%25%20local-5b6cf0?style=flat-square" alt="Local first">
@@ -287,7 +287,18 @@ npm run check     # 类型检查
 
 ## 📄 许可证
 
-本项目基于 [MIT License](LICENSE) 开源。
+本项目采用 [FSL-1.1-ALv2](LICENSE)（Functional Source License）：
+
+- 个人使用、学习、修改、在公司内部使用都可以，免费。
+- 不能拿来做和 Kiki 竞争的商业产品或服务。
+- 每个版本发布满两年后，自动转为 [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) 许可证。
+- 之前以 MIT 发布的版本仍然是 MIT。
+
+本仓库是 Kiki 的开源版，大约每季度更新一次，代码比正式发布的 App 晚三个月左右。
+
+### 商标
+
+“Kiki”“奇奇”名称和 Kiki 图标是商标，许可证不包含它们的使用权。欢迎 fork，但改过的版本请换一个名字和图标，不要以 Kiki 的名义发布或分发。经过签名和公证的 Kiki 安装包只由官方发布。
 
 ## ⭐ Star 趋势
 
