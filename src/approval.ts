@@ -200,23 +200,27 @@ export class Approvals extends EventEmitter {
     w.done(decision);
   }
 
+  /** 按设置决定一步要不要做：不做 → false；直接做或点过“以后都同意” → true；否则挂卡片等你点。 */
+  async gate(hit: Hit, where: { agent: string; path: string; detail: string }, signal?: AbortSignal): Promise<{ ok: boolean; why?: "deny" | "no" }> {
+    const state = readState(this.dataDir);
+    const mode = modeOf(state, hit.category);
+    // 先看“不做”：设成不做之后，以前点过的“以后都同意”也不算数
+    if (mode === "deny") return { ok: false, why: "deny" };
+    if (mode === "allow" || state.always.some((a) => a.key === hit.key)) return { ok: true };
+    const d = await this.request({ ...where, category: hit.category, label: hit.label, key: hit.key }, signal);
+    return d === "no" ? { ok: false, why: "no" } : { ok: true };
+  }
+
   /** 一次工具调用要不要拦：不用管返回 undefined，拦下返回原因。要问的话在这里等你点。
    *  对话里的扩展和后台任务子程序（经 IPC 转过来）都走这里。 */
   async check(toolName: string, input: any, cwd: string, path: string, signal?: AbortSignal): Promise<{ block: true; reason: string } | undefined> {
     const hit = await classify(this.dataDir, toolName, input, cwd);
     if (!hit) return;
-    const state = readState(this.dataDir);
-    const mode = modeOf(state, hit.category);
     const name = nameOf(hit.category);
-    // 先看“不做”：设成不做之后，以前点过的“以后都同意”也不算数
-    if (mode === "deny")
+    const r = await this.gate(hit, { agent: basename(cwd), path, detail: detailOf(toolName, input) }, signal);
+    if (r.why === "deny")
       return { block: true, reason: `用户在 Kiki 设置里把「${name}」设成了不做。不要换个写法绕过去，告诉用户这一步需要他自己来。` };
-    if (mode === "allow" || state.always.some((a) => a.key === hit.key)) return;
-    const decision = await this.request(
-      { agent: basename(cwd), path, category: hit.category, label: hit.label, detail: detailOf(toolName, input), key: hit.key },
-      signal,
-    );
-    if (decision === "no")
+    if (r.why === "no")
       return { block: true, reason: `用户没有同意这一步（${name}）。不要换个写法再试，告诉用户你停在了哪里、还需要他做什么。` };
   }
 

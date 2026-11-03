@@ -16,8 +16,14 @@ import { MAIN_SESSION } from "./bao.js";
 import { addRuleSections, DEFAULT_BAO, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
+import { ADAPTERS, Postroom, postroomTool } from "./postroom.js";
+import { A2AAgent } from "./a2a.js";
+import { AcpAgent } from "./acp.js";
+import { WatchAgent } from "./watch.js";
+import { Notifier } from "./notify.js";
+import { makeTriage, watchForTask, Watchlist } from "./triage.js";
 import { startServer } from "./server.js";
-import { FileTaskStore } from "./tasks.js";
+import { FileTaskStore, taskPrompt } from "./tasks.js";
 import { taskTools, type WatchList } from "./tasktool.js";
 import { Updater, VERSION } from "./update.js";
 
@@ -80,6 +86,7 @@ const TOOL_FEATURE: Record<string, FeatureId> = {
   kiki_remember: "remember",
   kiki_task: "schedule",
   kiki_ask_user: "background",
+  kiki_outside: "postroom",
   kiki_watch: "background",
 };
 // 关注清单（收发室接上后赋值，每个宝一份，在 agents/<宝>/ 下）：任务做完还要盯的事；有相关新消息时收发室调 router.tasks.followUp(任务id, 消息)
@@ -105,6 +112,48 @@ agents.extensions.push((pi) => {
   });
 });
 router.isOn = (id) => isOn(dataDir, id);
+// 收发室：定时去外部 agent 那里收发（见 postroom.ts）。怎么把收到的交给奇奇、记回对话，在 server.ts 里接上
+const postroom = new Postroom({
+  dataDir,
+  intervalMs: Number(process.env.POSTROOM_POLL_SEC || 60) * 1000,
+  isOn: () => isOn(dataDir, "postroom"),
+});
+// 收发室的接法：信箱（postroom.ts 自带）、A2A（接自家 bot）、ACP（接 Claude Code / Codex）、定时检查（网页 / RSS / 文件）
+Object.assign(ADAPTERS, {
+  a2a: (cfg, ctx) => new A2AAgent(cfg.name, cfg, ctx),
+  acp: (cfg, ctx) => new AcpAgent(cfg.name, cfg, ctx),
+  watch: (cfg, ctx) => new WatchAgent(cfg.name, cfg, ctx),
+} satisfies typeof ADAPTERS);
+// 外部 agent 要做收不回来的动作：和自己的对话一样走审批，卡片挂在派活的那段对话上
+postroom.approve = async (req) => {
+  const rec = req.origin ? registry.byPath(req.origin) : undefined;
+  const r = await approvals.gate(req, { agent: rec?.agent ?? DEFAULT_BAO, path: req.origin ?? "", detail: req.detail });
+  return r.ok;
+};
+// 奇奇看信：每条新消息先用便宜模型读一遍，判断要不要提醒、要不要交给宝，顺手维护 关注清单.md
+postroom.triage = makeTriage({
+  dataDir,
+  listBaos: () => agents.listAgents(),
+  describe: (b) => agents.describe(b),
+  complete: (sys, user) => agents.complete(sys, user, process.env.TRIAGE_MODEL || process.env.SUMMARY_MODEL || undefined),
+});
+// 通知通道：要告诉你的事从这里发出去。现在只有 Kiki 界面（server.ts 挂上），以后的 Telegram、微信做成插件也挂这里
+const notifier = new Notifier();
+// 收发室和任务接起来：派给外部 agent 的任务由收发室去办；任务做完还要盯的事记进宝的关注清单；有相关新消息就交回那个任务
+router.tasks.executorFor = (name) =>
+  postroom.configs().some((c) => c.name === name)
+    ? { run: (t, signal) => postroom.run(name, taskPrompt(t), { title: t.title, origin: t.origin, from: t.reportTo ?? t.origin, signal }) }
+    : undefined;
+watchList = {
+  add: (w) => {
+    watchForTask(dataDir, { taskId: w.taskId, agent: w.agent, about: w.until ? `${w.about}（盯到 ${w.until}）` : w.about, match: w.match, session: w.session });
+    return `已记进「${w.agent}」的关注清单：${w.about}`;
+  },
+  remove: (id, agent) => {
+    new Watchlist(dataDir, agent).removeByTask(id);
+  },
+};
+postroom.followTask = async (id, text) => router.tasks.followUp(id, text);
 // 任务被取消了，它在盯的事也从关注清单里拿掉
 router.tasks.on("update", (t) => {
   if (t.status === "cancelled" && t.watching) void Promise.resolve(watchList?.remove(t.id, t.agent)).catch(() => {});
@@ -115,6 +164,10 @@ agents.toolsFor = () =>
     handoffTool({ listBaos: () => agents.listAgents(), describe: (b) => agents.describe(b), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
     ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
     lookTool((name, q) => agents.look(name, q)), // 看不了图的模型再看一眼图
+    postroomTool(postroom, (p) => {
+      const r = p ? registry.byPath(p) : undefined;
+      return r && `${r.agent}/${r.name}`;
+    }),
     // 待办、定时任务、等某件事做完再做；后台任务卡住时停下来问用户
     ...taskTools({ tasks: router.tasks, listBaos: () => agents.listAgents(), baoOf: (p) => (p ? registry.byPath(p)?.agent : undefined), watch: () => watchList }),
   ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
@@ -147,4 +200,7 @@ startServer({
   router,
   updater,
   approvals,
+  postroom,
+  notifier,
 });
+postroom.start();
