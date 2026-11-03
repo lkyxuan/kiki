@@ -63,6 +63,7 @@
   input::placeholder, textarea::placeholder { color: var(--faint); }
   input:disabled { opacity: .55; }
   textarea { min-height: 220px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; resize: vertical; padding: 8px 10px; }
+  .field select { width: 100%; min-height: 32px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--raised); color: var(--text); font-size: 13px; }
   .toggle-row select { min-height: 28px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--raised); box-shadow: var(--shadow-sm); font-size: 13px; }
   .src { font-size: 12px; color: var(--muted); }
   .src.external { color: var(--warn); }
@@ -231,6 +232,11 @@
       <span class="msg" id="model-msg"></span>
     </div>
     <p class="msg">到 <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a> 申请一个 API 密钥（sk- 开头），粘贴到上面，点「保存」就能用。密钥只存在这台电脑的数据目录里（<span class="mono">.env</span>，只有你能读）。<br>进阶：也可以填 <span class="mono">keychain:名字</span> 从 macOS 钥匙串取，或填 1Password 引用 <span class="mono">op://…</span>，这两种要重启后生效，做法见 docs/mac-app.md。</p>
+    </div>
+    <div class="card" id="roles-card">
+      <h3 class="sub" style="margin:0 0 4px">各用途用哪个模型 <small>不选就跟默认模型走；改完马上生效</small></h3>
+      <div id="roles" class="grid"></div>
+      <span class="msg" id="roles-msg"></span>
     </div>
     <div class="card" id="prov-card">
       <h3 class="sub" style="margin:0 0 4px">所有模型服务商 <small>打开开关，填密钥或用订阅登录就能用；再点「选模型」勾选要用的，它们会出现在输入框旁的模型按钮里</small></h3>
@@ -705,6 +711,20 @@ $("#new-mcp-go").onclick = async () => {
   } catch (e) { say("#mcp-msg", e.message, "err"); }
 };
 loadMcp();
+
+// 模型按用途配置（src/modelroles.ts）：路由、摘要、先回一句、看图，各选各的
+async function loadRoles(body) {
+  const r = await fetch("/api/models/roles", body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return say("#roles-msg", j.error || "出错了", "err");
+  if (body) say("#roles-msg", "改好了", "ok");
+  const opts = (sel) => j.models.map((m) => `<option value="${esc(m.spec)}"${m.spec === sel ? " selected" : ""}>${esc((m.providerName ? m.providerName + " · " : "") + m.name)}</option>`).join("");
+  $("#roles").innerHTML = j.roles.map((x) => `<div class="field"><label for="role-${x.id}" title="${esc(x.desc)}">${esc(x.name)}</label>
+    <select id="role-${x.id}" data-role="${x.id}"><option value="">${esc(x.unset)}</option>${opts(x.spec)}${x.spec && !j.models.some((m) => m.spec === x.spec) ? `<option value="${esc(x.spec)}" selected>${esc(x.spec)}（不可用）</option>` : ""}</select>
+    <span class="src">${esc(x.desc)}</span></div>`).join("");
+}
+$("#roles").addEventListener("change", (e) => { const t = e.target.closest("[data-role]"); if (t) loadRoles({ id: t.dataset.role, spec: t.value }); });
+loadRoles();
 
 // 所有模型服务商：填密钥或订阅登录（都走 Kiki 内核自己的登录流程，凭证存在 engine/auth.json）
 let provs = [], plogin = { status: "idle" }, provPoll = null;
