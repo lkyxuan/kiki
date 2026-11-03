@@ -1,6 +1,6 @@
 # 英文版是怎么来的
 
-Kiki 有两个独立产品：这个仓库是中文版，[英文版](https://github.com/lkyxuan/kiki-en)是从这里自动翻译出来的全英文 App。两边代码逻辑完全一样，只是所有文字（界面、提示词、注释、文档、文件名、提交说明）都是英文。
+Kiki 有两个独立产品：这个仓库是中文版，[英文版](https://github.com/lkyxuan/kiki-agent)是从这里自动翻译出来的全英文 App。两边代码逻辑完全一样，只是所有文字（界面、提示词、注释、文档、文件名、提交说明）都是英文。
 
 **只在中文仓库开发。** 英文仓库由机器人生成，不要直接在上面改，改了也会被下一次同步覆盖。
 
@@ -24,4 +24,4 @@ Kiki 有两个独立产品：这个仓库是中文版，[英文版](https://gith
 3. Actions 里手动运行 english-sync，勾上“从头整份重翻”。
 4. 英文仓库要自己发版的话，也要配上签名公证那 5 个 Secrets（见 docs/signing.md）。
 
-本地试跑：`npm ci --prefix english && node english/sync.mjs --en ../kiki-en --dry-run`（只列出要处理的文件，不调用模型）。
+本地试跑：`npm ci --prefix english && node english/sync.mjs --en ../kiki-agent --dry-run`（只列出要处理的文件，不调用模型）。

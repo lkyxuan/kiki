@@ -1,5 +1,5 @@
 {
-  "targetRepo": "lkyxuan/kiki-en",
+  "targetRepo": "lkyxuan/kiki-agent",
   "targetBranch": "main",
   "api": {
     "baseUrl": "https://api.deepseek.com",
@@ -20,15 +20,15 @@
     ],
     [
       "lkyxuan/kiki/",
-      "lkyxuan/kiki-en/"
+      "lkyxuan/kiki-agent/"
     ],
     [
       "\"lkyxuan/kiki\"",
-      "\"lkyxuan/kiki-en\""
+      "\"lkyxuan/kiki-agent\""
     ],
     [
       "repos/lkyxuan/kiki/releases",
-      "repos/lkyxuan/kiki-en/releases"
+      "repos/lkyxuan/kiki-agent/releases"
     ],
     [
       "kiki-data",
