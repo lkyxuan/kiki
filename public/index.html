@@ -271,6 +271,24 @@
   #board .none { color: var(--faint); font-size: 12.5px; padding: 6px 4px; }
   @media (max-width: 760px) { #board .cols { grid-template-columns: 1fr; overflow: auto; } #board .col { min-height: 140px; } }
   #panel .board-link { float: right; font-weight: 500; color: var(--accent); font-size: 12px; margin-right: 4px; }
+  #panel .row.need .name b { font-weight: 600; }
+  #panel .work { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; margin-bottom: 8px; box-shadow: var(--shadow-sm); font-size: 14px; }
+  #panel .work.open { border-color: var(--accent); }
+  #panel .work .wt { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font-weight: 600; }
+  #panel .work .wt .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #panel .work .wt small { color: var(--muted); font-size: 12px; font-weight: 400; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #panel .wdot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  #panel .wdot.wait { background: var(--warn); } #panel .wdot.run { background: var(--busy); } #panel .wdot.watch { background: var(--accent); } #panel .wdot.todo, #panel .wdot.done { background: var(--faint); }
+  #panel .work .wl { font-size: 13px; color: var(--text); margin: 4px 0 0 16px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  #panel .work .wm { font-size: 11px; color: var(--muted); margin: 3px 0 0 16px; }
+  #panel .work .wd { margin: 8px 0 0 16px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+  #panel .kv { display: flex; gap: 8px; } #panel .kv > span { flex: none; width: 44px; color: var(--muted); font-size: 12px; padding-top: 1px; } #panel .kv > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; line-height: 1.45; }
+  #panel .sub { display: flex; align-items: center; gap: 6px; text-align: left; font-size: 13px; color: var(--text); } #panel .sub i { font-style: normal; color: var(--muted); font-size: 11px; min-width: 22px; }
+  #panel .sub > button:first-child { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } #panel button.sub:hover, #panel .sub > button:first-child:hover { color: var(--accent); }
+  #panel .sub .x { flex: none; font-size: 11px; color: var(--faint); } #panel .sub .x:hover { color: var(--err); }
+  #panel .log { font-size: 12px; color: var(--text); } #panel .log span { color: var(--muted); margin-right: 6px; }
+  #panel .wacts { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 2px; } #panel .wacts button, #panel .wacts select { font-size: 12px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+  #panel .fold { color: var(--muted); font-size: 12px; padding: 2px 4px 6px; }
   #panel .none { color: var(--faint); font-size: 13px; padding: 8px 0; }
   #panel .about { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; max-height: 220px; overflow: hidden; padding: 8px 0 4px; }
   #panel .dot-st { flex: none; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px; background: var(--faint); }
@@ -568,32 +586,94 @@ async function openBao(name) {
   if (m) open(m.path);
 }
 
-// 右栏：哪些对话在干活、后台任务、当前这个宝
-// 最右一列：当前这一层的长期情况。在奇奇看全部，在某个宝里只看这个宝
+// 右栏：这一层在做的事（按工作归类），加上要你处理的、零散任务、收发室、当前这个宝
 const layerOf = () => (current === "main" ? null : find(current)?.agent ?? null);
+// 最右一列：这一层“在做的事”。左栏按对话（在哪聊的），这里按工作（要办成哪件事）归类：
+// 一件工作可能散在几段对话里，任务挂在它的对话下面；闲聊不产生工作。在奇奇看全部宝，在某个宝里只看这个宝
+const openWork = new Set(); // 点开了的工作卡（id）
+let showDone = false;
 function renderPanel() {
   const layer = layerOf(), mine = (agent) => !layer || agent === layer;
-  const all = tree.agents.filter((a) => mine(a.name)).flatMap((a) => a.sessions);
-  // 后面的小字：在干活就写它正在干嘛（正在运行命令…），不然写是哪个宝的
-  const row = (s) => `<button class="row" data-thread="${esc(s.path)}">${s.busy ? '<span class="spin"></span>' : avatar(s.agent)}<span class="name">${esc(s.name)}</span><small class="st">${esc(s.busy && s.live ? s.live.status : s.agent)}</small></button>`;
-  const card = (title, body) => `<div><h3>${title}</h3><div class="card">${body}</div></div>`;
-  const busy = all.filter((s) => s.busy);
-  const bg = all.filter((s) => s.background).sort((x, y) => String(y.created).localeCompare(String(x.created))).slice(0, 8);
+  const baos = tree.agents.filter((a) => mine(a.name));
+  const all = baos.flatMap((a) => a.sessions);
+  const works = baos.flatMap((a) => (a.works || []).map((w) => ({ ...w, agent: a.name })));
   const tasks = (tree.tasks || []).filter((t) => mine(t.agent));
-  const bad = tasks.filter((t) => t.status === "failed" || t.status === "interrupted").slice(-5).reverse();
-  const queued = tasks.filter((t) => t.status === "queued");
-  let html = `<div class="ptitle">${layer ? esc(layer) : "全部"}的情况</div>`;
+  const myAsks = asks.filter((a) => mine(a.agent));
+  const card = (title, body) => `<div><h3>${title}</h3><div class="card">${body}</div></div>`;
+  // 任务、卡片按对话挂到工作上：任务的执行对话、发起对话、回报对话在哪件工作里，就算哪件的
+  const inWork = (w, p) => !!p && w.threads.includes(p);
+  const taskOf = (t) => works.find((w) => inWork(w, t.session) || inWork(w, t.origin) || inWork(w, t.reportTo));
+  const workOfPath = (p) => works.find((w) => inWork(w, p));
+  const threadName = (p) => { const s = find(p); return s ? (s.name === MAIN_SESSION ? `${s.agent}的主对话` : s.name) : null; };
+  let html = `<div class="ptitle">${layer ? esc(layer) : "全部宝"}在做的事</div>`;
   const back = !peek && lastPeek && find(lastPeek);
   if (back) html += card("刚才看的", `<button class="row" data-thread="${esc(back.path)}">${back.busy ? '<span class="spin"></span>' : avatar(back.agent)}<span class="name">${esc(back.name)}</span><small>${esc(back.agent)}</small></button>`);
-  const myAsks = asks.filter((a) => mine(a.agent));
-  if (myAsks.length) html += card("待发和等你点头", myAsks.map((a) => { const s = find(a.path); return `<button class="row" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${esc(a.kind === "send" ? "待发" : a.kind === "spend" ? "花钱超预算" : a.categoryName)}</span><small>${esc(s ? s.name : a.agent)}</small></button>`; }).join(""));
-  // Kiki 自动做的：删除、强推、发送、花钱都不问你，做完记在这里，能撤回的点一下撤回
-  const myActs = actions.filter((a) => mine(a.agent)).slice(0, 6);
-  if (myActs.length) html += card("Kiki 自动做的", myActs.map((a) => `<div class="row" title="${esc(`${a.label}\n${a.note}${a.undoNote ? `\n撤回：${a.undoNote}` : ""}\n\n${a.detail}`)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small class="st">${esc(new Date(a.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))}</small>${a.undone ? '<span class="done">已撤回</span>' : a.undo ? `<button class="undo" data-undo="${esc(a.id)}">撤回</button>` : ""}</div>`).join(""));
+
+  // 要你处理：等你点头的卡片、卡住等你回答的任务、出了问题的任务，合成一块放最上面，前面写是哪件工作的
+  const tag = (w) => (w ? `<b>${esc(w.title)}</b>：` : "");
   const stuck = tasks.filter((t) => t.status === "blocked");
-  if (stuck.length) html += card("等你回答", stuck.map((t) => `<button class="row" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.question || "")}">${avatar(t.agent)}<span class="name">${esc(t.title)}</span><small>等你</small></button>`).join(""));
-  if (bad.length) html += card("出了问题", bad.map((t) => `<button class="row" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.result || "")}"><span class="bad">!</span><span class="name">${esc(t.title)}</span><small>${t.status === "failed" ? "失败" : "中断"}</small></button>`).join(""));
-  html += card("正在跑", busy.length || queued.length ? busy.map(row).join("") + queued.map((t) => `<div class="row"><span class="spin" style="opacity:.4"></span><span class="name">${esc(t.title)}</span><small>排队</small></div>`).join("") : '<div class="none">现在没有在跑的</div>');
+  const bad = tasks.filter((t) => t.status === "failed" || t.status === "interrupted").slice(-5).reverse();
+  const need = [
+    ...myAsks.map((a) => `<button class="row need" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${tag(workOfPath(a.path))}${esc(a.kind === "send" ? "待发" : a.kind === "spend" ? "花钱超预算" : a.categoryName)}</span><small>点头</small></button>`),
+    ...stuck.map((t) => `<button class="row need" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.question || "")}">${avatar(t.agent)}<span class="name">${tag(taskOf(t))}${esc(t.question || t.title)}</span><small>等你</small></button>`),
+    ...bad.map((t) => `<button class="row need" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.result || "")}"><span class="bad">!</span><span class="name">${tag(taskOf(t))}${esc(t.title)}</span><small>${t.status === "failed" ? "失败" : "中断"}</small></button>`),
+  ];
+  if (need.length) html += card(`要你处理（${need.length}）`, need.join(""));
+  // Kiki 自动做的：删除、强推、发送、花钱都不问你，做完记在这里，能撤回的点一下撤回
+  const myActs = actions.filter((a) => mine(a.agent)).slice(0, 4);
+  if (myActs.length) html += card("Kiki 自动做的", myActs.map((a) => `<div class="row" title="${esc(`${a.label}\n${a.note}${a.undoNote ? `\n撤回：${a.undoNote}` : ""}\n\n${a.detail}`)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small class="st">${esc(new Date(a.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))}</small>${a.undone ? '<span class="done">已撤回</span>' : a.undo ? `<button class="undo" data-undo="${esc(a.id)}">撤回</button>` : ""}</div>`).join(""));
+
+  // 工作卡：显示的状态先看有没有在等你、有没有在跑，再看工作自己记的状态
+  const view = (w) => {
+    const ts = tasks.filter((t) => taskOf(t) === w);
+    const waiting = ts.some((t) => t.status === "blocked") || myAsks.some((a) => inWork(w, a.path));
+    const running = ts.some((t) => t.status === "running" || t.status === "queued") || w.threads.some((p) => find(p)?.busy);
+    const todoT = ts.find((t) => t.status === "todo");
+    const [dot, label] = waiting ? ["wait", "等你"] : running ? ["run", "在跑"] : w.status === "watching" ? ["watch", "盯着"] : w.status === "todo" ? ["todo", todoT ? todoWhen(todoT) : "待办"] : w.status === "done" ? ["done", "做完了"] : ["doing", "进行中"];
+    return { w, ts, dot, label, waiting, running };
+  };
+  const wcard = ({ w, ts, dot, label, running }) => {
+    const last = w.progress[w.progress.length - 1];
+    const line = w.next || last?.text || w.goal || "";
+    const live = running && w.threads.map(find).find((s) => s?.busy && s.live);
+    const isOpen = openWork.has(w.id);
+    const meta = [`${w.threads.length} 段对话`, ts.length ? `${ts.length} 个任务` : "", !layer ? w.agent : ""].filter(Boolean).join(" · ");
+    let h = `<div class="work${isOpen ? " open" : ""}"><button class="wt" data-work="${esc(w.id)}" aria-expanded="${isOpen}"><span class="wdot ${dot}"></span><span class="name">${esc(w.title)}</span><small class="st">${esc(label)}</small></button>`;
+    h += `<div class="wl">${esc(live ? live.live.status : line)}</div><div class="wm">${esc(meta)}</div>`;
+    if (isOpen) {
+      const kv = (k, v) => (v ? `<div class="kv"><span>${k}</span><div>${v}</div></div>` : "");
+      const st = { queued: "排队", running: "在跑", done: "✓", failed: "失败", interrupted: "中断", cancelled: "取消", todo: "待办", blocked: "等你" };
+      const taskRows = ts.map((t) => `<button class="sub" ${t.session ? `data-thread="${esc(t.session)}"` : "data-board"}><i>${st[t.status] || ""}</i>${esc(t.title)}</button>`).join("");
+      const threadRows = w.threads.filter(find).map((p) => `<span class="sub"><button data-thread="${esc(p)}">${esc(threadName(p))}</button><button class="x" data-work-act="detach" data-agent="${esc(w.agent)}" data-id="${esc(w.id)}" data-path="${esc(p)}" title="这段对话不算这件事，移出去">移出</button></span>`).join("");
+      const log = w.progress.slice(-5).reverse().map((p) => `<div class="log"><span>${esc(p.at.slice(5))}</span>${esc(p.text)}</div>`).join("");
+      const others = works.filter((o) => o.agent === w.agent && o.id !== w.id && o.status !== "dropped");
+      h += `<div class="wd">${kv("目标", esc(w.goal || ""))}${kv("做完算", esc(w.doneWhen || ""))}${kv("下一步", esc(w.next || ""))}${kv("任务", taskRows)}${kv("对话", threadRows)}${kv("进展", log)}
+        <div class="wacts">${w.status === "done" ? `<button data-work-act="set" data-status="doing" data-agent="${esc(w.agent)}" data-id="${esc(w.id)}">还没完</button>` : `<button data-work-act="set" data-status="done" data-agent="${esc(w.agent)}" data-id="${esc(w.id)}">标成做完</button>`}<button data-work-act="set" data-status="dropped" data-agent="${esc(w.agent)}" data-id="${esc(w.id)}">不做了</button>${others.length ? `<select data-work-merge data-agent="${esc(w.agent)}" data-id="${esc(w.id)}" title="和另一件是同一件事"><option value="">并进…</option>${others.map((o) => `<option value="${esc(o.id)}">${esc(o.title)}</option>`).join("")}</select>` : ""}</div></div>`;
+    }
+    return h + "</div>";
+  };
+  const views = works.filter((w) => w.status !== "dropped").map(view);
+  const groups = [
+    ["进行中", views.filter((v) => v.w.status === "doing" || ((v.waiting || v.running) && v.w.status !== "done"))],
+    ["盯着", views.filter((v) => v.w.status === "watching" && !v.waiting && !v.running)],
+    ["待办", views.filter((v) => v.w.status === "todo" && !v.waiting && !v.running)],
+  ];
+  // 进行中里：等你的排最前，在跑的其次
+  groups[0][1].sort((a, b) => (b.waiting - a.waiting) || (b.running - a.running));
+  const done = views.filter((v) => v.w.status === "done");
+  for (const [name, list] of groups) if (list.length) html += `<div><h3>${name}</h3>${list.map(wcard).join("")}</div>`;
+  if (!works.length) html += card("工作", '<div class="none">还没有工作。跟宝说要办的事，它会自己归到这里；闲聊不算</div>');
+  if (done.length) html += `<div><button class="fold" data-work-done>${showDone ? "▾" : "▸"} 做完的 ${done.length} 件</button>${showDone ? done.slice(0, 15).map(wcard).join("") : ""}</div>`;
+
+  // 没归到工作里的任务和在跑的对话（比如每日简报、刚开还没归类的），单独放一块，不丢
+  const loose = tasks.filter((t) => ["todo", "queued", "running"].includes(t.status) && !taskOf(t)).sort((x, y) => String(x.when || "z").localeCompare(String(y.when || "z")));
+  const looseBusy = all.filter((s) => s.busy && !workOfPath(s.path) && !loose.some((t) => t.session === s.path));
+  const looseRows = [
+    ...looseBusy.map((s) => `<button class="row" data-thread="${esc(s.path)}"><span class="spin"></span><span class="name">${esc(s.name)}</span><small class="st">${esc(s.live ? s.live.status : s.agent)}</small></button>`),
+    ...loose.slice(0, 8).map((t) => `<button class="row" ${t.session ? `data-thread="${esc(t.session)}"` : "data-board"} title="${esc(t.prompt || "")}">${t.status === "todo" ? avatar(t.agent) : `<span class="spin"${t.status === "queued" ? ' style="opacity:.4"' : ""}></span>`}<span class="name">${esc(t.title)}</span><small class="st">${esc(t.status === "todo" ? t.repeat || todoWhen(t) : t.status === "queued" ? "排队" : "在跑")}</small></button>`),
+  ];
+  html += `<div><h3>其他任务<button class="board-link" data-board>看板</button></h3><div class="card">${looseRows.length ? looseRows.join("") : '<div class="none">没有零散的任务</div>'}</div></div>`;
+
   // 收发室：外部 agent 的状态和要你看的事，只在奇奇这一层（奇奇是收件和分派的地方）
   const pr = tree.postroom;
   if (!layer && pr) {
@@ -604,9 +684,6 @@ function renderPanel() {
     rows.unshift(...unreadRows);
     html += card(`收发室${pr.unreadCount ? ` · ${pr.unreadCount} 条未读` : ""}`, rows.length ? rows.join("") : '<div class="none">还没有外部 agent，在数据目录 postroom/mailbox/ 下建个文件夹就能接上</div>');
   }
-  const todo = tasks.filter((t) => t.status === "todo").sort((x, y) => String(x.when || "z").localeCompare(String(y.when || "z")));
-  html += `<div><h3>待办和定时<button class="board-link" data-board>看板</button></h3><div class="card">${todo.length ? todo.slice(0, 8).map((t) => `<button class="row" data-board title="${esc(t.prompt || "")}">${avatar(t.agent)}<span class="name">${esc(t.title)}</span><small class="st">${esc(t.repeat || todoWhen(t))}</small></button>`).join("") : '<div class="none">还没有待办和定时任务，跟宝说「每天 9 点…」「明天提醒我…」就会记在这里</div>'}</div></div>`;
-  html += card("后台任务", bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>');
   const name = layer || DEFAULT_BAO, about = aboutCache[name];
   html += card(`关于${esc(name)}`, `<div class="about">${about === undefined ? "读取中…" : esc(about || "还没写说明")}</div><a href="/settings.html#baos" data-settings="baos">编辑说明</a>`);
   if (about === undefined) loadAbout(name);
@@ -614,6 +691,17 @@ function renderPanel() {
   renderAsks();
   if (!$("#board").hidden) renderBoard();
 }
+$("#panel").addEventListener("click", async (e) => {
+  const wt = e.target.closest("[data-work]");
+  if (wt) { const id = wt.dataset.work; openWork.has(id) ? openWork.delete(id) : openWork.add(id); return renderPanel(); }
+  if (e.target.closest("[data-work-done]")) { showDone = !showDone; return renderPanel(); }
+  const wa = e.target.closest("[data-work-act]");
+  if (wa) { e.stopPropagation(); const d = wa.dataset; await post(`/api/work/${d.workAct}`, { agent: d.agent, id: d.id, path: d.path, status: d.status }); }
+});
+$("#panel").addEventListener("change", async (e) => {
+  const m = e.target.closest("[data-work-merge]");
+  if (m && m.value) { const d = m.dataset; openWork.delete(d.id); openWork.add(m.value); await post("/api/work/merge", { agent: d.agent, from: d.id, into: m.value }); }
+});
 
 // ----- 任务看板 -----
 function showTime(iso) {

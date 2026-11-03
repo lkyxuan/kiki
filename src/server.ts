@@ -2,6 +2,7 @@
 // 网页是 public/index.html；数据走下面几个接口，实时更新走 SSE。
 //
 // 通道边界：任何"通道"（这个网页、以后的微信插件……）都只需要调 router.handle(chatId, text, reply)。
+import type { WorkBook } from "./work.js";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { execFile } from "node:child_process";
@@ -55,6 +56,7 @@ export function startServer(opts: {
   approvals?: Approvals;
   postroom?: Postroom;
   notifier?: Notifier;
+  works?: WorkBook;
 }) {
   const { agents, registry, router } = opts;
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
@@ -114,6 +116,7 @@ export function startServer(opts: {
     push("task", t);
     push("tree", tree());
   });
+  opts.works?.on("change", () => push("tree", tree())); // 归类改了工作，右栏跟着变
   opts.updater?.on("state", (s) => push("update", s));
   opts.approvals?.on("change", (list) => push("approvals", list)); // 待发、超预算的卡片
   opts.approvals?.actions.on("change", () => push("actions", opts.approvals!.actions.list(20))); // Kiki 自动做了什么
@@ -200,6 +203,7 @@ export function startServer(opts: {
     postroom: pr?.state() ?? null, // 收发室：外部 agent 的状态、要你看的
     agents: agents.listAgents().map((name) => ({
       name,
+      works: opts.works?.list(name) ?? [], // 这个宝在做的事（右栏按它归类）
       ...baoLook(opts.dataDir, name), // 头像 emoji
       sessions: registry.list(name).map((s) => ({ ...s, busy: agents.isBusy(s.path), live: agents.progress(s.path) ?? null })),
     })),
@@ -488,13 +492,28 @@ export function startServer(opts: {
     }
 
     // 删讨论串 / 清空主对话：记录都挪进 数据目录/trash/，不真删
+    // 工作：你手动改归类。merge {agent, from, into} 合并；detach {agent, id, path} 把一段对话移出去；set {agent, id, status?, title?}
+    if (url.pathname.startsWith("/api/work/") && req.method === "POST" && opts.works) {
+      const b = await body(), act = url.pathname.slice("/api/work/".length), agent = String(b.agent ?? "");
+      if (!agents.exists(agent)) return json({ error: "没有这个宝" }, 400);
+      const w =
+        act === "merge" ? opts.works.merge(agent, String(b.from), String(b.into))
+        : act === "detach" ? opts.works.detach(agent, String(b.id), String(b.path))
+        : act === "set" ? opts.works.set(agent, String(b.id), { status: b.status, title: b.title })
+        : undefined;
+      if (!w) return json({ error: "没找到这件工作" }, 400);
+      push("tree", tree());
+      return json({ ok: true, work: w });
+    }
     if (url.pathname === "/api/delete" && req.method === "POST") {
       const { path } = await body();
+      const gone = registry.byPath(String(path));
       try {
         await router.deleteSession(String(path));
       } catch (e) {
         return json({ error: (e as Error).message }, 400);
       }
+      if (gone) opts.works?.forget(gone.agent, gone.path);
       push("tree", tree());
       return json({ ok: true });
     }
@@ -516,6 +535,8 @@ export function startServer(opts: {
       } catch (e) {
         return json({ error: (e as Error).message }, 400);
       }
+      const rec = registry.byPath(fresh);
+      if (rec) opts.works?.repoint(rec.agent, String(path), fresh);
       push("tree", tree());
       push("cleared", { path, fresh });
       return json({ ok: true, path: fresh });
