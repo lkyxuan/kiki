@@ -1,0 +1,8 @@
+{
+  "name": "kiki-english-sync",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "minimatch": "10.0.1"
+  }
+}

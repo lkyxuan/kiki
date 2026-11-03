@@ -33,6 +33,7 @@ export class Summaries {
       history: (path: string) => { role: string; text: string }[];
       complete: (system: string, user: string) => Promise<string>;
       delayMs?: number; // 回完话等一会儿再总结，连着几句只总结一次
+      after?: (path: string) => void; // 摘要写好以后接着做的事（工作归类要用新摘要）
     },
   ) {}
 
@@ -71,6 +72,7 @@ export class Summaries {
     } finally {
       this.running.delete(path);
       if (this.again.delete(path)) void this.run(path);
+      else this.o.after?.(path);
     }
   }
 }
