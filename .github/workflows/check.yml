@@ -19,6 +19,13 @@ jobs:
           APP=out/build-arm64/Kiki.app
           file "$APP/Contents/MacOS/Kiki"
           "$APP/Contents/Resources/node/bin/node" "$APP/Contents/Resources/app/dist/main.js" --selftest
+      - name: 加固运行时自测（和正式签名同样的做法，只是用本地签名，确认 Node 在公证要求下还能跑）
+        run: |
+          H=out/hardened/Kiki.app
+          rm -rf out/hardened && mkdir -p out/hardened && ditto out/build-arm64/Kiki.app "$H"
+          KIKI_SIGN_IDENTITY=- packaging/sign.sh app "$H"
+          codesign -dv --verbose=4 "$H/Contents/Resources/node/bin/node" 2>&1 | grep -E "flags=.*runtime"
+          "$H/Contents/Resources/node/bin/node" "$H/Contents/Resources/app/dist/main.js" --selftest
       - uses: actions/upload-artifact@v4
         with:
           name: Kiki-mac-arm64

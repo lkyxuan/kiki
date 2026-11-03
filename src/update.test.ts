@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import { allowedHost } from "./guard.js";
-import { assetName, newer, sumFor, Updater, VERSION } from "./update.js";
+import { assetName, newer, sumFor, teamIdFrom, developerIdRequirement, Updater, VERSION } from "./update.js";
 
 test("版本比较", () => {
   assert.equal(newer("0.2.0", "0.1.9"), true);
@@ -71,4 +71,17 @@ test("已经在装了再点更新：返回进度，不报“没有可装的新�
   assert.equal(s.status, "downloading");
   u.state.status = "idle";
   await assert.rejects(() => u.apply(), /没有可装/);
+});
+
+test("从 codesign 输出读团队 ID：本地签名没有团队", () => {
+  assert.equal(teamIdFrom("Executable=/A/Kiki\nAuthority=Developer ID Application: X (AB12CD34EF)\nTeamIdentifier=AB12CD34EF\n"), "AB12CD34EF");
+  assert.equal(teamIdFrom("Signature=adhoc\nTeamIdentifier=not set\n"), undefined);
+  assert.equal(teamIdFrom("code object is not signed at all"), undefined);
+});
+
+test("更新签名要求：苹果根证书 + Developer ID + 同一团队；团队 ID 不合格式就拒绝", () => {
+  const r = developerIdRequirement("AB12CD34EF");
+  assert.match(r, /^anchor apple generic and /);
+  assert.match(r, /certificate leaf\[subject\.OU\] = "AB12CD34EF"$/);
+  assert.throws(() => developerIdRequirement('X" or anchor trusted'));
 });
