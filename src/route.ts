@@ -15,9 +15,11 @@ export interface RouteCandidate {
 export type Mode = "chat" | "background";
 
 export type Decision =
-  | { action: "continue"; target: string; mode: Mode; taskTitle?: string; reason?: string }
+  | { action: "continue"; target: string; mode: Mode; taskTitle?: string; doneWhen?: string; reason?: string }
   /** newBao：宝还不存在，先新建，值是这个宝负责什么 */
-  | { action: "new"; agent: string; name: string; mode: Mode; taskTitle?: string; reason?: string; newBao?: string }
+  | { action: "new"; agent: string; name: string; mode: Mode; taskTitle?: string; doneWhen?: string; reason?: string; newBao?: string }
+  /** 说的是某个已有的后台任务（改它、补充、返工、问进度以外的要求）：把这句话交给那个任务 */
+  | { action: "task"; id: string; text: string; mode: "chat"; reason?: string }
   /** 一句话就能答完的，奇奇直接回答，不进任何对话 */
   | { action: "reply"; text: string; mode: "chat"; reason?: string }
   /** 一段话里有几件互不相干的事：拆开，每件带着自己的说明分别交出去 */
@@ -40,10 +42,13 @@ export function buildRouteSystem(rules: string): string {
 下面是用户定的分派规则：
 ${rules.trim()}
 
-只输出一个 JSON 对象，不要任何别的文字。四种格式（mode 为 background 时加 "taskTitle"：10 个字以内的任务名）：
+下面"后台任务"里列着正在做、排队、等用户回答、待办和刚做完的任务。用户这句话明显是在改某个任务、给它补充要求、让它返工，就用 task 格式交给那个任务，text 写成给那个任务的一句话。
+
+只输出一个 JSON 对象，不要任何别的文字。五种格式（mode 为 background 时加 "taskTitle"：10 个字以内的任务名；再加 "doneWhen"：一句话写做到什么算完）：
 交进宝的主对话或某个讨论串：{"action":"continue","target":"宝名/对话名","mode":"chat","reason":"一句话理由"}
 新建宝（交给它的主对话）：{"action":"new","agent":"新宝名","newBao":"这个宝负责什么，一句话","mode":"chat","reason":"一句话理由"}
 直接回答：{"action":"reply","text":"给用户的回答","reason":"一句话理由"}
+交给某个后台任务：{"action":"task","id":"任务 id","text":"给那个任务的话","reason":"一句话理由"}
 拆成几件分别交出去（parts 里每一项是上面 continue 或 new 的格式，再加 "text"：交给那边的话，自带上下文，那边看不到用户原话）：
 {"action":"split","parts":[{"action":"continue","target":"宝名/${MAIN_SESSION}","mode":"chat","text":"…"},{"action":"new","agent":"新宝名","newBao":"…","mode":"chat","text":"…"}],"reason":"一句话理由"}`;
 }
@@ -54,6 +59,7 @@ export function buildRouteInput(opts: {
   current?: string;
   onlyAgent?: string; // 用户 @ 了某个宝，只能在它下面选
   now?: string; // 现在的时间和时区，直接回答"几点了""今天几号"用
+  tasks?: { id: string; title: string; status: string; agent: string }[]; // 后台任务一览（没结束的 + 刚做完的）
 }): string {
   const lines: string[] = [];
   if (opts.now) lines.push(`现在：${opts.now}\n`);
@@ -68,6 +74,10 @@ export function buildRouteInput(opts: {
     }
     if (c.more) lines.push(`- （还有 ${c.more} 段较早的讨论串，接着那些聊的交给主对话）`);
   }
+  if (opts.tasks?.length) {
+    lines.push("\n## 后台任务");
+    for (const t of opts.tasks) lines.push(`- ${t.id}「${t.title}」${t.agent} · ${t.status}`);
+  }
   if (opts.onlyAgent) lines.push(`\n用户指定了宝「${opts.onlyAgent}」，只能在它下面 continue 或 new。`);
   lines.push(`\n用户当前所在：${opts.current ?? "无"}`);
   lines.push(`\n用户这句话：\n${opts.text}`);
@@ -77,7 +87,7 @@ export function buildRouteInput(opts: {
 /** 解析并校验模型输出；不合法就返回 undefined，由调用方兜底。 */
 export function parseDecision(
   raw: string,
-  valid: { agents: string[]; targets: string[]; allowNewBao?: boolean; allowReply?: boolean },
+  valid: { agents: string[]; targets: string[]; allowNewBao?: boolean; allowReply?: boolean; tasks?: string[] },
 ): Decision | undefined {
   const m = raw.match(/\{[\s\S]*\}/);
   if (!m) return undefined;
@@ -89,6 +99,9 @@ export function parseDecision(
   }
   const one = parseOne(d, valid);
   if (one) return one;
+  if (d.action === "task" && valid.tasks?.includes(d.id) && typeof d.text === "string" && d.text.trim()) {
+    return { action: "task", id: d.id, text: d.text.trim(), mode: "chat", reason: d.reason };
+  }
   if (d.action === "reply" && valid.allowReply && typeof d.text === "string" && d.text.trim()) {
     return { action: "reply", text: d.text.trim(), mode: "chat", reason: d.reason };
   }
@@ -119,17 +132,19 @@ export function parseDecision(
 function parseOne(d: any, valid: { agents: string[]; targets: string[]; allowNewBao?: boolean }) {
   const mode: Mode = d.mode === "background" ? "background" : "chat";
   const taskTitle = mode === "background" && typeof d.taskTitle === "string" ? d.taskTitle.slice(0, 30) : undefined;
+  const doneWhen = mode === "background" && typeof d.doneWhen === "string" && d.doneWhen.trim() ? d.doneWhen.trim().slice(0, 200) : undefined;
+  const extra = doneWhen ? { doneWhen } : {};
   if (d.action === "continue" && valid.targets.includes(d.target)) {
-    return { action: "continue" as const, target: d.target as string, mode, taskTitle, reason: d.reason };
+    return { action: "continue" as const, target: d.target as string, mode, taskTitle, ...extra, reason: d.reason };
   }
   // 交给已有的宝：进它的主对话（开讨论串是主对话的事）
   if (d.action === "new" && valid.agents.includes(d.agent)) {
     const main = `${d.agent}/${MAIN_SESSION}`;
-    if (valid.targets.includes(main)) return { action: "continue" as const, target: main, mode, taskTitle, reason: d.reason };
-    return { action: "new" as const, agent: d.agent as string, name: MAIN_SESSION, mode, taskTitle, reason: d.reason };
+    if (valid.targets.includes(main)) return { action: "continue" as const, target: main, mode, taskTitle, ...extra, reason: d.reason };
+    return { action: "new" as const, agent: d.agent as string, name: MAIN_SESSION, mode, taskTitle, ...extra, reason: d.reason };
   }
   if (d.action === "new" && valid.allowNewBao && validBaoName(d.agent) && typeof d.newBao === "string" && d.newBao.trim()) {
-    return { action: "new" as const, agent: d.agent, name: MAIN_SESSION, mode, taskTitle, reason: d.reason, newBao: d.newBao.trim().slice(0, 100) };
+    return { action: "new" as const, agent: d.agent, name: MAIN_SESSION, mode, taskTitle, ...extra, reason: d.reason, newBao: d.newBao.trim().slice(0, 100) };
   }
   return undefined;
 }

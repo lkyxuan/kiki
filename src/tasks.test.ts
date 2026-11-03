@@ -368,3 +368,156 @@ test("hold：到点、前置做完都不自动跑，记进文件，点开始才�
   assert.equal(t.status, "done");
   assert.equal(t.hold, undefined);
 });
+
+// ---------- 0.2.65：完成标准、停、改、返工、外部执行者 ----------
+
+test("完成标准写进文件，交给后台对话时附在任务后面", async () => {
+  const sent: string[] = [];
+  const { backend } = fakeBackend(async (t) => (sent.push(t), "ok"));
+  const tasks = new Tasks(new MemoryTaskStore(), backend);
+  const t = tasks.start({ agent: "dev", title: "x", prompt: "写周报", doneWhen: "列出 3 件做完的事" });
+  await tick();
+  assert.match(sent[0], /^写周报\n\n完成标准：列出 3 件做完的事\n/);
+  assert.equal(parseTask(formatTask(t))?.doneWhen, "列出 3 件做完的事");
+});
+
+test("停任务：正在跑的停下对话，标已取消，不算失败", async () => {
+  let reject!: (e: Error) => void;
+  const { backend, aborted } = fakeBackend(() => new Promise((_, j) => (reject = j)));
+  backend.abort = async (p) => {
+    aborted.push(p);
+    reject(new Error("aborted"));
+  };
+  const tasks = new Tasks(new MemoryTaskStore(), backend);
+  const t = tasks.start({ agent: "dev", title: "长活", prompt: "p" });
+  await tick();
+  await tasks.stop(t.id);
+  await tick();
+  assert.equal(t.status, "cancelled");
+  assert.deepEqual(aborted, [t.session]);
+});
+
+test("改任务：排队的改内容，在跑的插话，做完的在原对话返工并重新回报", async () => {
+  const gates: (() => void)[] = [];
+  const sent: string[] = [];
+  const steered: string[] = [];
+  const { backend, notes } = fakeBackend((text) => (sent.push(text), text === "A" ? new Promise((r) => gates.push(() => r("A 好了"))) : Promise.resolve(`做完：${text}`)));
+  backend.steer = async (p, text) => void steered.push(`${p} ${text}`);
+  const tasks = new Tasks(new MemoryTaskStore(), backend, { concurrency: 1 });
+  const a = tasks.start({ agent: "dev", title: "A", prompt: "A", origin: "/o.jsonl" });
+  const b = tasks.start({ agent: "dev", title: "B", prompt: "B" });
+  await tick();
+  assert.match(tasks.revise(b.id, "顺便写结论")!, /改进/);
+  assert.match(tasks.revise(a.id, "快一点")!, /插进/);
+  assert.deepEqual(steered, [`${a.session} 快一点`]);
+  gates.shift()!();
+  await tick();
+  assert.equal(sent[1], "B\n\n补充：顺便写结论");
+  assert.equal(a.status, "done");
+  const session = a.session;
+  assert.match(tasks.revise(a.id, "再加一张表")!, /原来的对话里接着返工/);
+  await tick();
+  assert.equal(a.status, "done");
+  assert.equal(a.session, session);
+  assert.equal(a.result, "做完：返工：再加一张表");
+  assert.equal(notes.length, 2, "返工做完重新回报");
+});
+
+test("外部执行者：交给注册的执行者，没接上就失败", async () => {
+  const tasks = new Tasks(new MemoryTaskStore(), fakeBackend().backend);
+  const stopped: string[] = [];
+  tasks.registerExecutor("grokbot", { run: async (t) => `grok 做完了：${t.prompt}`, stop: (t) => void stopped.push(t.id) });
+  const t = tasks.start({ agent: "dev", title: "查资料", prompt: "查 A2A", executor: "grokbot" });
+  const u = tasks.start({ agent: "dev", title: "x", prompt: "p", executor: "没这个" });
+  await tick();
+  assert.equal(t.status, "done");
+  assert.equal(t.result, "grok 做完了：查 A2A");
+  assert.equal(t.session, undefined);
+  assert.equal(u.status, "failed");
+  assert.match(u.result!, /没有叫「没这个」的执行者/);
+});
+
+test("外部执行者：按名字现查；停任务时 signal 被 abort，任务标已取消", async () => {
+  const tasks = new Tasks(new MemoryTaskStore(), fakeBackend().backend);
+  let seen: AbortSignal | undefined;
+  tasks.executorFor = (name) =>
+    name === "codex"
+      ? {
+          run: (_t, signal) =>
+            new Promise<string>((_, reject) => {
+              seen = signal;
+              signal.addEventListener("abort", () => reject(new Error("对方已停")));
+            }),
+        }
+      : undefined;
+  const t = tasks.start({ agent: "dev", title: "写代码", prompt: "p", executor: "codex" });
+  await tick();
+  assert.equal(t.status, "running");
+  await tasks.stop(t.id);
+  await tick();
+  assert.equal(seen?.aborted, true);
+  assert.equal(t.status, "cancelled");
+});
+
+test("关注的事有新消息：回到原对话接着办，做完重新回报；取消的、不认识的不接", async () => {
+  const sent: string[] = [];
+  const { backend, notes } = fakeBackend(async (text) => (sent.push(text), `处理了：${text.slice(0, 12)}`));
+  const tasks = new Tasks(new MemoryTaskStore(), backend);
+  const t = tasks.start({ agent: "dev", title: "报名", prompt: "帮我报名 X 项目", reportTo: "/r.jsonl" });
+  await tick();
+  const session = t.session!;
+  tasks.setWatching(t.id, "等主办方审核结果");
+  assert.equal(tasks.bySession(session)?.id, t.id);
+  assert.equal(tasks.followUp(t.id, "邮件：审核通过，请 11/10 前交材料"), "已回到原来的对话里接着办");
+  await tick();
+  assert.equal(t.status, "done");
+  assert.equal(t.session, session);
+  assert.match(sent[1], /你在盯的事有新消息（等主办方审核结果）：\n\n邮件：审核通过/);
+  assert.equal(notes.length, 2, "办完重新回报");
+  assert.equal(t.watching, "等主办方审核结果", "还接着盯，等 agent 自己说不用了");
+  assert.equal(tasks.followUp("没这个", "新消息"), undefined);
+  const u = tasks.start({ agent: "dev", title: "x", prompt: "p", hold: true });
+  tasks.cancel(u.id);
+  assert.equal(tasks.followUp(u.id, "新消息"), undefined, "取消的不接");
+});
+
+test("开对话时就被停：不再把任务发出去，标已取消", async () => {
+  let release!: () => void;
+  const sent: string[] = [];
+  const backend: TaskBackend = {
+    spawn: () => new Promise((r) => (release = () => r("/slow.jsonl"))),
+    send: async (_a, _p, text) => (sent.push(text), "做了"),
+    note: async () => {},
+  };
+  const tasks = new Tasks(new MemoryTaskStore(), backend);
+  const t = tasks.start({ agent: "dev", title: "删东西", prompt: "删掉旧文件" });
+  await tick();
+  await tasks.stop(t.id);
+  release();
+  await tick();
+  assert.deepEqual(sent, []);
+  assert.equal(t.status, "cancelled");
+});
+
+test("排队等返工时再改一次：两句都送到原对话", async () => {
+  const sent: string[] = [];
+  let hold!: () => void;
+  const gate = new Promise<void>((r) => (hold = r));
+  const { backend } = fakeBackend(async (text) => {
+    sent.push(text);
+    if (text === "占位") await gate;
+    return "好";
+  });
+  const tasks = new Tasks(new MemoryTaskStore(), backend, { concurrency: 1 });
+  const a = tasks.start({ agent: "dev", title: "周报", prompt: "写周报" });
+  await tick();
+  tasks.start({ agent: "dev", title: "占位", prompt: "占位" }); // 占住唯一的位置
+  await tick();
+  tasks.revise(a.id, "加一张表");
+  assert.equal(a.status, "queued");
+  tasks.revise(a.id, "再加下周计划");
+  hold();
+  await tick(50);
+  assert.equal(sent.at(-1), "返工：加一张表\n\n补充：再加下周计划");
+  assert.equal(a.prompt, "写周报");
+});
