@@ -32,21 +32,24 @@ fi
 [ -n "$body" ] || exit 0
 body=$(printf '%s' "$body" | tr -d '\\n\\r')
 host=$(hostname -s 2>/dev/null || hostname)
-if printf '%s' "$body" | curl -sf --noproxy '*' -m 2 -H 'content-type: application/json' --data-binary @- "$KIKI_URL/api/coders/event?tool=$tool&host=$host" >/dev/null 2>&1; then
-  # 发通了：顺手把之前没发出去的补上
-  if [ -s "$SPOOL/pending.jsonl" ] && mv "$SPOOL/pending.jsonl" "$SPOOL/sending.$$" 2>/dev/null; then
-    if curl -sf --noproxy '*' -m 10 -H 'content-type: application/x-ndjson' --data-binary @"$SPOOL/sending.$$" "$KIKI_URL/api/coders/batch" >/dev/null 2>&1; then
-      rm -f "$SPOOL/sending.$$"
-    else
-      cat "$SPOOL/sending.$$" >> "$SPOOL/pending.jsonl" && rm -f "$SPOOL/sending.$$"
-    fi
+line() { printf '{"tool":"%s","host":"%s","at":"%s","event":%s}\\n' "$tool" "$host" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$body"; }
+mkdir -p "$SPOOL"
+# 之前有没发出去的：把这条接在后面一起按顺序发，免得新的状态先到、旧的后到把它盖掉
+if [ -s "$SPOOL/pending.jsonl" ] && mv "$SPOOL/pending.jsonl" "$SPOOL/sending.$$" 2>/dev/null; then
+  case "$body" in *'"PostToolUse"'*) ;; *) line >> "$SPOOL/sending.$$" ;; esac
+  if curl -sf --noproxy '*' -m 10 -H 'content-type: application/x-ndjson' --data-binary @"$SPOOL/sending.$$" "$KIKI_URL/api/coders/batch" >/dev/null 2>&1; then
+    rm -f "$SPOOL/sending.$$"
+  else
+    cat "$SPOOL/sending.$$" >> "$SPOOL/pending.jsonl" && rm -f "$SPOOL/sending.$$"
   fi
+  exit 0
+fi
+if printf '%s' "$body" | curl -sf --noproxy '*' -m 2 -H 'content-type: application/json' --data-binary @- "$KIKI_URL/api/coders/event?tool=$tool&host=$host" >/dev/null 2>&1; then
   exit 0
 fi
 # Kiki 没开或连不上：先记下来（工具调用这种很勤的不记）
 case "$body" in *'"PostToolUse"'*) exit 0 ;; esac
-mkdir -p "$SPOOL"
-printf '{"tool":"%s","host":"%s","at":"%s","event":%s}\\n' "$tool" "$host" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$body" >> "$SPOOL/pending.jsonl"
+line >> "$SPOOL/pending.jsonl"
 exit 0
 `;
 }

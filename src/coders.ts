@@ -128,6 +128,7 @@ export class Coders extends EventEmitter {
   private sessions: CoderSession[] = [];
   private map: Record<string, string> = {};
   private saving?: NodeJS.Timeout;
+  private queue: Promise<unknown> = Promise.resolve(); // 事件一条一条按到达顺序处理：同一段会话的开头两条同时到，也只建一张卡片
 
   constructor(private opts: CodersOptions) {
     super();
@@ -158,7 +159,13 @@ export class Coders extends EventEmitter {
     return this.apply({ ...ev, at: at ?? ev.at });
   }
 
-  async apply(ev: CoderEvent): Promise<CoderSession | undefined> {
+  apply(ev: CoderEvent): Promise<CoderSession | undefined> {
+    const run = this.queue.then(() => this.applyNow(ev));
+    this.queue = run.catch(() => {});
+    return run;
+  }
+
+  private async applyNow(ev: CoderEvent): Promise<CoderSession | undefined> {
     const id = `${ev.tool}:${ev.session}`;
     const now = ev.at ?? new Date().toISOString();
     let s = this.sessions.find((x) => x.id === id);

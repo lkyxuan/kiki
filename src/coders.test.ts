@@ -52,6 +52,13 @@ test("Codex：notify 一次带要求和结果", async () => {
   assert.match(resumeCommand(s), /^cd \/x\/旅行计划 && codex resume t1$|^cd '\/x\/旅行计划' && codex resume t1$/);
 });
 
+test("同一段会话的头两条同时到，只建一张卡片", async () => {
+  const c = make({ pickBao: async () => (await new Promise((r) => setTimeout(r, 20)), "生活") });
+  await Promise.all([c.ingest("claude-code", cc("SessionStart", { cwd: "/p/x" })), c.ingest("claude-code", cc("UserPromptSubmit", { cwd: "/p/x", prompt: "做事" }))]);
+  assert.equal(c.list().length, 1);
+  assert.equal(c.list()[0].status, "running");
+});
+
 test("不关心的事件、没开头的工具调用不建卡片", async () => {
   assert.equal(normalize("claude-code", cc("PreCompact")), undefined);
   assert.equal(normalize("claude-code", cc("Notification", { notification_type: "auth_success" })), undefined);
@@ -166,11 +173,18 @@ test("hook 脚本：发得通就发，发不通先写 spool，下次发通时补
     assert.equal(JSON.parse(pending[0]).event.prompt, "a\nb");
     up = true;
     await run(JSON.stringify(cc("Stop")));
-    assert.equal(got.length, 2);
-    assert.match(got[0].url, /^\/api\/coders\/event\?tool=claude-code&host=/);
-    assert.equal(got[1].url, "/api/coders/batch");
-    assert.equal(JSON.parse(got[1].body.trim()).event.prompt, "a\nb");
+    // 有没发出去的：这条接在后面，一起按顺序补发
+    assert.equal(got.length, 1);
+    assert.equal(got[0].url, "/api/coders/batch");
+    const lines = got[0].body.trim().split("\n").map((l) => JSON.parse(l));
+    assert.deepEqual(lines.map((l) => l.event.hook_event_name), ["UserPromptSubmit", "Stop"]);
     assert.ok(!existsSync(join(dir, "spool", "pending.jsonl")) || !readFileSync(join(dir, "spool", "pending.jsonl"), "utf8").trim());
+    // 补发后 Kiki 里的状态是做完了，不是被旧的“开始干活”盖掉
+    const c = make();
+    await c.ingestLines(got[0].body);
+    assert.equal(c.list()[0].status, "idle");
+    await run(JSON.stringify(cc("Stop")));
+    assert.match(got[1].url, /^\/api\/coders\/event\?tool=claude-code&host=/);
     // Codex：JSON 在第二个参数
     await sh(["codex", JSON.stringify({ type: "agent-turn-complete" })]);
     assert.match(got[2].url, /tool=codex/);
