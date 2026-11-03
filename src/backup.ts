@@ -24,7 +24,7 @@ export type Undo =
       stashes: string[];
       untracked?: { dir: string; files: string[] };
     }
-  | { kind: "push"; repo: string; remote: string; refs: [string, string][] }; // [分支名, 原来的 sha]
+  | { kind: "push"; repo: string; remote: string; refs: [string, string, string][] }; // [分支名, 推之前远程的 sha（没有为空）, 这次推上去的 sha（删分支为空）]
 
 export type BackupResult = { undo: Undo; note: string } | { error: string };
 
@@ -49,7 +49,9 @@ export function backupFor(dataDir: string, ruleId: string, command: string, cwd:
       return pushBackup(parsed, cwd, id);
     }
     if (ruleId.startsWith("git.")) {
-      const repo = gitRoot(parsed ? workDir(parsed, cwd) : cwd);
+      // 命令看不懂（比如 git -C "$X"）就不猜是哪个仓库：猜错了备份的是别的仓库
+      if (!parsed) return { error: "这条 git 命令太复杂，认不出作用在哪个仓库，没法先备份。拆成简单的、路径写死的命令再跑。" };
+      const repo = gitRoot(workDir(parsed, cwd));
       if (!repo) return { error: "没找到这条 git 命令作用的仓库，没法先备份。先 cd 到仓库里再跑。" };
       return gitSnapshot(dataDir, repo, id, /\bclean\b[^;&|]*-[a-zA-Z]*x/i.test(command));
     }
@@ -112,17 +114,24 @@ export function undo(u: Undo): string {
       }
     return ["仓库已经回到那一步之前", ...notes].join("；");
   }
-  // 强推：被改掉的分支推回原样；对方之后又推过的照样会被覆盖，所以用 force-with-lease 只在还是刚才那样时才推
+  // 强推：只动这次推到的分支；远程还是这次推上去的样子才推回去，之后别人又推过的不覆盖
   const g = git(u.repo);
   const now = new Map(lines(g(["ls-remote", "--heads", u.remote], 60_000)).map((l) => [l.split("\t")[1].replace("refs/heads/", ""), l.split("\t")[0]]));
   const back: string[] = [];
-  for (const [branch, sha] of u.refs) {
-    const cur = now.get(branch);
-    if (cur === sha) continue;
-    g(["push", `--force-with-lease=refs/heads/${branch}:${cur ?? ""}`, u.remote, `${sha}:refs/heads/${branch}`], 120_000);
+  const moved: string[] = [];
+  for (const [branch, before, pushed] of u.refs) {
+    const cur = now.get(branch) ?? "";
+    if (cur === before) continue;
+    if (cur !== pushed) {
+      moved.push(branch);
+      continue;
+    }
+    g(["push", `--force-with-lease=refs/heads/${branch}:${pushed}`, u.remote, before ? `${before}:refs/heads/${branch}` : `:refs/heads/${branch}`], 120_000);
     back.push(branch);
   }
-  return back.length ? `远程分支已经推回原样：${back.join("、")}` : "远程分支和推之前一样，不用改";
+  const parts = [back.length ? `远程分支已经推回原样：${back.join("、")}` : moved.length ? "" : "远程分支和推之前一样，不用改"];
+  if (moved.length) parts.push(`这些分支之后又有人推过，没有自动覆盖：${moved.join("、")}（旧的在本地 refs/kiki-backup/ 下）`);
+  return parts.filter(Boolean).join("；");
 }
 
 // ---------- 备份 ----------
@@ -176,26 +185,57 @@ function gitSnapshot(dataDir: string, repo: string, id: string, ignored: boolean
 
 function pushBackup(segs: string[][], cwd: string, id: string): BackupResult {
   let dir = cwd;
-  let remote: string | undefined;
-  for (const s of segs) {
-    if (s[0] === "cd" && s[1]) dir = resolvePath(s[1], dir);
-    const w = stripPrefix(s);
+  let push: string[] | undefined;
+  for (const seg of segs) {
+    if (seg[0] === "cd" && seg[1]) dir = resolvePath(seg[1], dir);
+    const w = stripPrefix(seg);
     if (w[0] !== "git") continue;
     const i = w.indexOf("push");
     if (i < 0) continue;
     for (let j = 1; j < i; j++) if (w[j] === "-C" && w[j + 1]) dir = resolvePath(w[j + 1], dir);
-    remote = w.slice(i + 1).find((a) => !a.startsWith("-"));
+    push = w.slice(i + 1);
   }
   const repo = gitRoot(dir);
-  if (!repo) return { error: "没找到要推的仓库，没法先备份远程。先 cd 到仓库里再推。" };
+  if (!repo || !push) return { error: "没找到要推的仓库，没法先备份远程。先 cd 到仓库里再推。" };
   const g = git(repo);
-  if (!remote) {
-    const b = tryOne(g, ["symbolic-ref", "-q", "--short", "HEAD"]);
-    remote = (b && tryOne(g, ["config", `branch.${b}.remote`])) || "origin";
+  const args = push.filter((a) => !a.startsWith("-"));
+  const flags = push.filter((a) => a.startsWith("-"));
+  const branchNow = tryOne(g, ["symbolic-ref", "-q", "--short", "HEAD"]);
+  const remote = args[0] ?? ((branchNow && tryOne(g, ["config", `branch.${branchNow}.remote`])) || "origin");
+  const heads = new Map(lines(g(["ls-remote", "--heads", remote], 60_000)).map((l) => [l.split("\t")[1].replace("refs/heads/", ""), l.split("\t")[0]]));
+  const local = new Map(lines(g(["for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads"])).map((l) => l.split(" ") as [string, string]));
+  const del = flags.some((f) => f === "--delete" || f === "-d");
+  // 这次会推到哪些分支、推上去是什么：[分支, 推上去的 sha（删掉为空）]
+  const targets: [string, string][] = [];
+  if (flags.includes("--mirror")) {
+    for (const b of new Set([...heads.keys(), ...local.keys()])) targets.push([b, local.get(b) ?? ""]);
+  } else if (flags.includes("--all") || flags.includes("--branches")) {
+    for (const [b, sha] of local) targets.push([b, sha]);
+  } else {
+    const specs = args.slice(1);
+    if (!specs.length) {
+      if (!branchNow) return { error: "现在不在任何分支上，认不出要推哪个分支，没法先备份。写清楚 git push <远程> <分支>。" };
+      specs.push(branchNow);
+    }
+    for (let spec of specs) {
+      spec = spec.replace(/^\+/, "");
+      const [src, dst = src] = spec.includes(":") ? spec.split(":") : [spec, spec];
+      const name = dst.replace(/^refs\/heads\//, "");
+      if (name.startsWith("refs/")) continue; // 标签之类的不管
+      if (del || !src) {
+        targets.push([name, ""]);
+        continue;
+      }
+      const sha = tryOne(g, ["rev-parse", "--verify", "-q", `${src}^{commit}`]);
+      if (!sha) return { error: `认不出要推的「${src}」是哪个提交，没法先备份。` };
+      targets.push([name, sha]);
+    }
   }
-  const heads = lines(g(["ls-remote", "--heads", remote], 60_000)).map((l) => l.split("\t") as [string, string]);
-  if (heads.length) g(["fetch", "--no-tags", remote, `+refs/heads/*:refs/kiki-backup/${id}/*`], 120_000);
-  return { undo: { kind: "push", repo, remote, refs: heads.map(([sha, ref]) => [ref.replace("refs/heads/", ""), sha]) }, note: `已先把远程 ${remote} 的分支存到本地 refs/kiki-backup/${id}/` };
+  if (heads.size) g(["fetch", "--no-tags", remote, `+refs/heads/*:refs/kiki-backup/${id}/*`], 120_000);
+  return {
+    undo: { kind: "push", repo, remote, refs: targets.map(([b, pushed]) => [b, heads.get(b) ?? "", pushed]) },
+    note: `已先把远程 ${remote} 的分支存到本地 refs/kiki-backup/${id}/`,
+  };
 }
 
 // ---------- 读命令 ----------

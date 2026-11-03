@@ -224,6 +224,26 @@ export function amountOf(input: any): number | undefined {
   return found;
 }
 
+/** 从工具参数里找收件人：to/recipient/email/channel/chat/group… 这类字段的值。找不到返回空数组。 */
+export function recipientsOf(input: any): string[] {
+  const KEY = /^(to|cc|bcc|recipients?|receivers?|emails?|address(es)?|channels?|channel_id|chat(_id|_name)?|conversation(_id)?|group(_id|_name)?|room(_id)?|users?(_id|name)?|target|phone|number|contact|收件人|发给)$/i;
+  const out: string[] = [];
+  const take = (v: any) => {
+    if (typeof v === "string" || typeof v === "number") out.push(String(v));
+    else if (Array.isArray(v)) v.forEach(take);
+    else if (v && typeof v === "object") for (const x of Object.values(v)) if (typeof x === "string") out.push(x);
+  };
+  const walk = (v: any, depth: number) => {
+    if (depth > 4 || !v || typeof v !== "object") return;
+    for (const [k, x] of Object.entries(v)) {
+      if (KEY.test(k)) take(x);
+      else walk(x, depth + 1);
+    }
+  };
+  walk(input, 0);
+  return out.filter((x) => x.trim());
+}
+
 /** 这一轮是不是外来消息触发的：看这段对话最近一条“用户”消息是不是收发室转进来的。 */
 const EXTERNAL_MARK = /【收发室】|📮 外部 agent|你在盯的事有新消息|这是外部 agent 发来的/;
 export function triggeredByOutside(sm: any): boolean {
@@ -345,8 +365,9 @@ export class Approvals extends EventEmitter {
         return { ok: true };
       }
       case "send": {
-        const text = `${where.detail}`.toLowerCase();
-        const listed = always || state.sendAllow.some((x) => text.includes(x.toLowerCase()));
+        // 白名单只对收件人那几个字段比，不看正文：正文里提到白名单里的人不算数
+        const to = recipientsOf(where.input).map((x) => x.toLowerCase());
+        const listed = always || (to.length > 0 && to.every((r) => state.sendAllow.some((x) => r.includes(x.toLowerCase()))));
         if (listed) {
           this.log(hit, where, "白名单里的，直接发了");
           return { ok: true };

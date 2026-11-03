@@ -98,3 +98,43 @@ test("强推：先把远程分支存到本地，撤回推回原样", () => {
   assert.equal(git(remote, "rev-parse", "main"), before);
   assert.match(undo(b.undo), /不用改/);
 });
+
+test("强推撤回：只动这次推到的分支；之后别人又推过的不覆盖", () => {
+  const data = tmp();
+  const base = tmp();
+  const remote = join(base, "remote.git");
+  git(base, "init", "-q", "--bare", "-b", "main", remote);
+  const r = repo(join(base, "r"));
+  git(r, "remote", "add", "origin", remote);
+  git(r, "branch", "other");
+  git(r, "push", "-q", "origin", "main", "other");
+  const before = git(r, "rev-parse", "HEAD");
+  git(r, "commit", "-q", "--amend", "-m", "改写历史");
+  const b = backupFor(data, "git.push-force", "git push -f", r);
+  assert.ok("undo" in b, JSON.stringify(b));
+  git(r, "push", "-q", "--force", "origin", "main");
+  // 别的分支之后被推了：撤回不能动它
+  git(r, "push", "-q", "--force", "origin", "HEAD:other");
+  const other = git(remote, "rev-parse", "other");
+  assert.match(undo(b.undo), /推回原样：main/);
+  assert.equal(git(remote, "rev-parse", "main"), before);
+  assert.equal(git(remote, "rev-parse", "other"), other);
+
+  // main 之后又被别人推过：不自动覆盖
+  const b2 = backupFor(data, "git.push-force", "git push --force origin main", r);
+  assert.ok("undo" in b2);
+  git(r, "push", "-q", "--force", "origin", "main");
+  writeFileSync(join(r, "b.txt"), "x");
+  git(r, "add", ".");
+  git(r, "commit", "-qm", "别人又推");
+  git(r, "push", "-q", "origin", "main");
+  const later = git(remote, "rev-parse", "main");
+  assert.match(undo(b2.undo), /又有人推过/);
+  assert.equal(git(remote, "rev-parse", "main"), later);
+});
+
+test("git 命令认不出作用在哪个仓库：不猜，不做", () => {
+  const r = repo(join(tmp(), "r"));
+  const b = backupFor(tmp(), "git.reset-hard", 'git -C "$TARGET" reset --hard', r);
+  assert.ok("error" in b);
+});
