@@ -3,9 +3,11 @@
 // 第二层（聊还是后台干）：路由顺带给建议，/bg 强制后台。
 import { briefMessage, type HandoffRequest } from "./handoff.js";
 import type { Registry, SessionRecord } from "./registry.js";
-import { MemoryTaskStore, STATUS_LABEL, type Task, Tasks, type TaskStore } from "./tasks.js";
+import { MemoryTaskStore, OPEN, STATUS_LABEL, type Task, Tasks, type TaskStore } from "./tasks.js";
+import { taskLine } from "./tasktool.js";
 import { buildRouteInput, buildRouteSystem, type Decision, type Part, parseDecision, type RouteCandidate } from "./route.js";
 import { MAIN_SESSION } from "./bao.js";
+import { roleModel } from "./modelroles.js";
 
 /** 路由器对 pi 那一层的全部要求，测试时可以换成假的。 */
 export interface AgentBackend {
@@ -17,7 +19,7 @@ export interface AgentBackend {
   send(agent: string, path: string, text: string): Promise<string>;
   isBusy(path: string): boolean;
   /** 一次性问模型（不进对话），路由用 */
-  complete(system: string, user: string): Promise<string>;
+  complete(system: string, user: string, spec?: string): Promise<string>;
   /** 这个宝负责什么，一句话 */
   describe(agent: string): string;
   /** 这段对话里用户最近说的几句（给路由看） */
@@ -31,6 +33,8 @@ export interface AgentBackend {
   /** 通知界面这段对话有了一条完整回答（可选） */
   announce?(path: string, text: string): void;
   abort?(path: string): Promise<void>;
+  /** 往正在跑的对话里插一句话（改后台任务用，可选） */
+  steer?(agent: string, path: string, text: string): Promise<void>;
   /** 关掉一段对话（停下手上的活、放开内存），并把它的记录挪进回收站（可选） */
   discard?(agent: string, path: string, name: string): Promise<void>;
 }
@@ -46,6 +50,11 @@ const HELP = `我是 Kiki。直接说话，我会判断该接进哪段对话，�
 /bg <任务>           在后台新开一段对话去做，做完回报到这里
 /tasks [all]         看后台任务（默认只看没做完的和最近 10 个）
 /retry <任务id>      重跑失败或中断的任务
+/run <任务id>        待办马上开始（定时任务就是马上多跑一次）
+/cancel <任务id>     取消待办、定时任务或等你回答的任务
+/answer <任务id> <话> 回答卡住的任务（也可以直接在那段后台对话里回）
+/stop <任务id>       停下任务（正在跑的也能停）
+/revise <任务id> <话> 改任务：没开跑的改内容，在跑的插话，做完的在原对话里返工
 /agents              看有哪些 agent
 /where               当前在哪段对话`;
 
@@ -79,6 +88,12 @@ export class Router {
         },
         send: (agent, path, text) => this.agents.send(agent, path, text),
         abort: this.agents.abort ? (path) => this.agents.abort!(path) : undefined,
+        steer: this.agents.steer
+          ? async (path, text) => {
+              const rec = this.registry.byPath(path);
+              if (rec) await this.agents.steer!(rec.agent, path, text);
+            }
+          : undefined,
         note: async (path, text) => {
           const rec = this.registry.byPath(path);
           if (rec) await this.agents.note(rec.agent, path, text);
@@ -137,7 +152,28 @@ export class Router {
         const old = this.tasks.get(args[0] ?? "");
         if (!old) return reply("用法：/retry <任务id>，id 用 /tasks 看。");
         const t = this.tasks.retry(old.id, this.notifier(reply));
-        return reply(t ? `好，重新开始：「${t.title}」（任务 ${t.id}）` : "这个任务还在跑，不用重跑。");
+        return reply(t ? `好，重新开始：「${t.title}」（任务 ${t.id}）` : "这个任务还没结束，不用重跑。");
+      }
+      case "/run": {
+        const t = this.tasks.runNow(args[0] ?? "", this.notifier(reply));
+        return reply(t ? `好，「${t.title}」马上开始。` : "用法：/run <待办的任务id>，id 用 /tasks 看。");
+      }
+      case "/cancel": {
+        const t = this.tasks.cancel(args[0] ?? "");
+        return reply(t ? `已取消「${t.title}」。` : "用法：/cancel <任务id>（待办、定时、排队或等你回答的任务）。");
+      }
+      case "/stop": {
+        const t = await this.tasks.stop(args[0] ?? "");
+        return reply(t ? (t.status === "running" ? `正在停下「${t.title}」…` : `已停下「${t.title}」。`) : "用法：/stop <任务id>，id 用 /tasks 看。");
+      }
+      case "/revise": {
+        if (!args[1]) return reply("用法：/revise <任务id> <要改的话>");
+        return reply(this.tasks.revise(args[0], args.slice(1).join(" "), this.notifier(reply)) ?? "这个任务现在改不了（没有这个任务，或是外部 bot 正在做）。");
+      }
+      case "/answer": {
+        if (!args[1]) return reply("用法：/answer <任务id> <你的回答>");
+        const t = this.tasks.answer(args[0], args.slice(1).join(" "), this.notifier(reply));
+        return reply(t ? `收到，「${t.title}」接着做。` : "这个任务没在等你回答。");
       }
       default:
         return reply(`不认识 ${cmd}。\n\n${HELP}`);
@@ -189,16 +225,23 @@ export class Router {
       };
     });
     const targets = candidates.flatMap((c) => c.sessions.map((s) => s.label));
+    // 后台任务也给路由看：没结束的 + 最近做完的 5 个，认出"改那个任务"
+    const all = this.tasks.list((t) => !t.repeat || t.status === "todo");
+    const tasks = [...all.filter((t) => OPEN.includes(t.status)), ...all.filter((t) => !OPEN.includes(t.status)).slice(-5)]
+      .filter((t) => !onlyAgent || t.agent === onlyAgent)
+      .map((t) => ({ id: t.id, title: t.title, agent: t.agent, status: t.repeat ? `定时 ${t.repeat}` : STATUS_LABEL[t.status] }));
     try {
       const raw = await this.agents.complete(
         buildRouteSystem(this.rules()),
-        buildRouteInput({ text, candidates, current: cur ? label(cur) : undefined, onlyAgent, now: nowText() }),
+        buildRouteInput({ text, candidates, current: cur ? label(cur) : undefined, onlyAgent, now: nowText(), tasks }),
+        roleModel("route"), // 模型按用途配置：没选就用默认模型
       );
       const d = parseDecision(raw, {
         agents: onlyAgent ? [onlyAgent] : agents,
         targets: onlyAgent ? targets.filter((t) => t.startsWith(`${onlyAgent}/`)) : targets,
         allowNewBao: !onlyAgent && !!this.agents.createBao, // 用户 @ 了宝就只在它下面选
         allowReply: !onlyAgent,
+        tasks: tasks.map((t) => t.id),
       });
       if (d) return d;
       console.warn("[route] 模型输出看不懂，用默认去处：", raw.slice(0, 200));
@@ -216,6 +259,13 @@ export class Router {
       return reply(`奇奇 · 直接回答\n\n${d.text}`);
     }
     if (d.action === "split") return this.deliverSplit(chatId, d.parts, reply, release);
+    if (d.action === "task") {
+      release();
+      const t = this.tasks.get(d.id)!;
+      const how = this.tasks.revise(d.id, d.text, this.notifier(reply));
+      const where = t.session ? this.registry.byPath(t.session) : undefined;
+      return reply(`→ 后台任务「${t.title}」${where ? `（${link(where)}）` : ""}\n\n${how ?? "这个任务现在改不了，我按新任务处理：/bg " + d.text}`);
+    }
     let made = "";
     if (d.action === "new" && d.newBao && !this.agents.exists(d.agent)) {
       try {
@@ -235,7 +285,7 @@ export class Router {
       const agent = hit?.agent ?? (d.action === "new" ? d.agent : this.defaultAgent);
       const title = d.taskTitle ?? (d.action === "new" && d.name !== MAIN_SESSION ? d.name : stamp());
       release();
-      return this.runBackground(chatId, agent, text, title, origin, reply);
+      return this.runBackground(chatId, agent, text, title, origin, reply, d.doneWhen);
     }
     let rec: SessionRecord;
     let how: string;
@@ -254,7 +304,8 @@ export class Router {
       }
     }
     this.registry.setCurrent(chatId, rec.path);
-    this.progress(chatId, { status: `已交给 ${label(rec)}`, path: rec.path });
+    const busy = this.agents.isBusy(rec.path) ? "，前面还在做，排队中" : ""; // 那段对话手上有活：先告诉用户在排队
+    this.progress(chatId, { status: `已交给 ${label(rec)}${busy}`, path: rec.path });
     const pending = this.agents.send(rec.agent, rec.path, text); // 已排进对话队列
     release();
     const answer = await pending;
@@ -283,7 +334,7 @@ export class Router {
       if (p.mode === "background" && this.isOn("background")) {
         const title = p.taskTitle ?? (p.action === "new" && p.name !== MAIN_SESSION ? p.name : stamp());
         const fork = origin?.name === MAIN_SESSION ? undefined : origin; // 主对话不分叉，后台任务从干净的上下文开始
-        this.tasks.start({ agent, title, prompt: p.text, origin: fork?.path, chatId }, this.notifier(reply));
+        this.tasks.start({ agent, title, prompt: p.text, doneWhen: p.doneWhen, origin: fork?.path, chatId }, this.notifier(reply));
         lines.push(`- 后台任务「${title}」（${agent}）：${made ? "新建宝，" : ""}做完回报到这里`);
         continue;
       }
@@ -369,31 +420,54 @@ export class Router {
   }
 
   /** 后台执行的唯一入口（/bg 和自动路由判成 background 都走这里），具体见 tasks.ts。 */
-  private async runBackground(chatId: string, agent: string, task: string, title: string, origin: SessionRecord | undefined, reply: Reply) {
-    const t = this.tasks.start({ agent, title, prompt: task, origin: origin?.path, chatId }, this.notifier(reply));
+  private async runBackground(chatId: string, agent: string, task: string, title: string, origin: SessionRecord | undefined, reply: Reply, doneWhen?: string) {
+    const t = this.tasks.start({ agent, title, prompt: task, doneWhen, origin: origin?.path, chatId }, this.notifier(reply));
     const wait = t.status === "queued" ? "，前面还有任务在跑，排队中" : "";
     await reply(`→ ${agent} · 后台任务「${title}」\n\n好，已交给后台${wait}，做完我会回报${origin ? `到这里和 ${label(origin)}` : ""}。/tasks 看进度。`);
   }
 
-  /** 任务做完/失败时回报到发起的聊天（收件箱）。 */
+  /** 任务做完、失败、卡住时回报到发起的聊天（收件箱）。 */
   private notifier(reply: Reply) {
     return (t: Task) => {
-      const where = t.session ? this.registry.byPath(t.session) : undefined;
-      const tag = where ? `（${label(where)}）` : "";
-      if (t.status === "done") void reply(`✅ 后台任务「${t.title}」完成${tag}：\n\n${t.result}`);
-      else if (t.status === "failed") void reply(`❌ 后台任务「${t.title}」失败${tag}：${t.result}\n想重跑：/retry ${t.id}`);
+      const msg = this.notice(t);
+      if (msg) void reply(msg);
     };
+  }
+
+  /** 任务状态变化时给收件箱的一句话；不需要说的返回 undefined。server 也用它回报定时开出来的任务。 */
+  notice(t: Task): string | undefined {
+    const where = t.session ? this.registry.byPath(t.session) : undefined;
+    const tag = where ? `（${link(where)}）` : "";
+    if (t.status === "done") return `✅ 后台任务「${t.title}」完成${tag}：\n\n${t.result}`;
+    if (t.status === "failed") return `❌ 后台任务「${t.title}」失败${tag}：${t.result}\n想重跑：/retry ${t.id}`;
+    if (t.status === "cancelled" && t.started) return `⏹ 后台任务「${t.title}」已停下${tag}。`;
+    if (t.status === "blocked")
+      return `⏸ 后台任务「${t.title}」卡住了，等你回答${tag}：\n\n${t.question}\n\n直接在那段对话里回一句，或者 /answer ${t.id} 你的回答。`;
+    return undefined;
+  }
+
+  /** 给宝的主对话看的一行：现在有几个后台任务在跑、等你、待办。没有就返回空串。 */
+  taskCount(agent?: string): string {
+    const mine = this.tasks.list((t) => (!agent || t.agent === agent) && OPEN.includes(t.status));
+    if (!mine.length) return "";
+    const n = (f: (t: Task) => boolean) => mine.filter(f).length;
+    const parts = [
+      ["进行中", n((t) => t.status === "running" || t.status === "queued")],
+      ["等用户回答", n((t) => t.status === "blocked")],
+      ["待办和定时", n((t) => t.status === "todo")],
+    ].filter(([, c]) => c) as [string, number][];
+    return `后台任务：${parts.map(([k, c]) => `${k} ${c} 个`).join("，")}（kiki_task action=list 看详情，stop 停、revise 改或返工）`;
   }
 
   private async cmdTasks(all: boolean, reply: Reply) {
     let list = this.tasks.list();
     if (!all) {
-      const open = list.filter((t) => t.status === "queued" || t.status === "running");
+      const open = list.filter((t) => OPEN.includes(t.status));
       const recent = list.filter((t) => !open.includes(t)).slice(-10);
       list = [...open, ...recent];
     }
     if (list.length === 0) return reply("还没有后台任务。");
-    return reply(list.map((t) => `[${STATUS_LABEL[t.status]}] ${t.title} · ${t.agent} · ${t.id}`).join("\n"));
+    return reply(list.map((t) => taskLine(t)).join("\n"));
   }
 
   /** 交接：对话里的 agent 调 kiki_handoff 时走这里。新对话的第一条消息就是交接说明。

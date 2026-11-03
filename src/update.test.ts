@@ -22,6 +22,11 @@ test("主机名白名单", () => {
   assert.equal(allowedHost("127.0.0.1:4567"), true);
   assert.equal(allowedHost("mac-mini.tail1234.ts.net"), true);
   assert.equal(allowedHost("evil.com"), false);
+  assert.equal(allowedHost("100.101.102.103:8889"), true);
+  assert.equal(allowedHost("[fd7a:115c:a1e0::1]:8889"), true);
+  assert.equal(allowedHost("100.63.0.1"), false);
+  assert.equal(allowedHost("100.128.0.1"), false);
+  assert.equal(allowedHost("192.168.1.5"), false);
   assert.equal(allowedHost(undefined), false);
   process.env.KIKI_ALLOWED_HOSTS = "kiki.home"; // 读 .env 晚于加载模块，也要生效
   assert.equal(allowedHost("kiki.home:4567"), true);

@@ -28,7 +28,7 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 ### 第一次装好以后
 
-1. 第一次打开选「在这台电脑上运行」，然后填模型密钥：点 Kiki 左下角「设置 → 模型与密钥」，粘贴 DeepSeek API 密钥（到 https://platform.deepseek.com/api_keys 申请），点「保存」，马上就能用。密钥存在 `~/kiki-data/.env`，只有你自己能读。
+1. 第一次打开选「在这台电脑上运行」，然后填模型密钥：点 Kiki 左下角「设置 → 服务商」，选 DeepSeek，点「填 API 密钥」粘贴密钥（到 https://platform.deepseek.com/api_keys 申请），马上就能用；也可以选别家，用订阅登录。每个环节用哪个模型在「设置 → 模型」里选。密钥存在 `~/kiki-data/engine/auth.json`，只有你自己能读；DeepSeek 的密钥也可以写在 `~/kiki-data/.env` 的 `DEEPSEEK_API_KEY`（设置里 DeepSeek 下面的「进阶」）。
 
    进阶：不想让密钥以明文放在文件里，可以放进 macOS 钥匙串（登录后就能取）。Kiki 在后台运行、没人在电脑前点授权，所以密钥要放在它自己拿得到的地方：
    ```bash
@@ -62,6 +62,8 @@ App 第一次打开会问：**在这台电脑上运行**，还是**连接远程�
 
 界面是从后端加载的，所以后端（Mac mini）更新以后，各台电脑上看到的界面也跟着是新的。
 
+只当界面的那台电脑上，窗口程序本身（Kiki.app）由它自己更新：打开后和之后每 6 小时查一次 GitHub，有新版就弹窗问「现在更新」，点了会关掉窗口、下载新版、核对校验和、换好后自动重新打开，连不上远程时也能更新。也可以随时点菜单「Kiki → 检查 App 更新…」。记录在 `~/Library/Logs/Kiki/client-update.log`。
+
 ## 远程使用（安全地）
 
 Kiki 能在 Mac mini 上读写文件、跑命令，所以**绝不能直接暴露到公网**。它只监听本机（127.0.0.1），也没有自己的登录。远程用的推荐办法是 Tailscale：只有你登录了同一个 Tailscale 账号的设备才连得上，传输全程加密，还有 HTTPS。
@@ -81,10 +83,12 @@ Kiki 能在 Mac mini 上读写文件、跑命令，所以**绝不能直接暴露
 2. 打开上面那个地址就是 Kiki。
 3. 当 App 用：iPhone 上 Safari「分享 → 添加到主屏幕」；Mac 上 Safari「文件 → 添加到程序坞」。
 
+想直接用 IP（Tailscale 分的 `100.x.x.x`）而不是名字：客户端里填 `100.x.x.x:4567` 就行（会自动用 http；Tailscale 本身是加密的）。Kiki 除了本机 127.0.0.1，还会在本机的 Tailscale IP 上开同一个端口，只开在 Tailscale 自己确认是它分给本机的地址上（会问 `tailscale ip -4`，找不到 Tailscale 就不开），只有你 Tailscale 网络里的设备连得到，局域网和公网都连不到。IP 用 `tailscale ip -4` 查。不想开就在 `.env` 写 `KIKI_TAILSCALE_LISTEN=0`。（注意：`tailscale serve` 转发只认名字，用 IP 访问它会回 404，所以 IP 要直接连 Kiki 的端口。）
+
 注意：
 
 - 用 `tailscale serve`，**不要用 `tailscale funnel`**（funnel 会公开到整个互联网）。
-- Kiki 自己也加了一道守卫：只接受 `localhost` 和 `*.ts.net` 的访问，挡住恶意网页借你的浏览器偷偷给 Kiki 发指令。用别的域名访问要写进 `.env` 的 `KIKI_ALLOWED_HOSTS`。
+- Kiki 自己也加了一道守卫：只接受 `localhost`、`*.ts.net` 和 Tailscale 内网 IP（`100.64.0.0/10`）的访问，挡住恶意网页借你的浏览器偷偷给 Kiki 发指令。用别的域名访问要写进 `.env` 的 `KIKI_ALLOWED_HOSTS`。
 - 你的 Tailscale 网络里不要加别人的设备，进了这个网络的设备都能用 Kiki。
 
 ## 卸载

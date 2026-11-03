@@ -36,7 +36,7 @@ tar -xzf "$CACHE/$TGZ" -C "$RES/node" --strip-components=1 "node-v$NODE_VERSION-
 # 4. App 外壳
 sed "s/__VERSION__/$VERSION/g" packaging/Info.plist > "$APP/Contents/Info.plist"
 cp packaging/kiki-server "$APP/Contents/MacOS/"
-cp packaging/kiki-setup packaging/swap.sh packaging/AppIcon.icns "$RES/"
+cp packaging/kiki-setup packaging/swap.sh packaging/client-update.sh packaging/AppIcon.icns "$RES/"
 # 原生窗口：在 Mac 上用 swiftc 编译；别的系统上编不了，退回到"用浏览器打开"的脚本
 if command -v swiftc >/dev/null && [ "$(uname)" = Darwin ]; then
   T=$([ "$ARCH" = x64 ] && echo x86_64 || echo arm64)
@@ -46,7 +46,7 @@ else
   echo "（这台机器编译不了原生窗口，Kiki.app 会用浏览器打开界面）"
   cp packaging/mac/launcher.sh "$APP/Contents/MacOS/Kiki"
 fi
-chmod +x "$APP/Contents/MacOS/"* "$RES/kiki-setup" "$RES/swap.sh" "$RES/node/bin/node"
+chmod +x "$APP/Contents/MacOS/"* "$RES/kiki-setup" "$RES/swap.sh" "$RES/client-update.sh" "$RES/node/bin/node"
 
 # 签名：配了开发者证书（KIKI_SIGN_IDENTITY）就正式签名并交给苹果公证，没配就照旧本地签名。见 docs/signing.md
 packaging/sign.sh app "$APP"

@@ -126,7 +126,7 @@ test("判成后台：交给后台任务，先回执、做完回报到收件箱�
   await say("把 README 整理一遍");
   await new Promise((r) => setTimeout(r, 10));
   assert.match(out.at(-2)!, /^→ dev · 后台任务「整理README」\n\n好，已交给后台，做完我会回报到这里和 dev\/主线/);
-  assert.match(out.at(-1)!, /^✅ 后台任务「整理README」完成（dev\/bg-整理README）：\n\n.*把 README 整理一遍/s);
+  assert.match(out.at(-1)!, /^✅ 后台任务「整理README」完成（\[bg-整理README\]\(kiki:dev\/bg-整理README\)）：\n\n.*把 README 整理一遍/s);
   assert.equal(reg.current("app")?.name, "主线");
   const main = reg.get("dev", "主线")!;
   assert.match(ctl.notes.at(-1)!, new RegExp(`^${main.path} ✅ 后台任务「整理README」完成`));
@@ -141,7 +141,7 @@ test("接着某段对话判成后台：分叉那段对话，后台带着上下�
   await say("按刚才讨论的设计实现");
   await new Promise((r) => setTimeout(r, 10));
   assert.deepEqual(ctl.forks, [src]);
-  assert.match(out.at(-1)!, /✅ 后台任务「实现」完成（dev\/bg-实现）/);
+  assert.match(out.at(-1)!, /✅ 后台任务「实现」完成（\[bg-实现\]\(kiki:dev\/bg-实现\)）/);
 });
 
 test("交给宝的活判成后台：不分叉主对话，直接开任务", async () => {
@@ -481,4 +481,43 @@ test("清空主对话时摘要一起清掉", async () => {
   reg.setSummary(main.path, "旧摘要");
   const rec = await router.clearMain(main.path);
   assert.equal(reg.byPath(rec.path)?.summary, undefined);
+});
+
+test("后台任务卡住：收件箱说清楚卡在哪，/answer 后接着做完", async () => {
+  const { out, say, router } = setup();
+  await say("/new dev 主线");
+  const orig = (router.tasks as any).backend.send;
+  (router.tasks as any).backend.send = async (a: string, p: string, text: string) => {
+    if (text === "整理周报") router.tasks.ask(p, "重点写哪个项目？");
+    return orig(a, p, text);
+  };
+  await say("/bg 整理周报");
+  await new Promise((r) => setTimeout(r, 10));
+  assert.match(out.at(-1)!, /⏸ 后台任务「整理周报」卡住了，等你回答.*\n\n重点写哪个项目？\n\n.*\/answer /s);
+  const id = router.tasks.list()[0].id;
+  await say(`/answer ${id} Kiki`);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.match(out.at(-1)!, /✅ 后台任务「整理周报」完成/);
+  await say("/tasks");
+  assert.match(out.at(-1)!, /\[完成\] 整理周报/);
+});
+
+test("路由认出“改那个任务”：交给那个任务，任务列表进了提示词", async () => {
+  const { out, say, ctl, router } = setup();
+  const t = router.tasks.start({ agent: "dev", title: "周报", prompt: "写周报", hold: true });
+  ctl.routeAnswer = JSON.stringify({ action: "task", id: t.id, text: "加上下周计划" });
+  await say("周报里加上下周计划");
+  assert.match(ctl.routePrompts.at(-1)!, new RegExp(`## 后台任务\\n- ${t.id}「周报」dev · 待办`));
+  assert.match(out.at(-1)!, /^→ 后台任务「周报」\n\n已经改进「周报」的任务内容/);
+  assert.match(router.tasks.get(t.id)!.prompt, /补充：加上下周计划$/);
+});
+
+test("判成后台时带完成标准；主对话看得到任务数", async () => {
+  const { say, ctl, router } = setup();
+  ctl.routeAnswer = '{"action":"new","agent":"dev","name":"周报","mode":"background","taskTitle":"写周报","doneWhen":"三段，每段一句"}';
+  await say("帮我写周报");
+  assert.equal(router.tasks.list()[0].doneWhen, "三段，每段一句");
+  router.tasks.start({ agent: "dev", title: "回头", prompt: "p", hold: true });
+  assert.match(router.taskCount(), /待办和定时 1 个/);
+  assert.equal(router.taskCount("life"), "");
 });

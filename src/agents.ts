@@ -62,6 +62,7 @@ export class Agents extends EventEmitter {
   extensions: ExtensionFactory[] = [];
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
+  private inflight = new Map<string, number>(); // path -> 还没答完的 send 数（含正在答的）
   private runs = new Map<string, Live>(); // path -> 正在干活的这一轮的进度
   private gone = new Set<string>(); // 已删掉 / 清空的对话：排在后面的消息不再跑
   private labelCache?: Record<string, string>;
@@ -373,9 +374,11 @@ export class Agents extends EventEmitter {
   }
 
   /** 往指定对话发一句话，等它做完，返回最后一条回答的文字。同一段对话里的消息按顺序排队。 */
-  send(agent: string, path: string, text: string): Promise<string> {
+  send(agent: string, path: string, text: string, opts: { onStart?: () => void } = {}): Promise<string> {
     const prev = this.queues.get(path) ?? Promise.resolve();
+    this.inflight.set(path, (this.inflight.get(path) ?? 0) + 1);
     const run = prev.catch(() => {}).then(async () => {
+      opts.onStart?.(); // 轮到这句了（前面排队的做完了）
       const s = await this.get(agent, path);
       // 消息里的图片标记换成图片本身。现在的模型看不了图（比如 DeepSeek）时，
       // 先让看图模型把图读成文字附在后面；原图也照样存进对话，以后换成能看图的模型还看得到
@@ -393,7 +396,18 @@ export class Agents extends EventEmitter {
       return lastReply(s);
     });
     this.queues.set(path, run);
+    const done = () => {
+      const n = (this.inflight.get(path) ?? 1) - 1;
+      if (n > 0) this.inflight.set(path, n);
+      else this.inflight.delete(path);
+    };
+    run.then(done, done);
     return run;
+  }
+
+  /** 这段对话手上有没有活（正在答或者还有排队的话）：新来的话要排队。 */
+  occupied(path: string) {
+    return (this.inflight.get(path) ?? 0) > 0 || this.isBusy(path);
   }
 
   /** 告诉网页某段对话有了一条完整的回答（不是经网页发出的消息，网页收不到结束信号，靠这个收尾）。 */
@@ -430,6 +444,16 @@ export class Agents extends EventEmitter {
     const safe = name.replace(/[\\/:*?"<>|]/g, "_").slice(0, 60);
     // 带上原文件名（里面有 pi 给的唯一 id），同一秒删两段同名对话也不会互相覆盖
     renameSync(path, join(dir, `${trashStamp()}-${safe}-${basename(path)}`));
+  }
+
+  /** 往正在跑的对话里插一句话（pi 的 steer：这一步做完就看到）；没在跑就当普通的一句话发进去。改任务用。 */
+  async steer(agent: string, path: string, text: string): Promise<void> {
+    const s = this.live.get(path);
+    if (s?.isStreaming) {
+      await s.steer(text);
+      return;
+    }
+    await this.send(agent, path, text);
   }
 
   /** 停掉正在跑的对话（后台任务超时用）。 */
