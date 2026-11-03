@@ -23,6 +23,7 @@ import { explainError } from "./errors.js";
 import { existsSync as fileExists, readFileSync as readText, writeFileSync as writeText } from "node:fs";
 import { pickedIds, readPrefs } from "./modelprefs.js";
 import { imageNames, imageNote, readImage, uploadsDir } from "./images.js";
+import { type OpenSpec, type ToolMeta, Worker, type WorkerHooks } from "./workerhost.js";
 
 /** 模型菜单里一项 */
 export interface ModelChoice {
@@ -66,6 +67,13 @@ export class Agents extends EventEmitter {
   private runs = new Map<string, Live>(); // path -> 正在干活的这一轮的进度
   private gone = new Set<string>(); // 已删掉 / 清空的对话：排在后面的消息不再跑
   private labelCache?: Record<string, string>;
+  /** 后台任务各自一个子程序：设了它，spawnTask / sendTask 就在子程序里跑（main.ts 注入）。 */
+  isolation?: {
+    script: string;
+    approve: WorkerHooks["approve"];
+    execArgv?: string[];
+  };
+  private remote = new Map<string, Worker>(); // path -> 正在跑这段对话的子程序
 
   constructor(
     private dataDir: string,
@@ -263,7 +271,7 @@ export class Agents extends EventEmitter {
 
   /** 正在干活的对话这一轮的进度；没在干活返回 undefined。 */
   progress(path: string): Live | undefined {
-    return this.runs.get(path);
+    return this.remote.get(path)?.live ?? this.runs.get(path);
   }
 
   private watch(path: string, s: AgentSession) {
@@ -364,6 +372,7 @@ export class Agents extends EventEmitter {
 
   private async get(agent: string, path: string): Promise<AgentSession> {
     if (this.gone.has(path)) throw new Error("这段对话已经删掉了");
+    if (this.remote.has(path)) throw new Error("这段对话正在后台子程序里跑"); // 同一个文件只让一个程序写
     let s = this.live.get(path);
     if (!s) {
       s = await this.open(agent, SessionManager.open(path));
@@ -377,8 +386,10 @@ export class Agents extends EventEmitter {
   send(agent: string, path: string, text: string, opts: { onStart?: () => void } = {}): Promise<string> {
     const prev = this.queues.get(path) ?? Promise.resolve();
     this.inflight.set(path, (this.inflight.get(path) ?? 0) + 1);
-    const run = prev.catch(() => {}).then(async () => {
+    const run: Promise<string> = prev.catch(() => {}).then(async () => {
       opts.onStart?.(); // 轮到这句了（前面排队的做完了）
+      const w = this.remote.get(path);
+      if (w) return this.viaWorker(path, run, () => w.send(text));
       const s = await this.get(agent, path);
       // 消息里的图片标记换成图片本身。现在的模型看不了图（比如 DeepSeek）时，
       // 先让看图模型把图读成文字附在后面；原图也照样存进对话，以后换成能看图的模型还看得到
@@ -417,8 +428,13 @@ export class Agents extends EventEmitter {
 
   /** 往对话末尾记一条消息（显示出来、下次回答时模型也能看到），不触发回答。后台任务回报用。 */
   note(agent: string, path: string, text: string): Promise<void> {
+    const w = this.remote.get(path);
+    if (w) return w.note(text);
     const prev = this.queues.get(path) ?? Promise.resolve();
-    const run = prev.catch(() => {}).then(async () => {
+    const run: Promise<void> = prev.catch(() => {}).then(async () => {
+      // 排队期间这段对话可能已经交给子程序了（sendTask 正在起它）：转给子程序，别在主程序里再开一份
+      const w = this.remote.get(path);
+      if (w) return this.viaWorker(path, run, () => w.note(text));
       const s = await this.get(agent, path);
       await s.sendCustomMessage({ customType: "kiki-task", content: text, display: true }, { triggerTurn: false });
       this.emit("message", { path, role: "assistant", text });
@@ -430,6 +446,7 @@ export class Agents extends EventEmitter {
   /** 关掉一段对话：停下手上的活、放开内存，JSONL 挪进 数据目录/trash/<宝>/（不真删，需要时还能找回）。 */
   async discard(agent: string, path: string, name: string) {
     this.gone.add(path); // 先标记：排在队里的消息拿到会话前就会出错退出，不会重新打开
+    await this.remote.get(path)?.kill();
     const s = this.live.get(path);
     if (s) {
       await s.abort().catch(() => {});
@@ -448,6 +465,8 @@ export class Agents extends EventEmitter {
 
   /** 往正在跑的对话里插一句话（pi 的 steer：这一步做完就看到）；没在跑就当普通的一句话发进去。改任务用。 */
   async steer(agent: string, path: string, text: string): Promise<void> {
+    const w = this.remote.get(path);
+    if (w) return w.steer(text);
     const s = this.live.get(path);
     if (s?.isStreaming) {
       await s.steer(text);
@@ -458,7 +477,97 @@ export class Agents extends EventEmitter {
 
   /** 停掉正在跑的对话（后台任务超时用）。 */
   async abort(path: string) {
+    const w = this.remote.get(path);
+    if (w) return w.kill(); // 子程序里跑的：停 = 关掉子程序
     await this.live.get(path)?.abort();
+  }
+
+  // ---------- 后台任务的子程序 ----------
+
+  private hooks(): WorkerHooks {
+    const tools = (agent: string) => this.toolsFor?.(agent) ?? [];
+    return {
+      tools: (agent): ToolMeta[] =>
+        tools(agent).map((t) => ({
+          name: t.name,
+          label: t.label,
+          description: t.description,
+          parameters: t.parameters,
+          promptSnippet: t.promptSnippet,
+          promptGuidelines: t.promptGuidelines,
+        })),
+      runTool: async (agent, name, params, path, cwd, toolCallId) => {
+        const t = tools(agent).find((x) => x.name === name);
+        if (!t) throw new Error(`没有工具 ${name}`);
+        // Kiki 的工具只从 ctx 里取这段对话的路径
+        const ctx = { cwd, sessionManager: { getSessionFile: () => path } };
+        return t.execute(toolCallId, params as any, undefined, undefined, ctx as any);
+      },
+      approve: (req, signal) => this.isolation!.approve(req, signal),
+    };
+  }
+
+  private async startWorker(agent: string, open: OpenSpec): Promise<Worker> {
+    const iso = this.isolation!;
+    const w = new Worker(iso.script, { dataDir: this.dataDir, model: this.modelSpec, agent, open }, this.hooks(), iso.execArgv);
+    w.on("event", (name: string, data: unknown) => this.emit(name, data));
+    const path = await w.ready;
+    if (w.alive) {
+      this.remote.set(path, w);
+      w.once("exit", () => {
+        if (this.remote.get(path) === w) this.remote.delete(path);
+      });
+    }
+    return w;
+  }
+
+  /** 子程序做完这句：后面没有排队的就让它退出（下次要用再起一个）。 */
+  private async viaWorker<T>(path: string, run: Promise<unknown>, work: () => Promise<T>): Promise<T> {
+    const w = this.remote.get(path)!;
+    try {
+      return await work();
+    } finally {
+      if (this.queues.get(path) === run) {
+        this.remote.delete(path);
+        await w.close();
+      }
+    }
+  }
+
+  /** 开一段后台任务的对话（有 from 就分叉它）。设了 isolation 就在子程序里开，子程序留着等 sendTask。 */
+  async spawnTask(agent: string, name: string, from?: string): Promise<string> {
+    if (!this.isolation) return from ? this.fork(agent, from, name) : this.create(agent, name);
+    if (from) await this.queues.get(from)?.catch(() => {}); // 等原对话手上那句做完，免得分叉到一半
+    const w = await this.startWorker(agent, from ? { fork: { from, name } } : { create: name });
+    return w.path!;
+  }
+
+  /** 往后台任务的对话发一句话（交任务、回答、返工）。设了 isolation 就在子程序里跑，做完关掉子程序。 */
+  sendTask(agent: string, path: string, text: string): Promise<string> {
+    if (!this.isolation) return this.send(agent, path, text);
+    const prev = this.queues.get(path) ?? Promise.resolve();
+    const run: Promise<string> = prev.catch(() => {}).then(async () => {
+      if (this.gone.has(path)) throw new Error("这段对话已经删掉了");
+      if (!this.remote.has(path)) {
+        // 主程序里开着这段对话（比如用户点开聊过）就先放掉，同一个文件只让一个程序写
+        this.live.get(path)?.dispose();
+        this.live.delete(path);
+        await this.startWorker(agent, { path });
+      }
+      return this.viaWorker(path, run, () => this.remote.get(path)!.send(text));
+    });
+    this.queues.set(path, run);
+    return run;
+  }
+
+  /** 这段对话在不在子程序里跑 */
+  isRemote(path: string) {
+    return this.remote.has(path);
+  }
+
+  /** 关掉所有子程序（Kiki 退出时） */
+  async closeWorkers() {
+    await Promise.all([...this.remote.values()].map((w) => w.kill()));
   }
 
   /** 一次性问模型一句话（不进任何对话），路由用。 */
@@ -483,6 +592,8 @@ export class Agents extends EventEmitter {
   }
 
   isBusy(path: string) {
+    const w = this.remote.get(path);
+    if (w) return w.busy;
     return this.live.get(path)?.isStreaming ?? false;
   }
 
