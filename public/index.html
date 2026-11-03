@@ -273,6 +273,9 @@
   #panel .board-link { float: right; font-weight: 500; color: var(--accent); font-size: 12px; margin-right: 4px; }
   #panel .none { color: var(--faint); font-size: 13px; padding: 8px 0; }
   #panel .about { font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; max-height: 220px; overflow: hidden; padding: 8px 0 4px; }
+  #panel .dot-st { flex: none; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px; background: var(--faint); }
+  #panel .dot-st.idle { background: var(--ok); } #panel .dot-st.working { background: var(--busy, var(--accent)); } #panel .dot-st.error, #panel .dot-st.offline { background: var(--err); }
+  #panel .row .x { flex: none; color: var(--faint); padding: 0 2px; font-size: 13px; } #panel .row .x:hover { color: var(--text); }
   #panel a { display: inline-block; color: var(--accent); font-size: 13px; text-decoration: none; padding: 4px 0 8px; }
 
   /* 设置弹窗：盖在聊天页上，右上角 ×，Esc 或点外面关掉 */
@@ -498,7 +501,19 @@ function find(path) {
   for (const a of tree.agents) for (const s of a.sessions) if (s.path === path) return s;
 }
 
+// 告诉后台你正开着哪几段对话：收发室据此决定提不提醒、清掉未读。页面藏到后台时报空
+let viewSent = "", viewAt = 0;
+function reportViewing(force) {
+  const paths = document.visibilityState === "visible" ? [current, peek].filter(Boolean) : [];
+  const key = paths.join("|");
+  if (!force && key === viewSent && Date.now() - viewAt < 45000) return;
+  viewSent = key; viewAt = Date.now();
+  fetch("/api/viewing", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ paths }) }).catch(() => {});
+}
+document.addEventListener("visibilitychange", () => reportViewing(true));
+setInterval(() => reportViewing(true), 45000);
 function renderSide() {
+  reportViewing();
   if (typeof thinkEyes === "function") thinkEyes();
   const k = $(".kiki");
   k.classList.toggle("on", current === "main");
@@ -573,6 +588,16 @@ function renderPanel() {
   if (stuck.length) html += card("等你回答", stuck.map((t) => `<button class="row" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.question || "")}">${avatar(t.agent)}<span class="name">${esc(t.title)}</span><small>等你</small></button>`).join(""));
   if (bad.length) html += card("出了问题", bad.map((t) => `<button class="row" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.result || "")}"><span class="bad">!</span><span class="name">${esc(t.title)}</span><small>${t.status === "failed" ? "失败" : "中断"}</small></button>`).join(""));
   html += card("正在跑", busy.length || queued.length ? busy.map(row).join("") + queued.map((t) => `<div class="row"><span class="spin" style="opacity:.4"></span><span class="name">${esc(t.title)}</span><small>排队</small></div>`).join("") : '<div class="none">现在没有在跑的</div>');
+  // 收发室：外部 agent 的状态和要你看的事，只在奇奇这一层（奇奇是收件和分派的地方）
+  const pr = tree.postroom;
+  if (!layer && pr) {
+    const rows = pr.attention.map((a) => `<div class="row" title="${esc(a.why)}"><span class="bad">!</span><span class="name">${esc(a.title)}</span><small>${esc(a.from)}</small>${a.id.startsWith("agent:") ? "" : `<button class="x" data-pr-dismiss="${esc(a.id)}" aria-label="不用再看">×</button>`}</div>`)
+      .concat(pr.agents.map((a) => `<div class="row" title="${esc(a.note || "")}"><span class="dot-st ${a.state}"></span><span class="name">${esc(a.name)}</span><small class="st">${esc(a.label)}${a.waiting ? ` · ${a.waiting} 件没回` : ""}</small></div>`));
+    // 未读：结果写进了某段对话，但你当时没开着它。点一下打开，看过就清掉
+    const unreadRows = (pr.unread || []).map((u) => { const s = u.path === "main" ? null : find(u.path); return `<button class="row" ${s ? `data-thread="${esc(u.path)}"` : 'data-path="main"'} title="${esc(u.text.slice(0, 200))}"><span class="dot-st working"></span><span class="name">${esc(u.title || u.text.slice(0, 24))}</span><small>${esc(u.from)}</small></button>`; });
+    rows.unshift(...unreadRows);
+    html += card(`收发室${pr.unreadCount ? ` · ${pr.unreadCount} 条未读` : ""}`, rows.length ? rows.join("") : '<div class="none">还没有外部 agent，在数据目录 postroom/mailbox/ 下建个文件夹就能接上</div>');
+  }
   const todo = tasks.filter((t) => t.status === "todo").sort((x, y) => String(x.when || "z").localeCompare(String(y.when || "z")));
   html += `<div><h3>待办和定时<button class="board-link" data-board>看板</button></h3><div class="card">${todo.length ? todo.slice(0, 8).map((t) => `<button class="row" data-board title="${esc(t.prompt || "")}">${avatar(t.agent)}<span class="name">${esc(t.title)}</span><small class="st">${esc(t.repeat || todoWhen(t))}</small></button>`).join("") : '<div class="none">还没有待办和定时任务，跟宝说「每天 9 点…」「明天提醒我…」就会记在这里</div>'}</div></div>`;
   html += card("后台任务", bg.length ? bg.map(row).join("") : '<div class="none">还没有后台任务</div>');
@@ -605,12 +630,12 @@ function renderBoard() {
   const st = { queued: "排队中", running: "进行中", done: "完成", failed: "失败", interrupted: "中断", cancelled: "已取消" };
   const btn = (act, id, label, cls = "") => `<button class="${cls}" data-task-act="${act}" data-id="${esc(id)}">${label}</button>`;
   const open = (t) => (t.session ? `<button data-thread="${esc(t.session)}">打开对话</button>` : "");
-  const tcard = (t, meta, acts, extra = "") => `<div class="tcard"><div class="t">${avatar(t.agent)}<span class="tt" title="${esc(t.prompt || "")}">${esc(t.title)}</span></div><div class="meta">${meta}</div>${extra}${acts ? `<div class="acts">${acts}</div>` : ""}</div>`;
+  const tcard = (t, meta, acts, extra = "") => `<div class="tcard"><div class="t">${avatar(t.agent)}<span class="tt" title="${esc(t.prompt || "")}">${esc(t.title)}</span></div><div class="meta">${meta}</div>${t.doneWhen ? `<div class="meta" title="完成标准">✓ ${esc(t.doneWhen)}</div>` : ""}${t.watching ? `<div class="meta" title="做完后还在盯的事，有新消息会接着办">👀 ${esc(t.watching)}</div>` : ""}${extra}${acts ? `<div class="acts">${acts}</div>` : ""}</div>`;
   const cols = [
     ["待办", tasks.filter((t) => t.status === "todo").sort((x, y) => String(x.when || "z").localeCompare(String(y.when || "z"))),
       (t) => tcard(t, esc(todoWhen(t)), btn("run", t.id, t.repeat ? "现在跑一次" : "开始") + btn("cancel", t.id, "取消", "danger"))],
     ["进行中", tasks.filter((t) => t.status === "running" || t.status === "queued"),
-      (t) => { const s = t.session && find(t.session); return tcard(t, esc(t.status === "queued" ? "排队中" : s && s.live ? s.live.status : "进行中"), open(t) + (t.status === "queued" ? btn("cancel", t.id, "取消", "danger") : "")); }],
+      (t) => { const s = t.session && find(t.session); return tcard(t, esc(t.status === "queued" ? "排队中" : s && s.live ? s.live.status : t.executor ? `${t.executor} 在做` : "进行中"), open(t) + btn("stop", t.id, t.status === "queued" ? "取消" : "停下", "danger")); }],
     ["等你", tasks.filter((t) => t.status === "blocked"),
       (t) => tcard(t, "卡住了，等你回答", (t.session ? `<button data-thread="${esc(t.session)}">去回答</button>` : "") + btn("cancel", t.id, "不做了", "danger"), `<div class="q">${esc(t.question || "")}</div>`)],
     ["完成", tasks.filter((t) => ["done", "failed", "interrupted", "cancelled"].includes(t.status)).sort((x, y) => String(y.finished || "").localeCompare(String(x.finished || ""))).slice(0, 30),
@@ -983,6 +1008,8 @@ document.addEventListener("keydown", (e) => {
 });
 
 document.body.addEventListener("click", (e) => {
+  const pd = e.target.closest("[data-pr-dismiss]");
+  if (pd) return fetch("/api/postroom/dismiss", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: pd.dataset.prDismiss }) });
   const dc = e.target.closest("[data-decide]");
   if (dc) return decide(dc.dataset.id, dc.dataset.decide);
   const st = e.target.closest("[data-settings]");

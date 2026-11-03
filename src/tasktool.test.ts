@@ -35,7 +35,7 @@ test("kiki_task：定时、重复、等待、只记下", async () => {
   r = await call(task, { action: "list" });
   assert.match(r.text, /\[定时\] 早报 · life · 工作日 09:00，下次 明天 09:00/);
   r = await call(task, { action: "cancel", id: first.id });
-  assert.match(r.text, /已取消：提醒买菜/);
+  assert.match(r.text, /已停下「提醒买菜」/);
 });
 
 test("kiki_task：看不懂的时间和规则、没有的宝都报错", async () => {
@@ -53,4 +53,34 @@ test("kiki_ask_user：只在后台任务里有效", async () => {
   t.session = "/fake/dev/活.jsonl";
   const r = await call(ask, { question: "选 A 还是 B？" }, t.session);
   assert.equal(r.err, false);
+});
+
+test("kiki_watch：只在后台任务里用；记进关注清单并写到任务卡上；stop 拿掉", async () => {
+  const tasks = new Tasks(new MemoryTaskStore(), { spawn: async () => "/bg.jsonl", send: async () => "ok", note: async () => {} }, { now: () => now });
+  const added: any[] = [];
+  const removed: string[] = [];
+  let on = false;
+  const tools = taskTools({
+    tasks,
+    listBaos: () => ["dev"],
+    baoOf: () => "dev",
+    watch: () => (on ? { add: (w) => (added.push(w), "w1"), remove: (id, agent) => void removed.push(`${agent}:${id}`) } : undefined),
+  });
+  const watch = tools.find((t) => t.name === "kiki_watch")!;
+  const call = async (p: any, file: string) => {
+    const r: any = await watch.execute("id", p, undefined, undefined, { sessionManager: { getSessionFile: () => file } } as any);
+    return { text: r.content[0].text as string, err: !!r.isError };
+  };
+  assert.equal((await call({ about: "a", match: "m" }, "/chat.jsonl")).err, true);
+  const t = tasks.start({ agent: "dev", title: "报名", prompt: "p" });
+  await new Promise((r) => setTimeout(r, 10));
+  assert.match((await call({ about: "a", match: "m" }, "/bg.jsonl")).text, /还没接上/);
+  on = true;
+  const r = await call({ about: "等审核结果，通过后交材料", match: "发件人 X 项目" }, "/bg.jsonl");
+  assert.match(r.text, /已记进关注清单/);
+  assert.deepEqual(added[0], { taskId: t.id, title: "报名", about: "等审核结果，通过后交材料", match: "发件人 X 项目", until: undefined, agent: "dev", session: "/bg.jsonl" });
+  assert.equal(t.watching, "等审核结果，通过后交材料");
+  await call({ action: "stop" }, "/bg.jsonl");
+  assert.deepEqual(removed, [`dev:${t.id}`]);
+  assert.equal(t.watching, undefined);
 });

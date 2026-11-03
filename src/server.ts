@@ -15,6 +15,8 @@ import type { Agents, ChatLine } from "./agents.js";
 import type { Approvals, Decision } from "./approval.js";
 import { rejectReason, tailscaleIp } from "./guard.js";
 import type { Registry } from "./registry.js";
+import { answerText, deliveryText, type Postroom } from "./postroom.js";
+import type { Notifier } from "./notify.js";
 import type { Router } from "./router.js";
 import { OPEN } from "./tasks.js";
 import { Logins } from "./login.js";
@@ -27,6 +29,7 @@ const run = promisify(execFile);
 
 const MAIN = "main"; // 主 bot 在网页里的 path
 const CHAT_ID = "app"; // 主 bot 在路由器眼里的聊天 id
+const POSTROOM_CHAT = "postroom"; // 收发室交给奇奇的消息，单独一个聊天 id，不打乱你自己的“当前对话”
 const STATIC: Record<string, string> = {
   "/manifest.webmanifest": "application/manifest+json",
   "/icon.svg": "image/svg+xml",
@@ -50,6 +53,8 @@ export function startServer(opts: {
   router: Router;
   updater?: Updater;
   approvals?: Approvals;
+  postroom?: Postroom;
+  notifier?: Notifier;
 }) {
   const { agents, registry, router } = opts;
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
@@ -129,12 +134,69 @@ export function startServer(opts: {
       ? readFileSync(mainLog, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l))
       : [];
 
+  // 通知通道之一：Kiki 界面，在奇奇的聊天里多一条
+  opts.notifier?.add({ id: "kiki-ui", name: "Kiki 界面", send: (n) => mainSay("assistant", `${n.urgent ? "⚠️ " : "📮 "}${n.title}\n\n${n.text}`) });
+
+  // 收发室：收件箱里的新消息交给奇奇分派（和你在奇奇里说话走同一条路，聊天 id 单独一个），
+  // 奇奇的回执经通知通道告诉你；回复某次派活的，直接记回派活的那段对话
+  const pr = opts.postroom;
+  const viewing = new Map<string, number>(); // path -> 最近一次报“正开着”的时间
+  if (pr) {
+    pr.deliver = (it) =>
+      new Promise((ok, fail) => {
+        let first = "";
+        router
+          .handle(POSTROOM_CHAT, deliveryText(it, (b) => agents.exists(b)), async (r) => {
+            first ||= r;
+            void opts.notifier?.send({
+              title: `收发室 · 「${it.from}」发来${it.title ? `「${it.title}」` : "一条消息"}`,
+              text: r,
+              source: `收发室 · ${it.from}`, // 重要的收到时已经单独提醒过，这里是奇奇的回执，不再弹系统通知
+            });
+            push("tree", tree());
+          })
+          .then(() => ok(first), fail);
+      });
+    pr.answer = async (it, sent) => {
+      const rec = sent.origin ? registry.byPath(sent.origin) : undefined;
+      if (!rec) return false;
+      await agents.note(rec.agent, rec.path, answerText(it, sent));
+      return true;
+    };
+    // 只在你没开着那段对话时才会走到这里：告诉你结果写在哪了
+    pr.notify = async (it) => {
+      const rec = it.path && it.path !== MAIN ? registry.byPath(it.path) : undefined;
+      const where = rec ? `\n\n结果在 [${rec.name === "主对话" ? rec.agent : rec.name}](kiki:${rec.agent}/${rec.name})` : "";
+      const title = it.status === "replied" || it.re ? `「${it.from}」回复了${it.title ? `「${it.title}」` : ""}` : (it.title ?? `「${it.from}」有新消息`);
+      const why = it.urgent ? `（重要：${it.urgent}）\n` : "";
+      await opts.notifier?.send({ title, text: `${why}${it.text.length > 600 ? `${it.text.slice(0, 600)}…` : it.text}${where}`, urgent: !!it.urgent, source: it.from });
+    };
+    // 网页报上来你正开着哪几段对话（中间 + 右栏），90 秒内没再报就当你不在了
+    pr.isViewing = (p) => (viewing.get(p) ?? 0) > Date.now() - 90_000;
+    pr.followUp = async (session, watch, it) => {
+      const rec = registry.find(session)[0];
+      if (!rec) throw new Error(`找不到对话「${session}」`);
+      const msg = `【收发室】你之前办的「${watch}」有新消息（来自 ${it.from}）：\n\n${it.title ? `${it.title}\n` : ""}${it.text}\n\n（请对照之前做过的事，用几句话说清楚现在需要用户做什么，或者你接下来做什么。）`;
+      agents
+        .send(rec.agent, rec.path, msg)
+        .then((r) => agents.announce(rec.path, r))
+        .catch((e) => agents.announce(rec.path, `出错了：${(e as Error).message}`));
+      return `已交回 [${rec.name === "主对话" ? rec.agent : rec.name}](kiki:${rec.agent}/${rec.name})，它会带着之前的上下文给出下一步。`;
+    };
+    pr.on("change", () => push("tree", tree()));
+    // 分派失败、外部 agent 出错：也经通知通道说一声（不只是情况栏里一行）
+    pr.on("attention", (a: { title: string; why: string; from: string }) =>
+      void opts.notifier?.send({ title: `收发室 · 「${a.from}」${a.title}`, text: a.why, urgent: true, source: `收发室 · ${a.from}` }),
+    );
+  }
+
   const tree = () => ({
     // 没结束的全给（待办、定时、等你…），结束了的只给最近 40 个
     tasks: [...router.tasks.list((t) => OPEN.includes(t.status)), ...router.tasks.list((t) => !OPEN.includes(t.status)).slice(-40)],
     current: registry.current(CHAT_ID)?.path,
     main: mainLive, // 奇奇正在分派的进度，没有就是 null
     acks: acks.list(), // 气泡上挂着的表情
+    postroom: pr?.state() ?? null, // 收发室：外部 agent 的状态、要你看的
     agents: agents.listAgents().map((name) => ({
       name,
       ...baoLook(opts.dataDir, name), // 头像 emoji
@@ -158,6 +220,45 @@ export function startServer(opts: {
       return json(tree());
     }
     if (url.pathname.startsWith("/api/settings")) return settings(req, res, url); // 设置页，见 settings.ts
+
+    // 收发室：GET 看一览；POST /api/postroom/poll 立刻收一轮、send {agent, text, title} 派活、dismiss {id} 不用再看
+    // 网页报：你现在正开着哪几段对话（页面藏到后台时报空）。收发室据此决定提不提醒、清掉未读
+    if (url.pathname === "/api/viewing" && req.method === "POST") {
+      const b = await body();
+      const paths: string[] = Array.isArray(b.paths) ? b.paths.filter((p: unknown) => typeof p === "string") : [];
+      const now = Date.now();
+      for (const [p] of viewing) if (!paths.includes(p)) viewing.delete(p);
+      for (const p of paths) viewing.set(p, now);
+      pr?.markRead(paths);
+      return json({ ok: true });
+    }
+    // 推送：本机程序（或 A2A 推送通知）直接 POST 过来，马上收。/api/postroom/push/<来源名> {title, text, attention, bao, re}
+    if (url.pathname.startsWith("/api/postroom/push/") && req.method === "POST" && pr) {
+      const from = decodeURIComponent(url.pathname.slice("/api/postroom/push/".length));
+      if (!/^[\p{L}\p{N} _.-]{1,40}$/u.test(from)) return json({ error: "来源名不对" }, 400);
+      try {
+        const it = pr.push(from, await body());
+        return json({ ok: true, id: it?.id });
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+    }
+    if (url.pathname.startsWith("/api/postroom") && pr) {
+      if (url.pathname === "/api/postroom") return json(pr.state());
+      if (req.method !== "POST") return json({ error: "要用 POST" }, 405);
+      try {
+        if (url.pathname === "/api/postroom/poll") await pr.poll();
+        else if (url.pathname === "/api/postroom/send") {
+          const b = await body();
+          if (!String(b.text ?? "").trim()) return json({ error: "空消息" }, 400);
+          await pr.send(String(b.agent ?? ""), String(b.text), b.title ? String(b.title) : undefined, undefined, "用户");
+        } else if (url.pathname === "/api/postroom/dismiss") pr.dismiss(String((await body()).id ?? ""));
+        else return json({ error: "not found" }, 404);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      return json(pr.state());
+    }
 
     // 健康检查：自动更新换完版本后靠它确认新版本起来了
     if (url.pathname === "/api/health") return json({ ok: true, version: VERSION });
@@ -351,11 +452,15 @@ export function startServer(opts: {
       return;
     }
 
-    // 看板上的按钮：马上开始 / 取消 / 重跑
+    // 看板上的按钮：马上开始 / 取消或停下 / 重跑
     if (url.pathname.startsWith("/api/tasks/") && req.method === "POST") {
       const { id } = await body();
       const act = url.pathname.slice("/api/tasks/".length);
-      const t = act === "run" ? router.tasks.runNow(id) : act === "cancel" ? router.tasks.cancel(id) : act === "retry" ? router.tasks.retry(id) : undefined;
+      const t =
+        act === "run" ? router.tasks.runNow(id)
+        : act === "cancel" || act === "stop" ? await router.tasks.stop(id)
+        : act === "retry" ? router.tasks.retry(id)
+        : undefined;
       if (!t) return json({ error: "这个任务现在不能这样操作" }, 400);
       return json(t);
     }
