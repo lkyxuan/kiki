@@ -1,8 +1,8 @@
 #!/bin/bash
 # 签名和公证，由 build.sh 调用。没配开发者证书时只做本地签名（和以前一样）。
-#   sign.sh app <Kiki.app>       签整个 App
-#   sign.sh notarize-app <Kiki.app>   App 交给苹果公证，通过后把票据钉进 App
-#   sign.sh dmg <Kiki.dmg>       给 .dmg 签名、公证、钉票据
+#   sign.sh app <Kiki.app>             签整个 App
+#   sign.sh dmg <Kiki.dmg> <Kiki.app>  给 .dmg 签名，整个 .dmg 交给苹果公证一次（里面的 App 一起公证），
+#                                      通过后把票据钉进 .dmg 和 App（自动更新用的 zip 之后再从 App 打）
 #
 # 环境变量（发布流程从 GitHub Secrets 里设好，见 docs/signing.md）：
 #   KIKI_SIGN_IDENTITY   "Developer ID Application: 名字 (团队ID)"；设成 "-" 是 CI 自测：本地签名但开加固运行时
@@ -34,7 +34,7 @@ jget() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{co
 notarize() {
   local f="$1" out status id
   echo "交给苹果公证 $(basename "$f")（一般几分钟）…"
-  out=$(xcrun notarytool submit "$f" "${AUTH[@]}" --wait --timeout 1h --output-format json) || true
+  out=$(xcrun notarytool submit "$f" "${AUTH[@]}" --wait --timeout 2h --output-format json) || true
   echo "$out"
   status=$(printf '%s' "$out" | jget status)
   id=$(printf '%s' "$out" | jget id)
@@ -67,22 +67,15 @@ case "${1:-}" in
     cs "$APP"
     codesign --verify --deep --strict --verbose=2 "$APP"
     ;;
-  notarize-app)
-    APP="$2"
-    auth || { echo "没配公证密钥，跳过公证"; exit 0; }
-    Z="$(mktemp -d)/Kiki.zip"
-    ditto -c -k --keepParent "$APP" "$Z"
-    notarize "$Z"
-    rm -rf "$(dirname "$Z")"
-    xcrun stapler staple "$APP"
-    ;;
   dmg)
-    DMG="$2"
+    DMG="$2"; APP="$3"
     [ -n "$ID" ] && [ "$ID" != "-" ] || exit 0
     codesign --force --timestamp --sign "$ID" "$DMG"
-    auth || exit 0
+    auth || { echo "没配公证密钥，跳过公证"; exit 0; }
+    # 每种芯片只交一次：苹果按代码的哈希发票据，.dmg 里的 App 和外面这份是同一份代码，可以直接钉
     notarize "$DMG"
     xcrun stapler staple "$DMG"
+    xcrun stapler staple "$APP"
     ;;
-  *) echo "用法：sign.sh app|notarize-app|dmg <路径>"; exit 2 ;;
+  *) echo "用法：sign.sh app <Kiki.app> | sign.sh dmg <Kiki.dmg> <Kiki.app>"; exit 2 ;;
 esac
