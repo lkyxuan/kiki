@@ -2,7 +2,7 @@
   "targetRepo": "lkyxuan/kiki-en",
   "targetBranch": "main",
   "api": {
-    "baseUrl": "http://localhost:8787",
+    "baseUrl": "https://api.deepseek.com",
     "model": "deepseek-chat",
     "keyEnv": "DEEPSEEK_API_KEY",
     "maxOutputTokens": 8000,
