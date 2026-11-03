@@ -1,6 +1,9 @@
 # 发布：改 package.json 里的版本号并合进 main（或者推一个同名 tag，或者在 Actions 页面手动运行），这里就会
 # 检查 → 测试 → 打 arm64 和 x64 两个 Kiki.app → 建 GitHub Release（tag 自动建）。这个版本已经发过就跳过。
 # 装好的 Kiki 会在一小时内发现新版本，空闲时自动装上。.dmg 给第一次安装用，自动更新用 .zip。
+# 代码在私有仓库开发，安装包发到公开的 lkyxuan/kiki 的 Releases（已装的 Kiki 一直从那里更新）。
+# 需要 Secret KIKI_PUBLIC_TOKEN：能写 lkyxuan/kiki 的令牌（Fine-grained，只给 lkyxuan/kiki 的 Contents + Workflows 读写）。
+# 开源版 lkyxuan/kiki 自己不跑这个工作流，免得同步旧版本时重复发版。
 name: release
 on:
   push:
@@ -10,8 +13,11 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+env:
+  PUBLIC_REPO: lkyxuan/kiki
 jobs:
   release:
+    if: github.repository != 'lkyxuan/kiki'
     runs-on: macos-latest   # 原生窗口要用 Mac 编译（公开仓库免费）
     steps:
       - uses: actions/checkout@v4
@@ -22,11 +28,12 @@ jobs:
       - name: 这个版本发过没有
         id: ver
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.KIKI_PUBLIC_TOKEN }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::warning::没配 KIKI_PUBLIC_TOKEN，发不到 $PUBLIC_REPO，这次跳过"; echo "skip=1" >> "$GITHUB_OUTPUT"; exit 0; fi
           v=$(node -p 'require("./package.json").version')
           echo "tag=v$v" >> "$GITHUB_OUTPUT"
-          if gh release view "v$v" >/dev/null 2>&1; then echo "v$v 已经发过，跳过"; echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+          if gh release view "v$v" -R "$PUBLIC_REPO" >/dev/null 2>&1; then echo "v$v 已经发过，跳过"; echo "skip=1" >> "$GITHUB_OUTPUT"; fi
       - if: steps.ver.outputs.skip != '1'
         run: npm ci
       - if: steps.ver.outputs.skip != '1'
@@ -80,10 +87,10 @@ jobs:
           else
             echo "::warning::签了名但没有公证（没配公证密钥？），别人第一次打开仍会被拦"
           fi
-      - name: 建 Release
+      - name: 建 Release（发到公开仓库）
         if: steps.ver.outputs.skip != '1'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.KIKI_PUBLIC_TOKEN }}
           TAG: ${{ steps.ver.outputs.tag }}
           NOTARIZED: ${{ steps.gate.outputs.notarized }}
         run: |
@@ -105,8 +112,9 @@ jobs:
           - 已经装过的 Kiki 会自己更新（每小时检查一次），不用重新下载。
           EOF
           fi
+          # tag 打在公开仓库的 main 上（私有仓库的提交公开仓库里没有）；更新说明不自动生成，免得列出私有仓库的提交
           gh release create "$TAG" out/Kiki-mac-arm64.dmg out/Kiki-mac-x64.dmg out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS \
-            --target "$GITHUB_SHA" --title "Kiki $TAG" --notes-file notes.md --generate-notes
+            -R "$PUBLIC_REPO" --title "Kiki $TAG" --notes-file notes.md
       - name: 清掉临时钥匙串
         if: always() && steps.sign.outputs.signed == '1'
         run: security delete-keychain "$RUNNER_TEMP/kiki-signing.keychain-db" || true; rm -f "$RUNNER_TEMP/AuthKey.p8"
