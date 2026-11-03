@@ -33,6 +33,7 @@
   .about-kiki { display: flex; align-items: center; gap: 14px; }
   .about-kiki img { border-radius: 12px; flex: none; }
   .about-kiki b { font-size: 16px; }
+  .about-kiki .slogan { margin-left: 6px; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: .04em; }
   .content { flex: 1; min-width: 0; }
   .pane { display: none; }
   .pane.on { display: block; }
@@ -207,7 +208,7 @@
     <h2>软件更新</h2>
     <div class="card about-kiki">
       <img src="/icon.svg" alt="" width="52" height="52">
-      <div><b>Kiki</b><div class="msg" id="about-ver">读取中…</div><div class="mono msg" id="about-env" title="配置文件"></div></div>
+      <div><b>Kiki</b> <span class="slogan">创造下一个奇迹 · Create the next miracle.</span><div class="msg" id="about-ver">读取中…</div><div class="mono msg" id="about-env" title="配置文件"></div></div>
     </div>
     <div class="card">
       <div id="upd" class="msg">查询中…</div>
