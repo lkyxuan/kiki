@@ -10,7 +10,8 @@ import { parseEnv } from "node:util";
 import { baoDoc, readDuty, setDuty } from "./bao.js";
 import { Extensions, validSource } from "./extensions.js";
 import { listFeatures, setFeature } from "./features.js";
-import { listApproval, removeAlways, setMode } from "./approval.js";
+import { listApproval, removeAlways, setAuto, setMode } from "./approval.js";
+import { macPermissions } from "./macperm.js";
 import { Mcp } from "./mcp.js";
 import { VERSION } from "./update.js";
 
@@ -337,12 +338,23 @@ export function settingsApi(opts: { dataDir: string; port: number }) {
         return json({ error: (e as Error).message }, 400);
       }
     }
-    // 审批：四类动作各自 直接做 / 先问 / 不做，以及“以后都同意”记下的规则
+    // 审批：四类动作各自 直接做（带兜底）/ 先问 / 不做，以及“以后都同意”记下的规则
     if (p === "/api/settings/approval" && !post) return json(listApproval(opts.dataDir));
     if (p === "/api/settings/approval/mode" && post) {
       const { category, mode } = await body();
       try {
         setMode(opts.dataDir, String(category), String(mode));
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      return json({ ok: true });
+    }
+    // Mac 权限：列出要开的系统权限和跳转链接
+    if (p === "/api/settings/mac-permissions" && !post) return json(macPermissions());
+    // 全自动的兜底：对外发送白名单、待发时长、花钱预算
+    if (p === "/api/settings/approval/auto" && post) {
+      try {
+        setAuto(opts.dataDir, await body());
       } catch (e) {
         return json({ error: (e as Error).message }, 400);
       }

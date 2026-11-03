@@ -176,7 +176,7 @@
   .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .choices button { border: 1px solid var(--line-strong); background: var(--card); border-radius: 999px; padding: 5px 14px; text-align: left; font-size: 14px; box-shadow: var(--shadow-sm); }
   .choices button:hover { border-color: var(--accent); color: var(--accent); }
-  /* 等你点头：收不回来的动作做之前先问一句，卡片在输入框上方 */
+  /* 待发 / 超预算的卡片，在输入框上方 */
   #asks { padding: 0 24px; }
   #asks:empty { display: none; }
   .ask { max-width: 740px; margin: 0 auto 10px; border: 1px solid var(--accent); background: var(--card); border-radius: 14px; padding: 12px 12px 12px 16px; box-shadow: var(--shadow), 0 0 0 3px var(--accent-soft); }
@@ -276,6 +276,8 @@
   #panel .dot-st { flex: none; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px; background: var(--faint); }
   #panel .dot-st.idle { background: var(--ok); } #panel .dot-st.working { background: var(--busy, var(--accent)); } #panel .dot-st.error, #panel .dot-st.offline { background: var(--err); }
   #panel .row .x { flex: none; color: var(--faint); padding: 0 2px; font-size: 13px; } #panel .row .x:hover { color: var(--text); }
+  #panel .row .undo { flex: none; font-size: 12px; color: var(--accent); padding: 0 4px; } #panel .row .undo:hover { text-decoration: underline; }
+  #panel .row .done { flex: none; font-size: 12px; color: var(--faint); }
   #panel a { display: inline-block; color: var(--accent); font-size: 13px; text-decoration: none; padding: 4px 0 8px; }
 
   /* 设置弹窗：盖在聊天页上，右上角 ×，Esc 或点外面关掉 */
@@ -432,7 +434,8 @@ const shown = new Set(); // 已经画进折叠卡片的步骤 id，正在进行�
 const unread = new Set();
 const DEFAULT_BAO = "奇奇"; // 默认的宝，和 src/migrate.ts 一致
 const aboutCache = {}; // 宝名 -> AGENTS.md 开头几行
-let asks = []; // 等你点头的卡片
+let asks = []; // 待发、超预算、设成“先问”的卡片
+let actions = []; // Kiki 自动做掉的危险动作（能撤回的带撤回）
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // 对话引用 [名字](kiki:宝/对话) → 行内小卡片，点了在右栏打开那段对话（参数都已经转义过）
@@ -583,7 +586,10 @@ function renderPanel() {
   const back = !peek && lastPeek && find(lastPeek);
   if (back) html += card("刚才看的", `<button class="row" data-thread="${esc(back.path)}">${back.busy ? '<span class="spin"></span>' : avatar(back.agent)}<span class="name">${esc(back.name)}</span><small>${esc(back.agent)}</small></button>`);
   const myAsks = asks.filter((a) => mine(a.agent));
-  if (myAsks.length) html += card("等你点头", myAsks.map((a) => { const s = find(a.path); return `<button class="row" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small>${esc(s ? s.name : a.agent)}</small></button>`; }).join(""));
+  if (myAsks.length) html += card("待发和等你点头", myAsks.map((a) => { const s = find(a.path); return `<button class="row" data-path="${esc(a.path)}">${avatar(a.agent)}<span class="name">${esc(a.kind === "send" ? "待发" : a.kind === "spend" ? "花钱超预算" : a.categoryName)}</span><small>${esc(s ? s.name : a.agent)}</small></button>`; }).join(""));
+  // Kiki 自动做的：删除、强推、发送、花钱都不问你，做完记在这里，能撤回的点一下撤回
+  const myActs = actions.filter((a) => mine(a.agent)).slice(0, 6);
+  if (myActs.length) html += card("Kiki 自动做的", myActs.map((a) => `<div class="row" title="${esc(`${a.label}\n${a.note}${a.undoNote ? `\n撤回：${a.undoNote}` : ""}\n\n${a.detail}`)}">${avatar(a.agent)}<span class="name">${esc(a.categoryName)}</span><small class="st">${esc(new Date(a.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))}</small>${a.undone ? '<span class="done">已撤回</span>' : a.undo ? `<button class="undo" data-undo="${esc(a.id)}">撤回</button>` : ""}</div>`).join(""));
   const stuck = tasks.filter((t) => t.status === "blocked");
   if (stuck.length) html += card("等你回答", stuck.map((t) => `<button class="row" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.question || "")}">${avatar(t.agent)}<span class="name">${esc(t.title)}</span><small>等你</small></button>`).join(""));
   if (bad.length) html += card("出了问题", bad.map((t) => `<button class="row" ${t.session ? `data-thread="${esc(t.session)}"` : ""} title="${esc(t.result || "")}"><span class="bad">!</span><span class="name">${esc(t.title)}</span><small>${t.status === "failed" ? "失败" : "中断"}</small></button>`).join(""));
@@ -663,9 +669,15 @@ function renderAsks() {
   $("#asks").innerHTML = mine.map((a) => {
     const s = find(a.path);
     const where = s ? `${esc(a.agent)} › ${esc(s.name)}` : esc(a.agent);
-    return `<div class="ask"><div class="what"><b>${esc(a.categoryName)}</b> · ${where} 想做这一步，同意吗？</div>
+    const open = current === "main" && s ? `<a data-path="${esc(a.path)}">打开对话</a>` : "";
+    if (a.kind === "send") // 待发：不用你点，到点自动发；不想发就撤回
+      return `<div class="ask"><div class="what"><b>待发</b> · ${where} 要发这条，<span data-left="${esc(a.autoAt)}">${left(a.autoAt)}</span>后自动发出</div>
       <pre>${esc(a.detail)}</pre>
-      <div class="btns"><button class="yes" data-decide="yes" data-id="${a.id}">同意</button><button data-decide="no" data-id="${a.id}">不同意</button><button data-decide="always" data-id="${a.id}" title="${esc(a.label)}">以后这类都同意</button>${current === "main" && s ? `<a data-path="${esc(a.path)}">打开对话</a>` : ""}</div></div>`;
+      <div class="btns"><button class="yes" data-decide="no" data-id="${a.id}">撤回</button><button data-decide="yes" data-id="${a.id}">现在就发</button><button data-decide="always" data-id="${a.id}" title="${esc(a.label)}">以后这类直接发</button>${open}</div></div>`;
+    const what = a.kind === "spend" ? `<b>花钱超预算</b> · ${where}：${esc(a.why || "")}，同意吗？` : `<b>${esc(a.categoryName)}</b> · ${where} 想做这一步，同意吗？`;
+    return `<div class="ask"><div class="what">${what}</div>
+      <pre>${esc(a.detail)}</pre>
+      <div class="btns"><button class="yes" data-decide="yes" data-id="${a.id}">同意</button><button data-decide="no" data-id="${a.id}">不同意</button>${a.kind === "spend" ? "" : `<button data-decide="always" data-id="${a.id}" title="${esc(a.label)}">以后这类都同意</button>`}${open}</div></div>`;
   }).join("");
   // 奇奇按钮上的小点：有卡片在等
   const k = $(".kiki");
@@ -674,6 +686,23 @@ function renderAsks() {
 async function decide(id, decision) {
   const r = await fetch("/api/approvals/decide", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, decision }) });
   if (!r.ok) { asks = asks.filter((a) => a.id !== id); renderSide(); }
+}
+function left(at) {
+  const t = Math.max(0, Math.round((Date.parse(at) - Date.now()) / 1000));
+  return t >= 60 ? `${Math.floor(t / 60)} 分 ${t % 60} 秒` : `${t} 秒`;
+}
+setInterval(() => { for (const el of document.querySelectorAll("[data-left]")) el.textContent = left(el.dataset.left); }, 1000);
+async function loadActions() {
+  try { const r = await fetch("/api/actions?limit=20"); if (r.ok) actions = await r.json(); } catch {}
+  renderSide();
+}
+async function undoAction(id, btn) {
+  btn.disabled = true;
+  const r = await fetch("/api/actions/undo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
+  const j = await r.json().catch(() => ({}));
+  btn.disabled = false;
+  btn.title = r.ok ? j.note || "" : j.error || "撤回没成功";
+  if (!r.ok) btn.textContent = "撤回失败";
 }
 async function loadAsks() {
   try { const r = await fetch("/api/approvals"); if (r.ok) asks = await r.json(); } catch {}
@@ -1012,6 +1041,8 @@ document.body.addEventListener("click", (e) => {
   if (pd) return fetch("/api/postroom/dismiss", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: pd.dataset.prDismiss }) });
   const dc = e.target.closest("[data-decide]");
   if (dc) return decide(dc.dataset.id, dc.dataset.decide);
+  const ud = e.target.closest("[data-undo]");
+  if (ud) return undoAction(ud.dataset.undo, ud);
   const st = e.target.closest("[data-settings]");
   if (st && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); return openSettings(st.dataset.settings); }
   if (e.target.closest("[data-board]")) return openBoard();
@@ -1408,7 +1439,7 @@ function renderLive() {
   let line = $(".pending");
   if (!line) { line = document.createElement("div"); line.className = "msg pending"; line.setAttribute("aria-live", "polite"); }
   const waiting = asks.some((a) => a.path === (l.follow || current));
-  line.innerHTML = `<span class="spin"></span>${l.to && !waiting ? `<span class="via-live">交给 ${chip(esc(l.to.lbl), esc(l.to.title))}</span>` : ""}<span class="what">${esc(waiting ? "等你点头：看下面的卡片" : l.status)}</span><span class="elapsed" data-since="${l.since}">· ${secs(Date.now() - l.since)}</span>`;
+  line.innerHTML = `<span class="spin"></span>${l.to && !waiting ? `<span class="via-live">交给 ${chip(esc(l.to.lbl), esc(l.to.title))}</span>` : ""}<span class="what">${esc(waiting ? "等你看下面的卡片" : l.status)}</span><span class="elapsed" data-since="${l.since}">· ${secs(Date.now() - l.since)}</span>`;
   $("#msgs").appendChild(line);
   $(".hint")?.remove();
   stickBottom(atBottom);
@@ -1491,7 +1522,8 @@ es.addEventListener("error", () => {
 es.addEventListener("update", (e) => renderUpdate(JSON.parse(e.data)));
 // 每次（重新）连上都刷新一下；Kiki 更新重启后版本号变了，就整页重载，用上新网页
 let seenVersion = null;
-es.addEventListener("open", () => { loadAsks(); return fetch("/api/update").then((r) => r.ok && r.json()).then((u) => {
+es.addEventListener("actions", (e) => { actions = JSON.parse(e.data); renderSide(); });
+es.addEventListener("open", () => { loadAsks(); loadActions(); return fetch("/api/update").then((r) => r.ok && r.json()).then((u) => {
     if (!u) return;
     if (seenVersion && seenVersion !== u.current) return location.reload();
     seenVersion = u.current;

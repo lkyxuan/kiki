@@ -332,7 +332,7 @@ export class Tasks extends EventEmitter {
     const t = this.all.get(id);
     const msg = message.trim();
     if (!t || !msg) return undefined;
-    const say = `你在盯的事有新消息（${t.watching ?? t.title}）：\n\n${msg}\n\n看看现在需要做什么：能自己办的就办；要用户做决定或亲自操作的，用 kiki_ask_user 问，或者在结果里写清楚要用户做什么；这件事不用再盯了就用 kiki_watch action=stop。`;
+    const say = `你在盯的事有新消息（${t.watching ?? t.title}）：\n\n${msg}\n\n看看现在需要做什么：能自己办的就直接办，拿不准按最合理的假设办完再说明；只有缺用户手里的材料（验证码、照片、本人登录）才用 kiki_ask_user；这件事不用再盯了就用 kiki_watch action=stop。`;
     if (notify) this.notifiers.set(t.id, notify);
     switch (t.status) {
       case "todo":

@@ -227,7 +227,7 @@ test("交接（聊）：新开对话，第一条消息是交接说明，重名�
   const r = await router.handoff({ fromPath: from, bao: "life", name: "买电脑", brief: "【目标】选一台 Mac", mode: "chat" });
   assert.match(r, /已交接到 life\/买电脑/);
   await new Promise((x) => setTimeout(x, 5));
-  assert.match(ctl.sends.at(-1)!, /从「dev\/主线」交接过来.*\n\n【目标】选一台 Mac\n\n先读完/s);
+  assert.match(ctl.sends.at(-1)!, /从「dev\/主线」交接过来.*\n\n【目标】选一台 Mac\n\n先用一句话说你理解的目标，然后直接/s);
   assert.match(ctl.announced.at(-1)!, /交接过来/, "新对话的回答要通知界面收尾");
   await router.handoff({ fromPath: from, bao: "life", name: "买电脑", brief: "x", mode: "chat" });
   assert.ok(reg.get("life", "买电脑2"));
@@ -493,7 +493,7 @@ test("后台任务卡住：收件箱说清楚卡在哪，/answer 后接着做完
   };
   await say("/bg 整理周报");
   await new Promise((r) => setTimeout(r, 10));
-  assert.match(out.at(-1)!, /⏸ 后台任务「整理周报」卡住了，等你回答.*\n\n重点写哪个项目？\n\n.*\/answer /s);
+  assert.match(out.at(-1)!, /⏸ 后台任务「整理周报」缺一样东西，等你给.*\n\n重点写哪个项目？\n\n.*\/answer /s);
   const id = router.tasks.list()[0].id;
   await say(`/answer ${id} Kiki`);
   await new Promise((r) => setTimeout(r, 10));

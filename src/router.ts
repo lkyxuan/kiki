@@ -442,7 +442,7 @@ export class Router {
     if (t.status === "failed") return `❌ 后台任务「${t.title}」失败${tag}：${t.result}\n想重跑：/retry ${t.id}`;
     if (t.status === "cancelled" && t.started) return `⏹ 后台任务「${t.title}」已停下${tag}。`;
     if (t.status === "blocked")
-      return `⏸ 后台任务「${t.title}」卡住了，等你回答${tag}：\n\n${t.question}\n\n直接在那段对话里回一句，或者 /answer ${t.id} 你的回答。`;
+      return `⏸ 后台任务「${t.title}」缺一样东西，等你给${tag}：\n\n${t.question}\n\n直接在那段对话里回一句，或者 /answer ${t.id} 你的回答。`;
     return undefined;
   }
 
