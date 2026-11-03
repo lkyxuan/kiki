@@ -381,6 +381,7 @@
   <div class="label" id="baos-label">我的宝</div>
   <div id="agents"></div>
   <button class="item add-bao" id="add-bao"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="name">新建一个宝</span></button>
+  <button class="item add-bao" id="import-bao"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="name">导入一个宝</span></button>
   <a class="item settings" href="/settings.html" data-settings><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="name">设置</span></a>
 </aside>
 <main>
@@ -433,7 +434,7 @@
 <div id="newbao" role="dialog" aria-modal="true" aria-labelledby="newbao-title" hidden>
   <form autocomplete="off">
     <h2 id="newbao-title">新建一个宝</h2>
-    <p class="sub">其他都用默认的，以后在「编辑说明」里随时改。也可以<button type="button" class="linkbtn import-link">导入别人分享的宝</button>。</p>
+    <p class="sub">其他都用默认的，以后在「编辑说明」里随时改。</p>
     <label>名字<input name="name" maxlength="40" placeholder="比如 工作、家里、学英语" required></label>
     <label>我负责什么（可不填）<textarea name="about" rows="2" maxlength="500" placeholder="比如：帮我管工作上的项目、会议和邮件"></textarea></label>
     <div><label style="margin-bottom:5px">头像</label><div class="faces"></div></div>
@@ -986,7 +987,6 @@ function baoDialog(editing, info = {}) {
   const share = box.querySelector(".share");
   share.hidden = !editing; share.querySelector(".done").textContent = "";
   share.querySelector(".export").onclick = () => exportBao(editing, share.querySelector(".done"));
-  box.querySelector(".import-link").onclick = () => { close(); importBao(); };
   f.querySelector(".primary").textContent = editing ? "保存" : "创建";
   f.name.readOnly = !!editing;
   f.name.title = editing ? "宝的名字暂时不能改" : "";
@@ -1330,6 +1330,7 @@ addEventListener("blur", hideCtx);
 addEventListener("resize", hideCtx);
 $("#peek-del").onclick = () => peek && deleteThread(peek);
 $("#add-bao").onclick = newBao;
+$("#import-bao").onclick = () => importBao();
 $("aside").addEventListener("keydown", (e) => { const bh = e.target.closest?.("[data-bao]"); if (bh && e.target === bh && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openBao(bh.dataset.bao); } });
 $("#panel-toggle").onclick = togglePanel;
 $("#send").onclick = send;
