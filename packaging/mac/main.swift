@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var base = URL(string: "http://localhost:4567")!  // 当前连的 Kiki
     var loaded = false
     var generation = 0  // 切换连接时作废旧的等待/重试
+    var lastConnectError = ""  // 最近一次连接失败的原因，显示在「连不上」对话框里
     // 启动页（public/splash.html）：开场动画放完、后台也好了，才进主界面
     var splashOn = false      // 现在窗口里是不是启动页
     var splashReady = false   // 启动页加载完了，可以调它的 kikiSplash.*
@@ -143,9 +144,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 
     func connect() {
+        lastConnectError = ""
         generation += 1
         loaded = false
-        if isRemote, let url = URL(string: server!) {
+        if isRemote, let url = normalizedRemote(server!) ?? URL(string: server!) {
             base = url
             showSplash("正在连接 \(url.host ?? "")…")
             waitForServer(tries: 0, gen: generation)
@@ -211,15 +213,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     func normalizedRemote(_ raw: String) -> URL? {
         var text = raw.trimmingCharacters(in: .whitespaces)
-        // 只填了 IP（比如 Tailscale 的 100.x.x.x:8889）就用 http：HTTPS 证书只认 .ts.net 名字，IP 用不了；Tailscale 本身已经加密
+        // 只填了 IP（比如 Tailscale 的 100.x.x.x:4567）就用 http：HTTPS 证书只认 .ts.net 名字，IP 用不了；Tailscale 本身已经加密
         if !text.isEmpty && !text.contains("://") {
             let host = text.split(separator: "/").first.map(String.init) ?? text
             let isIp = host.first == "[" || host.split(separator: ":").first.map { $0.allSatisfy { $0.isNumber || $0 == "." } } == true
             text = (isIp ? "http://" : "https://") + text
         }
         while text.hasSuffix("/") { text.removeLast() }
-        guard let url = URL(string: text), url.host != nil, ["http", "https"].contains(url.scheme ?? "") else { return nil }
-        return url
+        guard var c = URLComponents(string: text), let host = c.host, ["http", "https"].contains(c.scheme ?? "") else { return nil }
+        // IP 没写端口：Kiki 在 Tailscale IP 上直接开的是 4567，补上（80/443 上没有 Kiki）
+        if c.port == nil && c.scheme == "http" && (host.contains(":") || host.allSatisfy { $0.isNumber || $0 == "." }) { c.port = 4567 }
+        return c.url
     }
 
     // 点 Dock 图标时把窗口叫回来
@@ -389,9 +393,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     func waitForServer(tries: Int, gen: Int) {
         var req = URLRequest(url: base.appendingPathComponent("api/health"))
         req.timeoutInterval = 3
-        URLSession.shared.dataTask(with: req) { data, resp, _ in
+        URLSession.shared.dataTask(with: req) { data, resp, err in
             DispatchQueue.main.async {
                 guard gen == self.generation else { return }
+                if let err = err { self.lastConnectError = err.localizedDescription; NSLog("Kiki 连接失败：%@", err.localizedDescription) }
+                else if let code = (resp as? HTTPURLResponse)?.statusCode, code != 200 { self.lastConnectError = "服务器回了 \(code)" }
                 let ok = (resp as? HTTPURLResponse)?.statusCode == 200
                     && String(data: data ?? Data(), encoding: .utf8)?.contains("\"ok\":true") == true
                 if ok {
@@ -405,7 +411,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.waitForServer(tries: tries + 1, gen: gen) }
                 } else if self.isRemote {
                     self.showSplash("连不上 \(self.base.absoluteString)")
-                    self.chooseServer(firstTime: false, error: "连不上 \(self.base.absoluteString)。")
+                    self.chooseServer(firstTime: false, error: "连不上 \(self.base.absoluteString)。" + (self.lastConnectError.isEmpty ? "" : "\n原因：\(self.lastConnectError)\n如果是「本地网络」被拦，到 系统设置 → 隐私与安全性 → 本地网络 打开 Kiki。"))
                 } else {
                     self.showSplash("Kiki 没能启动。日志在 ~/Library/Logs/Kiki/server.log")
                 }
