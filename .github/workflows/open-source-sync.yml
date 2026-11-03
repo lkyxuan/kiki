@@ -21,6 +21,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false   # 否则 checkout 留下的本仓库令牌会盖过下面 public 远端里的 KIKI_PUBLIC_TOKEN
       - name: 推三个月前的版本到开源版
         env:
           TOKEN: ${{ secrets.KIKI_PUBLIC_TOKEN }}
