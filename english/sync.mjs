@@ -5,7 +5,6 @@
 // 只处理这之后改过的文件。对每个改过的中文文件，把“中文旧版、中文新版、英文旧版”
 // 一起交给模型，让它只改需要改的地方，英文其余部分保持不动。
 // 全量模式（--full 或第一次）：所有文件从头翻译。
-import Anthropic from "@anthropic-ai/sdk";
 import { minimatch } from "minimatch";
 import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -33,7 +32,6 @@ const base = !flag("--full") && existsSync(commitFile) ? readFileSync(commitFile
 const paths = existsSync(pathsFile) ? JSON.parse(readFileSync(pathsFile, "utf8")) : {};
 const excluded = (p) => rules.exclude.some((g) => minimatch(p, g, { dot: true }));
 const isText = (buf) => !buf.subarray(0, 8000).includes(0);
-const client = dryRun ? null : new Anthropic();
 
 // ---- 要处理哪些文件 ----
 let changes = []; // {status: "A"|"M"|"D", path, old?}
@@ -66,25 +64,50 @@ Rules:
 - Tests must keep passing: if a test asserts on a string, translate it exactly the way the code under test is translated. Use the glossary and the path map for every term.
 - In READMEs, drop the language switcher line that links to the Chinese README, and drop Chinese-only content (e.g. links to Chinese communities) only if it makes no sense for an English reader.
 - Chinese-specific example content (Chinese names, Chinese apps) may be adapted to natural English equivalents.
-- Output only the full file contents, with no code fences and no commentary.
+- Output only the translated text (or the JSON when asked), with no code fences and no commentary.
 
 Glossary (follow it exactly):
 ${glossary}`;
 
-async function ask(user, maxTokens = 128000) {
-  const stream = client.beta.messages.stream({
-    model: rules.model,
-    max_tokens: maxTokens,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: { effort: "medium" },
-    system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
-    messages: [{ role: "user", content: user }],
-  });
-  const msg = await stream.finalMessage();
-  if (msg.stop_reason === "refusal") throw new Error("model refused");
-  if (msg.stop_reason === "max_tokens") throw new Error("output too long");
-  return msg.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+// 模型走 OpenAI 兼容接口（默认 DeepSeek），配置在 rules.json 的 api 里
+const api = rules.api;
+async function ask(user, { json = false, maxTokens = api.maxOutputTokens } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(`${api.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${process.env[api.keyEnv]}` },
+        body: JSON.stringify({
+          model: api.model,
+          max_tokens: maxTokens,
+          temperature: 0,
+          ...(json ? { response_format: { type: "json_object" } } : {}),
+          messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }],
+        }),
+      });
+      if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+      const data = await res.json();
+      const choice = data.choices[0];
+      if (choice.finish_reason === "length") throw new Error("output too long");
+      return choice.message.content.replace(/^```[a-z]*\n([\s\S]*?)\n```\s*$/, "$1");
+    } catch (e) {
+      if (attempt >= 3) throw e;
+      console.log(`  retry ${attempt}: ${e.message.slice(0, 200)}`);
+      await new Promise((r) => setTimeout(r, 5000 * attempt));
+    }
+  }
+}
+
+// 按行切块，每块不超过 chunkChars，整份翻译时逐块翻
+function chunks(text) {
+  const lines = text.split("\n"), out = [];
+  let cur = [];
+  for (const l of lines) {
+    if (cur.length && cur.join("\n").length + l.length > api.chunkChars) { out.push(cur.join("\n")); cur = []; }
+    cur.push(l);
+  }
+  out.push(cur.join("\n"));
+  return out;
 }
 
 const pathMapText = () => Object.entries(paths).map(([a, b]) => `${a} -> ${b}`).join("\n") || "(empty)";
@@ -96,7 +119,7 @@ async function translatePath(p) {
   const dirEn = dir ? await translatePath(dir) : "";
   const name = p.slice(p.lastIndexOf("/") + 1);
   const nameEn = CJK.test(name)
-    ? dryRun ? `__EN__${name}` : (await ask(`Translate this file or folder name to English. Keep the extension. Use the glossary. Prefer short names that match how the code refers to them. Existing path map:\n${pathMapText()}\n\nName: ${name}\n\nOutput only the new name.`, 2000)).trim()
+    ? dryRun ? `__EN__${name}` : (await ask(`Translate this file or folder name to English. Keep the extension. Use the glossary. Prefer short names that match how the code refers to them. Existing path map:\n${pathMapText()}\n\nName: ${name}\n\nOutput only the new name.`, { maxTokens: 200 })).trim()
     : name;
   return (paths[p] = dirEn ? `${dirEn}/${nameEn}` : nameEn);
 }
@@ -111,9 +134,27 @@ async function translateFile(p, oldZhPath) {
   if (base && oldEn) { try { oldZh = git("show", `${base}:${oldZhPath ?? p}`); } catch {} }
   const header = `File: ${p}\nPath map (Chinese path -> English path):\n${pathMapText()}\n\n`;
   if (oldZh != null && oldEn != null) {
-    return ask(`${header}The Chinese file changed. Update the existing English translation so it matches the new Chinese version. Change only what the Chinese change requires; keep every other line of the English file exactly as it is.\n\n<old_chinese>\n${oldZh}\n</old_chinese>\n\n<new_chinese>\n${newZh}\n</new_chinese>\n\n<old_english>\n${oldEn}\n</old_english>\n\nOutput the full new English file.`);
+    const diff = git("diff", "-U5", base, head, "--", ...(oldZhPath ? [oldZhPath, p] : [p]));
+    try {
+      const raw = await ask(`${header}The Chinese file changed (diff below). Update the existing English translation to match. Return JSON {"edits": [{"find": "...", "replace": "..."}]} where each "find" is an exact snippet copied from the current English file that occurs exactly once in it (include enough surrounding text to make it unique), and "replace" is its new text. To insert, include a neighbouring line in both. Change only what the diff requires.\n\n<chinese_diff>\n${diff}\n</chinese_diff>\n\n<current_english>\n${oldEn}\n</current_english>`, { json: true });
+      let text = oldEn;
+      for (const { find, replace } of JSON.parse(raw).edits ?? []) {
+        if (!find || text.split(find).length !== 2) throw new Error(`edit not found once: ${String(find).slice(0, 80)}`);
+        text = text.replace(find, () => replace);
+      }
+      return text;
+    } catch (e) {
+      console.log(`  ${p}: incremental update failed (${e.message.slice(0, 120)}), retranslating whole file`);
+    }
   }
-  return ask(`${header}Translate this file.\n\n<chinese>\n${newZh}\n</chinese>`);
+  const parts = chunks(newZh);
+  const outParts = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (!CJK.test(parts[i])) { outParts.push(parts[i]); continue; }
+    const where = parts.length > 1 ? `This is part ${i + 1} of ${parts.length} of the file; translate only this part and keep exactly the same line breaks.\n\n` : "";
+    outParts.push(await ask(`${header}${where}Translate:\n\n<chinese>\n${parts[i]}\n</chinese>`));
+  }
+  return outParts.join("\n");
 }
 
 // 规则是正则，必须幂等：增量同步时旧英文里已替换过的内容会原样保留，再替换一次不能变
@@ -150,7 +191,7 @@ for (const c of changes) {
 let message = "Sync from upstream";
 if (!dryRun && base) {
   const log = git("log", "--format=%s%n%b", `${base}..${head}`).slice(0, 20000);
-  message = (await ask(`Write one English git commit message (a short subject line, a blank line, then a few bullet points) summarizing these upstream commits for the English edition of Kiki. Do not mention translation, the Chinese edition or commit hashes.\n\n${log}`, 4000)).trim();
+  message = (await ask(`Write one English git commit message (a short subject line, a blank line, then a few bullet points) summarizing these upstream commits for the English edition of Kiki. Do not mention translation, the Chinese edition or commit hashes.\n\n${log}`, { maxTokens: 1000 })).trim();
 } else if (!base) message = "Initial public release";
 
 if (!dryRun) {

@@ -1,7 +1,13 @@
 {
   "targetRepo": "lkyxuan/kiki-en",
   "targetBranch": "main",
-  "model": "claude-opus-5-5",
+  "api": {
+    "baseUrl": "http://localhost:8787",
+    "model": "deepseek-chat",
+    "keyEnv": "DEEPSEEK_API_KEY",
+    "maxOutputTokens": 8000,
+    "chunkChars": 12000
+  },
   "exclude": [
     "english/**",
     ".github/workflows/english-sync.yml",
@@ -31,6 +37,7 @@
   ],
   "_notes": {
     "replace": "翻译完成后对英文文本做的正则替换，顺序执行，必须幂等（对已替换过的文本再跑一次不变，脚本启动时会检查）。用来让英文版有独立的 App ID、自动更新仓库和数据文件夹（~/Kiki），可以和中文版装在同一台 Mac 上。",
-    "exclude": "这些路径不进英文仓库。"
+    "exclude": "这些路径不进英文仓库。",
+    "api": "翻译用的模型，任何 OpenAI 兼容接口都行（DeepSeek、OpenRouter、Kiki Portal……）。密钥从 keyEnv 指定的环境变量读，GitHub 里配成同名 Secret。chunkChars 是整份翻译时每块的最大字符数，要让一块的英文输出不超过 maxOutputTokens。"
   }
 }

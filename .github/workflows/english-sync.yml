@@ -1,6 +1,6 @@
 # 中文仓库每次合并到 main，就把改动翻译成英文，推到英文仓库（见 english/README.md）。
 # 需要的配置：
-#   Secrets  ANTHROPIC_API_KEY   翻译用的 Claude API 密钥
+#   Secrets  DEEPSEEK_API_KEY    翻译用的模型密钥（见 english/rules.json 的 api）
 #            KIKI_EN_TOKEN       能推送英文仓库的 GitHub 令牌（Fine-grained，只给英文仓库 Contents + Pull requests 读写）
 #   Variables KIKI_EN_ENABLED=true  配好之后再打开，没打开时这个工作流什么都不做
 name: english-sync
@@ -41,7 +41,7 @@ jobs:
           git checkout "$EN_BRANCH" 2>/dev/null || git checkout -b "$EN_BRANCH"
       - name: 翻译
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           npm ci --prefix english
           node english/sync.mjs --en en ${{ inputs.full && '--full' || '' }}
