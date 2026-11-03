@@ -15,6 +15,7 @@ import { kikiTools } from "./tools.js";
 import { lookTool } from "./look.js";
 import { type FeatureId, isOn } from "./features.js";
 import { Summaries } from "./summary.js";
+import { WorkBook, WorkSorter } from "./work.js";
 import { MAIN_SESSION } from "./bao.js";
 import { addRuleSections, addSetupBao, DEFAULT_BAO, SETUP_BAO, dropConfirmLine, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
 import { Coders } from "./coders.js";
@@ -100,10 +101,20 @@ const TOOL_FEATURE: Record<string, FeatureId> = {
 // 关注清单（收发室接上后赋值，每个宝一份，在 agents/<宝>/ 下）：任务做完还要盯的事；有相关新消息时收发室调 router.tasks.followUp(任务id, 消息)
 let watchList: WatchList | undefined;
 // 每段对话一句话摘要：回完话后台更新（registry.json 里的 summary），路由和主对话都只看摘要
+// 工作：右栏按“宝在做的事”归类。摘要写好后，“工作归类”用途替宝的主对话把这段对话归进工作（见 work.ts）
+const works = new WorkBook((a) => agents.agentDir(a));
+const sorter = new WorkSorter({
+  book: works,
+  thread: (p) => registry.byPath(p),
+  history: (p) => agents.history(p),
+  complete: (sys, user) => agents.complete(sys, user, roleModel("work") ?? roleModel("summary")),
+  skip: (p) => !!registry.byPath(p)?.background, // 后台任务的对话不单独归类，任务挂在发起它的对话所在的工作下
+});
 const summaries = new Summaries({
   registry,
   history: (p) => agents.history(p),
   complete: (sys, user) => agents.complete(sys, user, roleModel("summary")),
+  after: (p) => void sorter.run(p),
 });
 agents.on("busy", ({ path, busy }: { path: string; busy: boolean }) => {
   if (!busy) summaries.schedule(path);
@@ -224,6 +235,7 @@ updater.start();
 router.tasks.registerExecutor(BRIEFING, { run: async () => briefing(router.tasks.list(), new Date(), { approvals: approvals.list().length, coders: coders.briefingLines() }) });
 
 startServer({
+  works,
   port,
   dataDir,
   publicDir: join(root, "public"),

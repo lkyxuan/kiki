@@ -4,6 +4,7 @@
 export const ROLES = [
   { id: "route", env: "ROUTE_MODEL", name: "路由", desc: "判断一句话交给哪个宝、哪段对话。用便宜快的小模型就够", unset: "跟默认模型" },
   { id: "summary", env: "SUMMARY_MODEL", name: "对话摘要", desc: "每段对话答完后写一句摘要，路由和宝的主对话靠它认对话", unset: "跟默认模型" },
+  { id: "work", env: "WORK_MODEL", name: "工作归类", desc: "每段对话答完后，把要办的事归进宝的“工作”（右栏按工作显示）", unset: "跟对话摘要的模型" },
   { id: "ack", env: "ACK_MODEL", name: "先回一句", desc: "消息一到先用小模型说一句“收到，我先看 X”，主模型同时开始干活", unset: "不回（只打表情）" },
   { id: "vision", env: "VISION_MODEL", name: "看图", desc: "现在的模型看不了图时，先让它把图读成文字", unset: "自动挑一个能看图的" },
 ] as const;
