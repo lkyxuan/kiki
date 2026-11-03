@@ -102,3 +102,19 @@ export function addRuleSections(dataDir: string, templateDir: string, titles = [
   if (done.length) writeFileSync(file, src);
   return done;
 }
+
+/** 管家：管 Kiki 自己的事的宝（配置、接入 Claude Code / Codex，以后的记忆和升级）。 */
+export const SETUP_BAO = "管家";
+const SETUP_MARK = ".added-setup-bao";
+export const SETUP_PENDING = ".setup-pending"; // 有这个文件：第一次打开 Kiki，网页直接进管家的对话
+
+/** 老数据目录补上管家（只补一次：你删了它就不会再建）。新数据目录从模板拷过来时已经有了。 */
+export function addSetupBao(dataDir: string, templateDir: string): string[] {
+  if (existsSync(join(dataDir, SETUP_MARK))) return [];
+  writeFileSync(join(dataDir, SETUP_MARK), new Date().toISOString() + "\n");
+  const dir = join(dataDir, "agents", SETUP_BAO);
+  if (existsSync(dir)) return [];
+  mkdirSync(join(dataDir, "agents"), { recursive: true });
+  cpSync(join(templateDir, "agents", SETUP_BAO), dir, { recursive: true });
+  return [`加上管家（${SETUP_BAO}）：管 Kiki 自己的配置，接入 Claude Code / Codex 找它`];
+}

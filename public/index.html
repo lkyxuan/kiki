@@ -307,6 +307,7 @@
   #panel .dot-st.idle { background: var(--ok); } #panel .dot-st.working { background: var(--busy, var(--accent)); } #panel .dot-st.error, #panel .dot-st.offline { background: var(--err); }
   #panel .row .x { flex: none; color: var(--faint); padding: 0 2px; font-size: 13px; } #panel .row .x:hover { color: var(--text); }
   #panel .row .undo { flex: none; font-size: 12px; color: var(--accent); padding: 0 4px; } #panel .row .undo:hover { text-decoration: underline; }
+  #panel .row.coder { cursor: pointer; } #panel .row.coder select { flex: none; font-size: 12px; }
   #panel .row .done { flex: none; font-size: 12px; color: var(--faint); }
   #panel a { display: inline-block; color: var(--accent); font-size: 13px; text-decoration: none; padding: 4px 0 8px; }
 
@@ -690,6 +691,19 @@ function renderPanel() {
   ];
   html += `<div><h3>其他任务<button class="board-link" data-board>看板</button></h3><div class="card">${looseRows.length ? looseRows.join("") : '<div class="none">没有零散的任务</div>'}</div></div>`;
 
+  // 终端里的 Claude Code / Codex：hook 报来的状态，按项目文件夹归到宝。点一下复制“接着做”的命令
+  const coders = (tree.coders || []).filter((c) => mine(c.bao) && (c.status !== "ended" || Date.now() - Date.parse(c.updated) < 86400000));
+  if (coders.length) {
+    const ST = { running: ["working", "在干活"], waiting: ["error", "等你"], idle: ["idle", "这轮做完"], ended: ["", "已结束"] };
+    const order = { waiting: 0, running: 1, idle: 2, ended: 3 };
+    coders.sort((x, y) => order[x.status] - order[y.status] || String(y.updated).localeCompare(String(x.updated)));
+    html += card("Claude Code / Codex", coders.slice(0, 8).map((c) => {
+      const [cls, label] = ST[c.status] || ["", c.status];
+      const what = c.status === "waiting" ? (c.waitingFor === "approval" ? "等你批准" : "等你回话") : label;
+      const tip = [`${c.tool === "codex" ? "Codex" : "Claude Code"} · 归「${c.bao}」 · ${c.cwd}${c.branch ? ` (${c.branch})` : ""}${c.host ? ` · ${c.host}` : ""}`, c.note, c.summary && `最近：${c.summary}`, "点一下复制接着做的命令"].filter(Boolean).join("\n");
+      return `<div class="row coder" data-coder="${esc(c.id)}" title="${esc(tip)}" role="button" tabindex="0">${c.status === "waiting" ? '<span class="bad">!</span>' : `<span class="dot-st ${cls}"></span>`}<span class="name">${esc(c.title || c.repo)}</span><small class="st">${esc(`${c.repo} · ${what}`)}</small><button class="x" data-coder-bao="${esc(c.id)}" title="归到别的宝" aria-label="归到别的宝">⇄</button></div>`;
+    }).join(""));
+  }
   // 收发室：外部 agent 的状态和要你看的事，只在奇奇这一层（奇奇是收件和分派的地方）
   const pr = tree.postroom;
   if (!layer && pr) {
@@ -1106,11 +1120,41 @@ function baoDialog(editing, info = {}) {
   };
 }
 
+let welcomed = false;
 async function loadTree() {
   tree = await (await fetch("/api/tree")).json();
   setAcks(tree.acks); repaintAcks();
   syncLive();
   renderSide();
+}
+// 第一次打开 Kiki：直接进管家的对话，它带你把 Kiki 配好（管家先打个招呼）
+async function welcome() {
+  if (welcomed) return;
+  welcomed = true;
+  await openBao(tree.welcome);
+  await fetch("/api/welcome/seen", { method: "POST" }).catch(() => {});
+}
+function resumeCmd(c) {
+  const q = (x) => (/^[\w@%+=:,./-]+$/.test(x) ? x : `'${x.replace(/'/g, "'\\''")}'`);
+  return `${c.cwd ? `cd ${q(c.cwd)} && ` : ""}${c.tool === "codex" ? "codex resume" : "claude --resume"} ${c.session}`;
+}
+async function coderClick(e) {
+  const bb = e.target.closest("[data-coder-bao]");
+  const c = (tree.coders || []).find((x) => x.id === (bb ? bb.dataset.coderBao : e.target.closest("[data-coder]")?.dataset.coder));
+  if (!c) return false;
+  const row = e.target.closest(".row");
+  if (bb) { // 换成下拉框选宝
+    const sel = document.createElement("select");
+    sel.innerHTML = tree.agents.filter((a) => a.name !== tree.setupBao).map((a) => `<option ${a.name === c.bao ? "selected" : ""}>${esc(a.name)}</option>`).join("");
+    sel.onchange = () => fetch("/api/coders/bao", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ cwd: c.cwd, bao: sel.value }) });
+    sel.onclick = (ev) => ev.stopPropagation();
+    bb.replaceWith(sel); sel.focus();
+    return true;
+  }
+  const st = row.querySelector("small.st");
+  try { await navigator.clipboard.writeText(resumeCmd(c)); st.textContent = "已复制接着做的命令"; }
+  catch { st.textContent = resumeCmd(c); }
+  return true;
 }
 
 function autosize() {
@@ -1180,6 +1224,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 document.body.addEventListener("click", (e) => {
+  if (e.target.closest("[data-coder]")) return void coderClick(e);
   const pd = e.target.closest("[data-pr-dismiss]");
   if (pd) return fetch("/api/postroom/dismiss", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: pd.dataset.prDismiss }) });
   const dc = e.target.closest("[data-decide]");
@@ -1690,7 +1735,7 @@ es.addEventListener("open", () => { loadAsks(); loadActions(); return fetch("/ap
     renderUpdate(u);
   }).catch(() => {}); });
 
-loadTree().then(() => open("main"));
+loadTree().then(() => (tree.welcome ? welcome() : open("main")));
 
 // 奇奇的头像换成会动的版本；加载失败就留着静态图
 let eyes = null, mainBusy = false;

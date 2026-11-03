@@ -3,7 +3,7 @@
 //
 // 通道边界：任何"通道"（这个网页、以后的微信插件……）都只需要调 router.handle(chatId, text, reply)。
 import type { WorkBook } from "./work.js";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { execFile } from "node:child_process";
 import { networkInterfaces } from "node:os";
@@ -18,6 +18,9 @@ import { rejectReason, tailscaleIp } from "./guard.js";
 import type { Registry } from "./registry.js";
 import { answerText, deliveryText, type Postroom } from "./postroom.js";
 import type { Notifier } from "./notify.js";
+import type { Coders } from "./coders.js";
+import { type CoderSetup, hookScript, mergeClaude, mergeCodex, remoteInstallScript } from "./coders-setup.js";
+import { SETUP_BAO, SETUP_PENDING } from "./migrate.js";
 import type { Router } from "./router.js";
 import { OPEN } from "./tasks.js";
 import { Logins } from "./login.js";
@@ -57,6 +60,8 @@ export function startServer(opts: {
   postroom?: Postroom;
   notifier?: Notifier;
   works?: WorkBook;
+  coders?: Coders;
+  coderSetup?: CoderSetup;
 }) {
   const { agents, registry, router } = opts;
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
@@ -194,6 +199,15 @@ export function startServer(opts: {
     );
   }
 
+  // 终端里的 Claude Code / Codex：状态一变就刷新右栏；卡住等你批准时说一声
+  const cs = opts.coders;
+  let lastPing: string | undefined;
+  cs?.on("change", (s?: { status: string; waitingFor?: string; tool: string; repo: string; title: string; bao: string }, kind?: string) => {
+    push("tree", tree());
+    if (s && kind === "waiting" && s.waitingFor === "approval")
+      void opts.notifier?.send({ title: `${s.tool === "codex" ? "Codex" : "Claude Code"} 在 ${s.repo} 等你批准`, text: s.title || "回到终端看一眼", source: s.tool });
+  });
+
   const tree = () => ({
     // 没结束的全给（待办、定时、等你…），结束了的只给最近 40 个
     tasks: [...router.tasks.list((t) => OPEN.includes(t.status)), ...router.tasks.list((t) => !OPEN.includes(t.status)).slice(-40)],
@@ -201,6 +215,9 @@ export function startServer(opts: {
     main: mainLive, // 奇奇正在分派的进度，没有就是 null
     acks: acks.list(), // 气泡上挂着的表情
     postroom: pr?.state() ?? null, // 收发室：外部 agent 的状态、要你看的
+    coders: cs?.state() ?? [], // 终端里的 Claude Code / Codex
+    setupBao: SETUP_BAO, // 管家：不接你的项目，换宝时不列它
+    welcome: existsSync(join(opts.dataDir, SETUP_PENDING)) ? SETUP_BAO : null, // 第一次打开：直接进管家
     agents: agents.listAgents().map((name) => ({
       name,
       works: opts.works?.list(name) ?? [], // 这个宝在做的事（右栏按它归类）
@@ -246,6 +263,94 @@ export function startServer(opts: {
         return json({ ok: true, id: it?.id });
       } catch (e) {
         return json({ error: (e as Error).message }, 400);
+      }
+    }
+    // 第一次打开 Kiki：网页进了管家的对话，就清掉标记，管家先打个招呼
+    if (url.pathname === "/api/welcome/seen" && req.method === "POST") {
+      const f = join(opts.dataDir, SETUP_PENDING);
+      if (existsSync(f)) {
+        try { unlinkSync(f); } catch {}
+        const m = registry.get(SETUP_BAO, MAIN_SESSION);
+        if (m) await agents.note(SETUP_BAO, m.path, "你好，我是管家，管 Kiki 自己的事。先帮你把 Kiki 配好：接模型、开 Mac 权限；你平时用 Claude Code 或 Codex 的话，我也能把它们接进来，让 Kiki 知道它们在做什么。从哪个开始？").catch(() => {});
+        push("tree", tree());
+      }
+      return json({ ok: true });
+    }
+    // 终端里的 Claude Code / Codex（见 coders.ts、coders-setup.ts）
+    if (url.pathname.startsWith("/api/coders") && cs) {
+      const kikiUrl = () => {
+        const host = String(req.headers.host || `127.0.0.1:${opts.port}`);
+        return `http://${host}`;
+      };
+      const text = async () => {
+        let s = "";
+        for await (const chunk of req) s += chunk;
+        return s;
+      };
+      if (url.pathname === "/api/coders" && req.method === "GET") return json(cs.state());
+      if (url.pathname === "/api/coders/event" && req.method === "POST") {
+        const tool = url.searchParams.get("tool") || "";
+        lastPing = new Date().toISOString();
+        let raw: unknown;
+        try { raw = JSON.parse(await text()); } catch { return json({ error: "不是 JSON" }, 400); }
+        if ((raw as any)?.session_id === "kiki-selftest") return json({ ok: true, test: true });
+        const s = await cs.ingest(tool, raw, url.searchParams.get("host") || undefined);
+        return json({ ok: true, id: s?.id });
+      }
+      if (url.pathname === "/api/coders/batch" && req.method === "POST") {
+        lastPing = new Date().toISOString();
+        return json({ ok: true, n: await cs.ingestLines(await text()) });
+      }
+      if (url.pathname === "/api/coders/test" && req.method === "POST") {
+        // 用装好的脚本发一条测试消息，看通不通
+        const script = opts.coderSetup?.script;
+        if (!script || !existsSync(script)) return json({ error: "还没装好脚本，先接入 Claude Code 或 Codex" }, 400);
+        const before = lastPing;
+        await new Promise<void>((ok) => {
+          const p = execFile(script, ["claude-code"], { timeout: 5000 }, () => ok());
+          p.stdin?.end(JSON.stringify({ session_id: "kiki-selftest", hook_event_name: "SessionStart", cwd: "" }));
+        });
+        return json({ ok: lastPing !== before, lastPing });
+      }
+      if (url.pathname === "/api/coders/setup" && opts.coderSetup) {
+        if (req.method === "GET") return json({ ...opts.coderSetup.status(), tailscale: await tailscaleOwnedIps(), port: opts.port, lastPing });
+        try {
+          const b = await body();
+          if (b.target !== "claude" && b.target !== "codex") return json({ error: "target 要是 claude 或 codex" }, 400);
+          return json({ ok: true, note: opts.coderSetup.set(b.target, b.on !== false) });
+        } catch (e) {
+          return json({ error: (e as Error).message }, 400);
+        }
+      }
+      if (url.pathname === "/api/coders/bao" && req.method === "POST") {
+        try {
+          const b = await body();
+          cs.setBao(String(b.cwd ?? ""), String(b.bao ?? ""));
+          return json({ ok: true });
+        } catch (e) {
+          return json({ error: (e as Error).message }, 400);
+        }
+      }
+      // 别的电脑：curl -sf http://<Tailscale 地址>:4567/api/coders/install.sh | sh
+      const sh = (s: string) => {
+        res.writeHead(200, { "content-type": "text/x-shellscript; charset=utf-8" });
+        res.end(s);
+      };
+      if (url.pathname === "/api/coders/install.sh") return sh(remoteInstallScript(kikiUrl()));
+      if (url.pathname === "/api/coders/hook.sh") return sh(hookScript({ url: kikiUrl(), spool: "$HOME/.kiki/spool" }));
+      if (url.pathname === "/api/coders/merge" && req.method === "POST") {
+        // 别的电脑把配置文件发过来，Kiki 合并好再发回去（那边不用装 Node）
+        const script = String(req.headers["x-kiki-script"] || "");
+        if (!script.includes("kiki-hook")) return json({ error: "缺 x-kiki-script" }, 400);
+        try {
+          const cur = await text();
+          const out = url.searchParams.get("target") === "codex" ? mergeCodex(cur, script) : { text: mergeClaude(cur, script) };
+          if ("prev" in out && out.prev) return json({ error: "这台电脑的 Codex 已经有别的 notify，没动" }, 409);
+          res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+          return res.end(out.text);
+        } catch (e) {
+          return json({ error: (e as Error).message }, 400);
+        }
       }
     }
     if (url.pathname.startsWith("/api/postroom") && pr) {
@@ -613,6 +718,12 @@ const TAILSCALE_BINS = [
   "/usr/local/bin/tailscale",
   "/usr/bin/tailscale",
 ];
+
+/** 本机 Tailscale 地址（给“别的电脑接入”用） */
+async function tailscaleOwnedIps(): Promise<string[]> {
+  const owned = await tailscaleOwned();
+  return candidateAddresses().filter((ip) => owned.has(ip));
+}
 
 /** 问 Tailscale 自己：它分给本机的 IPv4 是哪些。找不到 Tailscale 或问不到就返回空（宁可不开）。 */
 async function tailscaleOwned(): Promise<Set<string>> {
