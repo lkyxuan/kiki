@@ -24,7 +24,7 @@ function section(title: string, items: string[]): string[] {
 }
 
 /** 算出简报正文。extra.approvals：有几张卡片在等用户点头。 */
-export function briefing(all: Task[], now = new Date(), extra: { approvals?: number } = {}): string {
+export function briefing(all: Task[], now = new Date(), extra: { approvals?: number; coders?: { done: string[]; waiting: string[] } } = {}): string {
   const list = all.filter((t) => t.executor !== BRIEFING);
   const since = now.getTime() - DAY;
   const recent = (t: Task) => !!t.finished && new Date(t.finished).getTime() >= since;
@@ -35,6 +35,7 @@ export function briefing(all: Task[], now = new Date(), extra: { approvals?: num
     .map((t) => `- ${t.title}：${firstLine(t.result, 40) || "没做完"} → /retry ${t.id}`);
   const waiting = list.filter((t) => t.status === "blocked").map((t) => `- ${t.title}：${firstLine(t.question)}（/answer ${t.id} 你的回答）`);
   if (extra.approvals) waiting.push(`- 还有 ${extra.approvals} 张卡片等你点头（右栏“等你点头”）`);
+  if (extra.coders) waiting.push(...extra.coders.waiting); // 你在终端里开的 Claude Code / Codex
   const running = list.filter((t) => t.status === "running" || t.status === "queued").map((t) => `- 正在做：${t.title} · ${t.agent}`);
   const today = list
     .filter((t) => t.status === "todo" && !t.hold && t.when && sameDay(new Date(t.when), now) && new Date(t.when) >= now)
@@ -48,7 +49,7 @@ export function briefing(all: Task[], now = new Date(), extra: { approvals?: num
   const body = [
     ...section("等你", waiting),
     ...section("没做成", failed),
-    ...section("昨天到现在做完了", done),
+    ...section("昨天到现在做完了", [...done, ...(extra.coders?.done ?? [])]),
     ...section("今天要做", [...running, ...today]),
     ...section("还在盯着", watching),
   ];
