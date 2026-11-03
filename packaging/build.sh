@@ -59,19 +59,8 @@ chmod +x "$APP/Contents/MacOS/"* "$RES/kiki-setup" "$RES/swap.sh" "$RES/client-u
 
 # 签名：配了开发者证书（KIKI_SIGN_IDENTITY）就正式签名并交给苹果公证，没配就照旧本地签名。见 docs/signing.md
 packaging/sign.sh app "$APP"
-packaging/sign.sh notarize-app "$APP"
 
-# 5. 压缩（保留符号链接和执行权限）+ 校验和
-ZIP="Kiki-mac-$ARCH.zip"
-rm -f "$OUT/$ZIP"
-if command -v ditto >/dev/null; then
-  ditto -c -k --keepParent "$APP" "$OUT/$ZIP"
-else
-  (cd "$OUT/build-$ARCH" && zip -qry "$OUT/$ZIP" Kiki.app)
-fi
-(cd "$OUT" && { command -v sha256sum >/dev/null && sha256sum "$ZIP" || shasum -a 256 "$ZIP"; }) > "$OUT/$ZIP.sha256"
-
-# 6. 在 Mac 上再做一个 .dmg：给第一次安装的人用，打开后把 Kiki 拖进「应用程序」。
+# 5. 在 Mac 上做一个 .dmg：给第一次安装的人用，打开后把 Kiki 拖进「应用程序」。
 #    自动更新仍然下载 zip（更小，解压不需要挂载）。
 if command -v hdiutil >/dev/null; then
   DMG="Kiki-mac-$ARCH.dmg"
@@ -82,9 +71,19 @@ if command -v hdiutil >/dev/null; then
   ln -s /Applications "$STAGE/应用程序"
   hdiutil create -quiet -volname "Kiki ${VERSION}" -srcfolder "$STAGE" -ov -format UDZO "$OUT/$DMG"
   rm -rf "$STAGE"
-  packaging/sign.sh dmg "$OUT/$DMG"
+  packaging/sign.sh dmg "$OUT/$DMG" "$APP"   # 签名 + 公证，票据也钉进 App
   (cd "$OUT" && shasum -a 256 "$DMG") > "$OUT/$DMG.sha256"
   echo "完成：$OUT/${DMG}（$(du -h "$OUT/$DMG" | cut -f1)）"
 fi
+# 6. 压缩（在公证、钉好票据之后；保留符号链接和执行权限）+ 校验和
+ZIP="Kiki-mac-$ARCH.zip"
+rm -f "$OUT/$ZIP"
+if command -v ditto >/dev/null; then
+  ditto -c -k --keepParent "$APP" "$OUT/$ZIP"
+else
+  (cd "$OUT/build-$ARCH" && zip -qry "$OUT/$ZIP" Kiki.app)
+fi
+(cd "$OUT" && { command -v sha256sum >/dev/null && sha256sum "$ZIP" || shasum -a 256 "$ZIP"; }) > "$OUT/$ZIP.sha256"
+
 cat "$OUT"/Kiki-mac-*.sha256 > "$OUT/SHA256SUMS"
 echo "完成：$OUT/${ZIP}（$(du -h "$OUT/$ZIP" | cut -f1)）"
