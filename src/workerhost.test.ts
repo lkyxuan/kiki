@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
+import { Agents } from "./agents.js";
 import { Worker, type WorkerHooks } from "./workerhost.js";
 
 // 假的子程序：真的 serve() 协议，假的 Agents（不调模型）
@@ -23,6 +24,7 @@ class Fake extends EventEmitter {
     this.emit("busy", { path, busy: true });
     try {
       if (text === "hang") return await new Promise(() => {});
+      if (text === "slow") await new Promise((r) => setTimeout(r, 100));
       if (text === "crash") process.exit(3);
       if (text === "tool") {
         const t = this.toolsFor(agent)[0];
@@ -116,4 +118,18 @@ test("子程序：意外崩掉时手上的那句失败，说清退出码", async
   await assert.rejects(w.send("crash"), /意外退出（退出码 3）/);
   assert.equal(w.alive, false);
   await assert.rejects(w.send("再来"), /已经关了/);
+});
+
+test("Agents：子程序还在起的时候来了回报，也转给子程序，不在主程序里另开一份；都做完后子程序退出", async () => {
+  const agents = new Agents(mkdtempSync(join(tmpdir(), "kiki-agents-")), "deepseek/deepseek-flash");
+  agents.isolation = { script, approve: async () => undefined };
+  const seen: string[] = [];
+  agents.on("message", (m: any) => seen.push(m.text));
+  const reply = agents.sendTask("dev", "/s/q.jsonl", "slow");
+  const noted = agents.note("dev", "/s/q.jsonl", "回报一句"); // 这时子程序可能还没起好
+  assert.equal(await reply, "答：slow@/s/q.jsonl");
+  await noted;
+  assert.deepEqual(seen, ["回报一句"], "回报是子程序记的");
+  assert.equal((agents as any).live.size, 0, "主程序没开这段对话");
+  assert.equal(agents.isRemote("/s/q.jsonl"), false, "做完子程序退出");
 });

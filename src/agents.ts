@@ -371,6 +371,7 @@ export class Agents extends EventEmitter {
 
   private async get(agent: string, path: string): Promise<AgentSession> {
     if (this.gone.has(path)) throw new Error("这段对话已经删掉了");
+    if (this.remote.has(path)) throw new Error("这段对话正在后台子程序里跑"); // 同一个文件只让一个程序写
     let s = this.live.get(path);
     if (!s) {
       s = await this.open(agent, SessionManager.open(path));
@@ -416,7 +417,10 @@ export class Agents extends EventEmitter {
     const w = this.remote.get(path);
     if (w) return w.note(text);
     const prev = this.queues.get(path) ?? Promise.resolve();
-    const run = prev.catch(() => {}).then(async () => {
+    const run: Promise<void> = prev.catch(() => {}).then(async () => {
+      // 排队期间这段对话可能已经交给子程序了（sendTask 正在起它）：转给子程序，别在主程序里再开一份
+      const w = this.remote.get(path);
+      if (w) return this.viaWorker(path, run, () => w.note(text));
       const s = await this.get(agent, path);
       await s.sendCustomMessage({ customType: "kiki-task", content: text, display: true }, { triggerTurn: false });
       this.emit("message", { path, role: "assistant", text });
