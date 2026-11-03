@@ -61,6 +61,8 @@ export class Agents extends EventEmitter {
   toolsFor?: (agent: string) => ToolDefinition[];
   /** Kiki 自己的 pi 扩展（比如审批），由 main.ts 注入。 */
   extensions: ExtensionFactory[] = [];
+  /** 某个宝额外的技能文件夹（Kiki 自带的宝技能、宝自己的 skills/），由 main.ts 注入。走 SDK 参数，不经过 pi 的“项目信任” */
+  skillPaths?: (agent: string) => string[];
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
   private inflight = new Map<string, number>(); // path -> 还没答完的 send 数（含正在答的）
@@ -245,6 +247,7 @@ export class Agents extends EventEmitter {
       cwd,
       agentDir: this.engineDir,
       settingsManager,
+      additionalSkillPaths: (this.skillPaths?.(agent) ?? []).filter((p) => existsSync(p)),
       extensionFactories: [...this.extensions, createCodemodeExtension(), createToolSearchExtension(), createMcpExtension()],
     });
     await resourceLoader.reload();

@@ -16,7 +16,9 @@ import { lookTool } from "./look.js";
 import { type FeatureId, isOn } from "./features.js";
 import { Summaries } from "./summary.js";
 import { MAIN_SESSION } from "./bao.js";
-import { addRuleSections, DEFAULT_BAO, dropConfirmLine, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
+import { addRuleSections, addSetupBao, DEFAULT_BAO, SETUP_BAO, dropConfirmLine, migrateToQiqi, upgradeQiqiNote } from "./migrate.js";
+import { Coders } from "./coders.js";
+import { CoderSetup } from "./coders-setup.js";
 import { Registry } from "./registry.js";
 import { Router } from "./router.js";
 import { ADAPTERS, Postroom, postroomTool } from "./postroom.js";
@@ -58,7 +60,7 @@ if (!existsSync(dataDir)) {
   console.log(`已在 ${dataDir} 建好数据目录，记得改 AGENTS.md（关于我）。`);
 }
 // 老数据目录升级：只留奇奇一个默认宝，旧的 dev、life 挪进 archive/（不删）
-for (const line of [...migrateToQiqi(dataDir, join(root, "data-template")), ...upgradeQiqiNote(dataDir, join(root, "data-template")), ...addRuleSections(dataDir, join(root, "data-template")), ...dropConfirmLine(dataDir)])
+for (const line of [...migrateToQiqi(dataDir, join(root, "data-template")), ...upgradeQiqiNote(dataDir, join(root, "data-template")), ...addRuleSections(dataDir, join(root, "data-template")), ...dropConfirmLine(dataDir), ...addSetupBao(dataDir, join(root, "data-template"))])
   console.log(`升级数据目录：${line}`);
 
 const agents = new Agents(dataDir, process.env.MODEL || "deepseek/deepseek-flash");
@@ -73,6 +75,8 @@ if (process.env.TASK_ISOLATION !== "0") {
     approve: (r, signal) => approvals.check(r.toolName, r.input, r.cwd, r.path, signal, r.turn),
   };
 }
+// 宝的技能：Kiki 自带的（bao-skills/<宝名>/，随 Kiki 更新）+ 宝自己文件夹里的 skills/
+agents.skillPaths = (a) => [join(root, "bao-skills", a), join(agents.agentDir(a), "skills")];
 const registry = new Registry(join(dataDir, "registry.json"));
 // 后台任务：每个任务一个 Markdown 文件，在数据目录 tasks/ 下
 // 默认的宝：.env 里写的那个不存在了（比如以前的 life 已归档）就回到奇奇
@@ -111,11 +115,33 @@ agents.extensions.push((pi) => {
     const file = ctx.sessionManager.getSessionFile();
     const rec = file ? registry.byPath(file) : undefined;
     // 主对话再加：本宝讨论串的摘要，和一行后台任务的数（奇奇看全部，别的宝看自己的）
-    const digest = rec?.name === MAIN_SESSION ? [router.threadDigest(rec.agent), router.taskCount(rec.agent === DEFAULT_BAO ? undefined : rec.agent)].filter(Boolean).join("\n\n") : "";
+    const all = rec?.agent === DEFAULT_BAO ? undefined : rec?.agent;
+    const digest = rec?.name === MAIN_SESSION ? [router.threadDigest(rec.agent), router.taskCount(all), coders.digest(all)].filter(Boolean).join("\n\n") : "";
     return { systemPrompt: [ev.systemPrompt, FIRST_LINE_RULE, AUTONOMY_RULE, digest].filter(Boolean).join("\n\n") };
   });
 });
 router.isOn = (id) => isOn(dataDir, id);
+// 你在终端里开的 Claude Code、Codex：hook 报进来的状态（见 coders.ts），按项目文件夹归到宝
+const port = Number(process.env.PORT || 4567);
+const coders = new Coders({
+  dataDir,
+  listBaos: () => agents.listAgents().filter((b) => b !== SETUP_BAO), // 管家管 Kiki 自己，不接你的项目
+  defaultBao,
+  pickBao: async (repo, cwd, prompt) => {
+    const baos = agents.listAgents().filter((b) => b !== SETUP_BAO);
+    const list = baos.map((b) => `- ${b}：${agents.describe(b)}`).join("\n");
+    const r = await agents.complete(
+      "用户在终端里用编程 agent 做一个项目。下面是用户的几个宝（各管一块事）。挑一个最该负责这个项目的宝，只输出宝的名字；都不合适就输出 无。",
+      `项目文件夹：${cwd}\n第一句要求：${prompt.slice(0, 200)}\n\n宝：\n${list}`,
+      roleModel("route"),
+    );
+    return baos.find((b) => r.trim().startsWith(b));
+  },
+  summarize: (prompt, result) =>
+    agents.complete("把编程 agent 这一轮最后的回答压成一句中文，不超过 30 个字，说清做成了什么或卡在哪。只输出这句话。", `要求：${prompt.slice(0, 300)}\n\n回答：${result.slice(0, 2000)}`, roleModel("summary")),
+});
+const coderSetup = new CoderSetup({ dataDir, port });
+void coders.drainSpool().catch(() => {}); // Kiki 关着时 hook 先记下的，补收
 // 收发室：定时去外部 agent 那里收发（见 postroom.ts）。怎么把收到的交给奇奇、记回对话，在 server.ts 里接上
 const postroom = new Postroom({
   dataDir,
@@ -179,7 +205,6 @@ agents.toolsFor = () =>
 // 每个宝一段主对话，老对话都当讨论串。放在扩展和工具都挂好之后，启动时补建的主对话也带着它们
 void router.ensureMains().catch((e) => console.warn("补主对话失败：", (e as Error).message)); // 每个宝一段主对话，老对话都当讨论串
 
-const port = Number(process.env.PORT || 4567);
 const updater = new Updater({
   dataDir,
   port,
@@ -196,7 +221,7 @@ const updater = new Updater({
 updater.start();
 
 // 每日简报：Kiki 自己当执行者，从任务账本算出正文（要在启动服务前注册，关机期间到点的启动时会补发）
-router.tasks.registerExecutor(BRIEFING, { run: async () => briefing(router.tasks.list(), new Date(), { approvals: approvals.list().length }) });
+router.tasks.registerExecutor(BRIEFING, { run: async () => briefing(router.tasks.list(), new Date(), { approvals: approvals.list().length, coders: coders.briefingLines() }) });
 
 startServer({
   port,
@@ -209,6 +234,8 @@ startServer({
   approvals,
   postroom,
   notifier,
+  coders,
+  coderSetup,
 });
 postroom.start();
 // 第一次启动时建好“每日简报”定时任务（BRIEFING_TIME 改时间，BRIEFING=0 不建；看板里取消后不会再建）
