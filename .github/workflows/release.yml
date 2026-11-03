@@ -1,112 +1,28 @@
-# 发布：改 package.json 里的版本号并合进 main（或者推一个同名 tag，或者在 Actions 页面手动运行），这里就会
-# 检查 → 测试 → 打 arm64 和 x64 两个 Kiki.app → 建 GitHub Release（tag 自动建）。这个版本已经发过就跳过。
-# 装好的 Kiki 会在一小时内发现新版本，空闲时自动装上。.dmg 给第一次安装用，自动更新用 .zip。
+# 发布：改 package.json 里的版本号并合进 main（或者在 Actions 页面手动运行）。
+# 私有仓库不在这里打包（私有仓库用 GitHub 的 Mac 要按 10 倍扣费），而是通知公开的 lkyxuan/kiki，
+# 由它用公开仓库免费的 Mac 拉这个提交的代码打包、签名、发版（见 build-from-pro.yml）。
+# 安装包发在 lkyxuan/kiki 的 Releases，已装的 Kiki 一直从那里更新。这个版本已经发过就跳过。
+# 需要 Secret KIKI_PUBLIC_TOKEN：能操作 lkyxuan/kiki 的令牌（repo 权限，或 Fine-grained 的 Contents + Workflows 读写）。
 name: release
 on:
   push:
     branches: [main]
     paths: [package.json]
-    tags: ["v*"]
   workflow_dispatch:
-permissions:
-  contents: write
+env:
+  PUBLIC_REPO: lkyxuan/kiki
 jobs:
   release:
-    runs-on: macos-latest   # 原生窗口要用 Mac 编译（公开仓库免费）
+    if: github.repository != 'lkyxuan/kiki'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: 这个版本发过没有
-        id: ver
+      - name: 通知公开仓库打包发版
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.KIKI_PUBLIC_TOKEN }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::warning::没配 KIKI_PUBLIC_TOKEN，通知不了 $PUBLIC_REPO，这次跳过"; exit 0; fi
           v=$(node -p 'require("./package.json").version')
-          echo "tag=v$v" >> "$GITHUB_OUTPUT"
-          if gh release view "v$v" >/dev/null 2>&1; then echo "v$v 已经发过，跳过"; echo "skip=1" >> "$GITHUB_OUTPUT"; fi
-      - if: steps.ver.outputs.skip != '1'
-        run: npm ci
-      - if: steps.ver.outputs.skip != '1'
-        run: npm run check && npm test
-      - name: 推 tag 发布时，版本号要和 tag 一致
-        if: steps.ver.outputs.skip != '1' && github.ref_type == 'tag'
-        run: '[ "${{ steps.ver.outputs.tag }}" = "$GITHUB_REF_NAME" ] || { echo "package.json 和 tag 对不上"; exit 1; }'
-      # 苹果签名和公证：仓库 Secrets 里配了证书才做，没配就和以前一样只做本地签名。步骤见 docs/signing.md
-      - name: 导入开发者证书
-        id: sign
-        if: steps.ver.outputs.skip != '1'
-        env:
-          P12: ${{ secrets.MACOS_CERT_P12 }}
-          P12_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
-          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-        run: |
-          if [ -z "$P12" ]; then echo "没配 MACOS_CERT_P12，这一版不签名"; exit 0; fi
-          KC="$RUNNER_TEMP/kiki-signing.keychain-db"
-          KCPW=$(openssl rand -hex 16)
-          security create-keychain -p "$KCPW" "$KC"
-          security set-keychain-settings -lut 21600 "$KC"
-          security unlock-keychain -p "$KCPW" "$KC"
-          printf '%s' "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PASSWORD" -T /usr/bin/codesign
-          rm -f "$RUNNER_TEMP/cert.p12"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPW" "$KC" >/dev/null
-          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
-          ID=$(security find-identity -v -p codesigning "$KC" | sed -n 's/.*"\(Developer ID Application: .*\)"$/\1/p' | head -1)
-          [ -n "$ID" ] || { echo "证书里没有 Developer ID Application（是不是导出成了别的证书？）"; exit 1; }
-          echo "签名身份：$ID"
-          echo "KIKI_SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
-          echo "signed=1" >> "$GITHUB_OUTPUT"
-          if [ -n "$ASC_KEY_P8" ]; then
-            printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
-            echo "NOTARY_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
-          fi
-      - if: steps.ver.outputs.skip != '1'
-        env:
-          NOTARY_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          NOTARY_ISSUER: ${{ secrets.ASC_ISSUER_ID }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: packaging/build.sh arm64 && packaging/build.sh x64
-      - name: 看看 .dmg 能不能直接打开（公证过的才算）
-        if: steps.ver.outputs.skip != '1' && steps.sign.outputs.signed == '1'
-        id: gate
-        run: |
-          if spctl -a -t open --context context:primary-signature -vv out/Kiki-mac-arm64.dmg; then
-            echo "notarized=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::签了名但没有公证（没配公证密钥？），别人第一次打开仍会被拦"
-          fi
-      - name: 建 Release
-        if: steps.ver.outputs.skip != '1'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.ver.outputs.tag }}
-          NOTARIZED: ${{ steps.gate.outputs.notarized }}
-        run: |
-          if [ "$NOTARIZED" = 1 ]; then
-            cat > notes.md <<'EOF'
-          ## 安装
-          - **下载 .dmg**：Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`。打开后把 Kiki 拖进「应用程序」，双击就能用（已通过苹果公证）。
-          - 或者在「终端」里运行一行：`curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash`
-          - 已经装过的 Kiki 会自己更新（每小时检查一次），不用重新下载。
-          EOF
-          else
-          cat > notes.md <<'EOF'
-          ## 安装
-          - **推荐**：在「终端」里运行一行（自动下载、核对、装好、启动，不会被系统拦）：
-            `curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash`
-          - **或者下载 .dmg**：Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`。打开后把 Kiki 拖进「应用程序」。
-            Kiki 还没有苹果开发者签名，第一次打开会提示「无法验证开发者」：到「系统设置 → 隐私与安全性」最下面点「仍要打开」，
-            或者在终端运行 `xattr -dr com.apple.quarantine /Applications/Kiki.app`。
-          - 已经装过的 Kiki 会自己更新（每小时检查一次），不用重新下载。
-          EOF
-          fi
-          gh release create "$TAG" out/Kiki-mac-arm64.dmg out/Kiki-mac-x64.dmg out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS \
-            --target "$GITHUB_SHA" --title "Kiki $TAG" --notes-file notes.md --generate-notes
-      - name: 清掉临时钥匙串
-        if: always() && steps.sign.outputs.signed == '1'
-        run: security delete-keychain "$RUNNER_TEMP/kiki-signing.keychain-db" || true; rm -f "$RUNNER_TEMP/AuthKey.p8"
+          if gh release view "v$v" -R "$PUBLIC_REPO" >/dev/null 2>&1; then echo "v$v 已经发过，跳过"; exit 0; fi
+          gh api "repos/$PUBLIC_REPO/dispatches" -f event_type=kiki-release -f "client_payload[sha]=$GITHUB_SHA" -f "client_payload[version]=$v"
+          echo "已通知 $PUBLIC_REPO 打包 v$v（提交 $GITHUB_SHA），进度看 https://github.com/$PUBLIC_REPO/actions/workflows/build-from-pro.yml"

@@ -1,0 +1,39 @@
+# 延迟开源：每季度把私有仓库三个月前的版本推到公开的 lkyxuan/kiki（main 快进，历史一致）。
+# 开源版的更新会触发那边的英文同步（english-sync），英文版 kiki-agent 也跟着更新。
+# 需要 Secret KIKI_PUBLIC_TOKEN（和发版共用：lkyxuan/kiki 的 Contents + Workflows 读写；推送 .github/workflows 必须有 Workflows 权限）。
+# 也可以在 Actions 页面手动运行，改“落后多少天”。
+name: open-source-sync
+on:
+  schedule:
+    - cron: "0 2 1 1,4,7,10 *"   # 每年 1/4/7/10 月 1 日
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 开源版落后多少天
+        default: "90"
+concurrency:
+  group: open-source-sync
+jobs:
+  sync:
+    if: github.repository != 'lkyxuan/kiki'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false   # 否则 checkout 留下的本仓库令牌会盖过下面 public 远端里的 KIKI_PUBLIC_TOKEN
+      - name: 推三个月前的版本到开源版
+        env:
+          TOKEN: ${{ secrets.KIKI_PUBLIC_TOKEN }}
+          DAYS: ${{ inputs.days || '90' }}
+        run: |
+          [ -n "$TOKEN" ] || { echo "没配 KIKI_PUBLIC_TOKEN"; exit 1; }
+          git remote add public "https://x-access-token:${TOKEN}@github.com/lkyxuan/kiki.git"
+          git fetch -q public main
+          # main 上第一父链里，早于 N 天前的最新一个提交
+          C=$(git rev-list --first-parent -1 --before="$DAYS days ago" origin/main)
+          [ -n "$C" ] || { echo "还没有早于 $DAYS 天的提交"; exit 0; }
+          if git merge-base --is-ancestor "$C" public/main; then echo "开源版已经包含 $C，不用同步"; exit 0; fi
+          git merge-base --is-ancestor public/main "$C" || { echo "::error::开源版 main 有私有仓库没有的提交，不能快进，请人工处理"; exit 1; }
+          echo "同步到 $(git log -1 --format='%h %ad %s' --date=short "$C")"
+          git push public "$C:refs/heads/main"
