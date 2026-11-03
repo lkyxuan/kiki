@@ -13,6 +13,7 @@
   <key>LSMinimumSystemVersion</key><string>12.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+  <key>NSLocalNetworkUsageDescription</key><string>Kiki 需要连接你在 Tailscale 或局域网里的另一台电脑（比如家里的 Mac mini）。</string>
   <key>NSAppTransportSecurity</key>
   <dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict>

@@ -14,7 +14,7 @@ const extra = () =>
 const hostname = (host: string) => host.toLowerCase().replace(/:\d+$/, "").replace(/^\[|\]$/g, "");
 
 // Tailscale 给每台设备分的 IP：IPv4 在 100.64.0.0/10，IPv6 在 fd7a:115c:a1e0::/48
-function tailscaleIp(h: string): boolean {
+export function tailscaleIp(h: string): boolean {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
   if (m) {
     const [a, b, c, d] = m.slice(1).map(Number);
