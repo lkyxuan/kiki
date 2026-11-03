@@ -8,6 +8,7 @@ import { taskLine } from "./tasktool.js";
 import { buildRouteInput, buildRouteSystem, type Decision, type Part, parseDecision, type RouteCandidate } from "./route.js";
 import { MAIN_SESSION } from "./bao.js";
 import { roleModel } from "./modelroles.js";
+import { BRIEFING } from "./briefing.js";
 
 /** 路由器对 pi 那一层的全部要求，测试时可以换成假的。 */
 export interface AgentBackend {
@@ -444,6 +445,7 @@ export class Router {
   notice(t: Task): string | undefined {
     const where = t.session ? this.registry.byPath(t.session) : undefined;
     const tag = where ? `（${link(where)}）` : "";
+    if (t.executor === BRIEFING && t.status === "done") return t.result; // 每日简报：正文就是要说的话
     if (t.status === "done") return `✅ 后台任务「${t.title}」完成${tag}：\n\n${t.result}`;
     if (t.status === "failed") return `❌ 后台任务「${t.title}」失败${tag}：${t.result}\n想重跑：/retry ${t.id}`;
     if (t.status === "cancelled" && t.started) return `⏹ 后台任务「${t.title}」已停下${tag}。`;

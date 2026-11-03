@@ -27,6 +27,7 @@ import { Notifier } from "./notify.js";
 import { makeTriage, watchForTask, Watchlist } from "./triage.js";
 import { startServer } from "./server.js";
 import { FileTaskStore, taskPrompt } from "./tasks.js";
+import { BRIEFING, briefing, ensureBriefing } from "./briefing.js";
 import { taskTools, type WatchList } from "./tasktool.js";
 import { Updater, VERSION } from "./update.js";
 
@@ -194,6 +195,9 @@ const updater = new Updater({
 });
 updater.start();
 
+// 每日简报：Kiki 自己当执行者，从任务账本算出正文（要在启动服务前注册，关机期间到点的启动时会补发）
+router.tasks.registerExecutor(BRIEFING, { run: async () => briefing(router.tasks.list(), new Date(), { approvals: approvals.list().length }) });
+
 startServer({
   port,
   dataDir,
@@ -207,3 +211,5 @@ startServer({
   notifier,
 });
 postroom.start();
+// 第一次启动时建好“每日简报”定时任务（BRIEFING_TIME 改时间，BRIEFING=0 不建；看板里取消后不会再建）
+if (process.env.BRIEFING !== "0") ensureBriefing(router.tasks, { agent: DEFAULT_BAO, at: process.env.BRIEFING_TIME });
