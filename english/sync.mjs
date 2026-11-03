@@ -8,7 +8,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { minimatch } from "minimatch";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -45,7 +45,14 @@ if (base) {
     else changes.push({ status: s[0] === "D" ? "D" : s[0] === "A" ? "A" : "M", path: parts[i++] });
   }
 } else {
-  changes = git("ls-files", "-z").split("\0").filter(Boolean).map((p) => ({ status: "A", path: p }));
+  const current = git("ls-files", "-z").split("\0").filter(Boolean);
+  changes = current.map((p) => ({ status: "A", path: p }));
+  // 全量重翻时，英文仓库里对应已删除中文文件的旧文件也要删掉
+  const keep = new Set(current);
+  for (const p of Object.keys(paths)) {
+    const target = join(en, paths[p]);
+    if (!keep.has(p) && existsSync(target) && statSync(target).isFile()) changes.push({ status: "D", path: p });
+  }
 }
 changes = changes.filter((c) => !excluded(c.path));
 
@@ -109,7 +116,10 @@ async function translateFile(p, oldZhPath) {
   return ask(`${header}Translate this file.\n\n<chinese>\n${newZh}\n</chinese>`);
 }
 
-const applyReplace = (s) => rules.replace.reduce((t, [a, b]) => t.split(a).join(b), s);
+// 规则是正则，必须幂等：增量同步时旧英文里已替换过的内容会原样保留，再替换一次不能变
+const replaceRules = rules.replace.map(([a, b]) => [new RegExp(a, "g"), b]);
+for (const [re, b] of replaceRules) if (b.replace(re, b) !== b) throw new Error(`rules.json: replace rule ${re} is not idempotent`);
+const applyReplace = (s) => replaceRules.reduce((t, [re, b]) => t.replace(re, b), s);
 
 // ---- 主流程 ----
 const leftovers = [];
@@ -126,11 +136,12 @@ for (const c of changes) {
   const buf = gitBuf("show", `${head}:${c.path}`);
   const out = join(en, target);
   if (!dryRun) mkdirSync(dirname(out), { recursive: true });
-  if (!isText(buf)) { if (!dryRun) writeFileSync(out, buf); done.push(`copied ${target}`); continue; }
+  const mode = git("ls-tree", head, "--", c.path).startsWith("100755") ? 0o755 : 0o644;
+  if (!isText(buf)) { if (!dryRun) { writeFileSync(out, buf); chmodSync(out, mode); } done.push(`copied ${target}`); continue; }
   let text = applyReplace(await translateFile(c.path, c.old));
   if (!text.endsWith("\n") && buf.toString("utf8").endsWith("\n")) text += "\n";
   if (CJK.test(text) && !dryRun) leftovers.push(target);
-  if (!dryRun) writeFileSync(out, text);
+  if (!dryRun) { writeFileSync(out, text); chmodSync(out, mode); }
   done.push(`${CJK.test(buf.toString("utf8")) ? "translated" : "copied"} ${target}`);
   console.log(done.at(-1));
 }

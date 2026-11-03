@@ -8,14 +8,29 @@
     "README.en.md"
   ],
   "replace": [
-    ["com.lkyxuan.kiki", "com.lkyxuan.kiki.en"],
-    ["lkyxuan/kiki/", "lkyxuan/kiki-en/"],
-    ["\"lkyxuan/kiki\"", "\"lkyxuan/kiki-en\""],
-    ["repos/lkyxuan/kiki/releases", "repos/lkyxuan/kiki-en/releases"],
-    ["kiki-data", "Kiki"]
+    [
+      "com\\.lkyxuan\\.kiki(?!\\.en\\b)",
+      "com.lkyxuan.kiki.en"
+    ],
+    [
+      "lkyxuan/kiki/",
+      "lkyxuan/kiki-en/"
+    ],
+    [
+      "\"lkyxuan/kiki\"",
+      "\"lkyxuan/kiki-en\""
+    ],
+    [
+      "repos/lkyxuan/kiki/releases",
+      "repos/lkyxuan/kiki-en/releases"
+    ],
+    [
+      "kiki-data",
+      "Kiki"
+    ]
   ],
   "_notes": {
-    "replace": "翻译完成后对英文文本做的字面替换，顺序执行。用来让英文版有独立的 App ID、自动更新仓库和数据文件夹（~/Kiki），可以和中文版装在同一台 Mac 上。",
+    "replace": "翻译完成后对英文文本做的正则替换，顺序执行，必须幂等（对已替换过的文本再跑一次不变，脚本启动时会检查）。用来让英文版有独立的 App ID、自动更新仓库和数据文件夹（~/Kiki），可以和中文版装在同一台 Mac 上。",
     "exclude": "这些路径不进英文仓库。"
   }
 }
