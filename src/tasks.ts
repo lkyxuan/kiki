@@ -43,6 +43,9 @@ export interface Task {
   parent?: string; // 由哪个定时任务开出来的
   question?: string; // 等你：卡在哪、要你回答什么
   hold?: boolean; // 只记下来：不管到没到点、等的任务做没做完，都等用户点开始
+  doneWhen?: string; // 完成标准：做到什么算完
+  executor?: string; // 谁来做：不填是 Kiki 自己开后台对话；填外部 bot 的名字就交给收发室注册的执行者
+  watching?: string; // 做完后还在盯的事（关注清单里的一条），有相关新消息时回到这个任务的对话里接着办
 }
 
 // ---------- 存储 ----------
@@ -100,7 +103,7 @@ export class MemoryTaskStore implements TaskStore {
 
 const RESULT_MARK = "<!-- kiki:result -->";
 const FIELDS = [
-  "id", "title", "status", "agent", "when", "after", "repeat", "parent", "question", "hold",
+  "id", "title", "status", "agent", "when", "after", "repeat", "parent", "question", "hold", "doneWhen", "executor", "watching",
   "session", "origin", "reportTo", "chatId", "created", "started", "finished",
 ] as const;
 
@@ -143,12 +146,27 @@ const safe = (s: string) => s.replace(/[\/\\:*?"<>|\n]/g, " ").trim().slice(0, 3
 // ---------- 执行 ----------
 
 /** 执行器对外面的全部要求，测试时可以换成假的。 */
+/** 外部执行者（收发室里的外部 bot）：拿到任务去做，返回结果。超时、重试、回报都复用任务的规则。 */
+export interface Executor {
+  /** signal：停任务、超时时会 abort，执行者收到后通知对方也停，然后 reject 就行 */
+  run(t: Task, signal: AbortSignal): Promise<string>;
+  /** 停下（停任务时调），可以没有；用 signal 就不用它 */
+  stop?(t: Task): Promise<void> | void;
+}
+
+/** 交给执行者的完整说明：任务原文 + 完成标准。 */
+export function taskPrompt(t: Pick<Task, "prompt" | "doneWhen">): string {
+  return t.doneWhen ? `${t.prompt}\n\n完成标准：${t.doneWhen}\n做到这一步就停，在结果里逐条对照完成标准说明做到了没有。` : t.prompt;
+}
+
 export interface TaskBackend {
   /** 在这个宝下为这个任务开一段后台对话，返回它的 JSONL 路径；给了 from 就从那段对话分叉 */
   spawn(agent: string, title: string, from?: string): Promise<string>;
   send(agent: string, path: string, text: string): Promise<string>;
-  /** 停掉正在跑的对话（超时用），可以没有 */
+  /** 停掉正在跑的对话（超时、停任务用），可以没有 */
   abort?(path: string): Promise<void>;
+  /** 往正在跑的对话里插一句话（改任务用），可以没有 */
+  steer?(path: string, text: string): Promise<void>;
   /** 往一段对话末尾记一条消息，不触发回答（回报给发起的对话） */
   note(path: string, text: string): Promise<void>;
 }
@@ -165,6 +183,8 @@ export interface StartInput {
   repeat?: string; // 重复规则；有它就是定时任务
   hold?: boolean; // 只记下来，等手动开始
   parent?: string;
+  doneWhen?: string;
+  executor?: string;
 }
 
 type Notify = (t: Task) => void;
@@ -176,7 +196,12 @@ export class Tasks extends EventEmitter {
   private waiting: string[] = [];
   private notifiers = new Map<string, Notify>();
   private asked = new Map<string, string>(); // 任务 id -> 这一轮里 agent 提的问题
-  private resumes = new Map<string, string>(); // 任务 id -> 用户的回答（排队等着在原对话里接着干）
+  private resumes = new Map<string, string>(); // 任务 id -> 用户的回答或返工要求（排队等着在原对话里接着干）
+  private stopping = new Set<string>(); // 正在被停下的任务：这一轮结束时标"已取消"
+  private executors = new Map<string, Executor>();
+  private controllers = new Map<string, AbortController>(); // 任务 id -> 交给外部执行者的停止信号
+  /** 按名字找执行者（收发室的外部 agent 是动态的，用它就不用每次重新注册）；先查 registerExecutor 注册过的 */
+  executorFor?: (name: string) => Executor | undefined;
   private timer?: NodeJS.Timeout;
   /** 没有专门回报对象的任务（定时开出来的、重启后的、agent 用工具记的）做完/卡住时找它，server 接到收件箱。 */
   defaultNotify?: Notify;
@@ -193,6 +218,21 @@ export class Tasks extends EventEmitter {
 
   private now() {
     return this.opts.now?.() ?? new Date();
+  }
+
+  /** 收发室注册外部执行者（名字就是任务卡上的 executor）。同名再注册就覆盖。 */
+  registerExecutor(name: string, ex: Executor) {
+    this.executors.set(name, ex);
+  }
+
+  private executor(name: string): Executor | undefined {
+    return this.executors.get(name) ?? this.executorFor?.(name);
+  }
+
+  /** 停外部执行者：先发停止信号，再调它的 stop（有的话）。 */
+  private async stopExecutor(t: Task) {
+    this.controllers.get(t.id)?.abort();
+    await this.executor(t.executor!)?.stop?.(t);
   }
 
   /** 启动时调一次：上次没做完的（排队/进行中）标成"中断"，返回它们，由调用方告诉用户。待办和等你的照旧留着。 */
@@ -239,7 +279,7 @@ export class Tasks extends EventEmitter {
   retry(id: string, notify?: Notify): Task | undefined {
     const old = this.all.get(id);
     if (!old || OPEN.includes(old.status) || old.repeat) return undefined;
-    return this.start({ agent: old.agent, title: old.title, prompt: old.prompt, origin: old.origin, reportTo: old.reportTo, chatId: old.chatId, parent: old.parent }, notify);
+    return this.start({ agent: old.agent, title: old.title, prompt: old.prompt, doneWhen: old.doneWhen, executor: old.executor, origin: old.origin, reportTo: old.reportTo, chatId: old.chatId, parent: old.parent }, notify);
   }
 
   /** 待办马上开始（定时任务就是马上额外跑一次，不影响下次时间）。 */
@@ -275,6 +315,44 @@ export class Tasks extends EventEmitter {
   }
 
   /** 正在等你回答、由这段对话执行的任务。 */
+  /** 这段对话是哪个任务的（最近的那个） */
+  bySession(sessionPath: string): Task | undefined {
+    return this.list((x) => x.session === sessionPath).at(-1);
+  }
+
+  /** 记下 / 清掉任务在盯的事（kiki_watch 用） */
+  setWatching(id: string, about: string | undefined) {
+    const t = this.all.get(id);
+    if (t) this.update(t, { watching: about });
+  }
+
+  /** 关注的事有新消息（收发室匹配到后调）：回到这个任务原来的对话里接着办，做完重新回报。
+   *  进行中的插话进去；等你的、已结束的带着新消息接着做；还没开跑的补进任务内容。 */
+  followUp(id: string, message: string, notify?: Notify): string | undefined {
+    const t = this.all.get(id);
+    const msg = message.trim();
+    if (!t || !msg) return undefined;
+    const say = `你在盯的事有新消息（${t.watching ?? t.title}）：\n\n${msg}\n\n看看现在需要做什么：能自己办的就办；要用户做决定或亲自操作的，用 kiki_ask_user 问，或者在结果里写清楚要用户做什么；这件事不用再盯了就用 kiki_watch action=stop。`;
+    if (notify) this.notifiers.set(t.id, notify);
+    switch (t.status) {
+      case "todo":
+      case "queued":
+        if (this.resumes.has(t.id)) this.resumes.set(t.id, `${this.resumes.get(t.id)}\n\n${say}`);
+        else this.update(t, { prompt: `${t.prompt}\n\n${say}` });
+        return "已补进任务内容";
+      case "running":
+        if (t.executor || !t.session || !this.backend.steer) return undefined;
+        void this.backend.steer(t.session, say).catch((e) => console.warn(`[tasks] 插话失败：${(e as Error).message}`));
+        return "已插话进正在跑的任务";
+      default:
+        if (t.executor || !t.session || t.status === "cancelled") return undefined;
+        this.resumes.set(t.id, say);
+        this.update(t, { finished: undefined, result: undefined, question: undefined });
+        this.enqueue(t);
+        return "已回到原来的对话里接着办";
+    }
+  }
+
   blockedBySession(sessionPath: string): Task | undefined {
     return this.list((x) => x.session === sessionPath && x.status === "blocked")[0];
   }
@@ -288,6 +366,55 @@ export class Tasks extends EventEmitter {
     this.update(t, { question: undefined });
     this.enqueue(t);
     return t;
+  }
+
+  /** 停任务：没开跑的直接取消；正在跑的停下对话（或外部执行者），这一轮结束时标"已取消"。 */
+  async stop(id: string): Promise<Task | undefined> {
+    const t = this.all.get(id);
+    if (!t) return undefined;
+    if (t.status !== "running") return this.cancel(id);
+    this.stopping.add(id);
+    if (t.executor) await this.stopExecutor(t);
+    else if (t.session) await this.backend.abort?.(t.session);
+    return t;
+  }
+
+  /** 改任务 / 返工：按任务现在的状态，把这句话送到该去的地方。返回给人看的一句说明；改不了返回 undefined。
+   *  待办/排队：改进任务内容；进行中：插话进正在跑的对话；等你：当作回答；已结束：在原对话里接着做，做完重新回报。 */
+  revise(id: string, text: string, notify?: Notify): string | undefined {
+    const t = this.all.get(id);
+    const add = text.trim();
+    if (!t || !add) return undefined;
+    if (notify) this.notifiers.set(t.id, notify);
+    switch (t.status) {
+      case "todo":
+      case "queued":
+        // 已经排着队要在原对话里接着做（回答、返工、新消息）的，补在那句话后面，不然开跑时看不到
+        if (this.resumes.has(t.id)) this.resumes.set(t.id, `${this.resumes.get(t.id)}\n\n补充：${add}`);
+        else this.update(t, { prompt: `${t.prompt}\n\n补充：${add}` });
+        return `已经改进「${t.title}」的任务内容，开跑时会按新的做。`;
+      case "running":
+        if (t.executor || !t.session || !this.backend.steer) return undefined;
+        void this.backend.steer(t.session, add).catch((e) => console.warn(`[tasks] 插话失败：${(e as Error).message}`));
+        return `已经把这句话插进正在跑的「${t.title}」。`;
+      case "blocked":
+        this.answer(t.id, add);
+        return `已经当作回答交给「${t.title}」，它会接着做。`;
+      default: {
+        if (t.executor || !t.session) {
+          // 没开过对话（或外部做的）：新开一个任务，原话加上返工要求
+          const again = this.start(
+            { agent: t.agent, title: t.title, prompt: `${t.prompt}\n\n返工要求：${add}`, doneWhen: t.doneWhen, executor: t.executor, origin: t.origin, reportTo: t.reportTo, chatId: t.chatId },
+            notify,
+          );
+          return `「${t.title}」重新开了一个任务去返工（${again.id}）。`;
+        }
+        this.resumes.set(t.id, `返工：${add}`);
+        this.update(t, { finished: undefined, result: undefined });
+        this.enqueue(t);
+        return `「${t.title}」在原来的对话里接着返工，做完会重新回报。`;
+      }
+    }
   }
 
   // ----- 内部 -----
@@ -310,7 +437,7 @@ export class Tasks extends EventEmitter {
   private spawnRun(tpl: Task): Task {
     const notify = this.notifiers.get(tpl.id);
     const run = this.start(
-      { agent: tpl.agent, title: tpl.title, prompt: tpl.prompt, reportTo: tpl.reportTo ?? tpl.origin, chatId: tpl.chatId, parent: tpl.id },
+      { agent: tpl.agent, title: tpl.title, prompt: tpl.prompt, doneWhen: tpl.doneWhen, executor: tpl.executor, reportTo: tpl.reportTo ?? tpl.origin, chatId: tpl.chatId, parent: tpl.id },
       notify,
     );
     return run;
@@ -378,7 +505,7 @@ export class Tasks extends EventEmitter {
       this.resumes.delete(t.id);
       if (reply !== undefined) {
         this.update(t, { status: "running" });
-        void this.run(t, () => this.backend.send(t.agent, t.session!, reply));
+        void this.run(t, () => (t.session ? this.backend.send(t.agent, t.session, reply) : Promise.reject(new Error("这个任务没有对话可以接着做"))));
       } else {
         this.update(t, { status: "running", started: iso(this.now()) });
         void this.run(t);
@@ -392,28 +519,43 @@ export class Tasks extends EventEmitter {
     const work =
       step?.() ??
       (async () => {
+        if (t.executor) {
+          const ex = this.executor(t.executor);
+          if (!ex) throw new Error(`没有叫「${t.executor}」的执行者（收发室里没接上）`);
+          const c = new AbortController();
+          this.controllers.set(t.id, c);
+          return ex.run(t, c.signal);
+        }
         const path = await this.backend.spawn(t.agent, t.title, t.origin);
-        if (timedOut) return ""; // 开对话就超时了（比如原对话一直忙），不再开始干活
+        if (timedOut || this.stopping.has(t.id)) {
+          // 开对话时就超时/被停了（比如原对话一直忙），不再开始干活
+          await this.backend.abort?.(path);
+          return "";
+        }
         this.update(t, { session: path });
-        return this.backend.send(t.agent, path, t.prompt);
+        return this.backend.send(t.agent, path, taskPrompt(t));
       })();
     let finished = true;
     try {
       // 超时从派活算起，包括开对话（分叉原对话可能要排在原对话后面）
       const answer = await this.withTimeout(work, () => {
         timedOut = true;
-        if (t.session) void this.backend.abort?.(t.session);
+        if (t.executor) void this.stopExecutor(t);
+        else if (t.session) void this.backend.abort?.(t.session);
       });
       const q = this.asked.get(t.id);
       this.asked.delete(t.id);
-      if (q) {
+      if (this.stopping.delete(t.id)) this.update(t, { status: "cancelled", finished: iso(this.now()), result: answer || "已停下。" });
+      else if (q) {
         finished = false;
         this.update(t, { status: "blocked", question: q, result: answer || undefined });
       } else this.update(t, { status: "done", finished: iso(this.now()), result: answer, question: undefined });
     } catch (e) {
       this.asked.delete(t.id);
-      this.update(t, { status: "failed", finished: iso(this.now()), result: (e as Error).message });
+      if (this.stopping.delete(t.id)) this.update(t, { status: "cancelled", finished: iso(this.now()), result: "已停下。" });
+      else this.update(t, { status: "failed", finished: iso(this.now()), result: (e as Error).message });
     } finally {
+      this.controllers.delete(t.id);
       this.running--;
       this.pump(); // 先放下一个任务开跑，再回报原对话：原对话忙时回报要排队，别卡住整个队列
     }

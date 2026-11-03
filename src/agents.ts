@@ -432,6 +432,16 @@ export class Agents extends EventEmitter {
     renameSync(path, join(dir, `${trashStamp()}-${safe}-${basename(path)}`));
   }
 
+  /** 往正在跑的对话里插一句话（pi 的 steer：这一步做完就看到）；没在跑就当普通的一句话发进去。改任务用。 */
+  async steer(agent: string, path: string, text: string): Promise<void> {
+    const s = this.live.get(path);
+    if (s?.isStreaming) {
+      await s.steer(text);
+      return;
+    }
+    await this.send(agent, path, text);
+  }
+
   /** 停掉正在跑的对话（后台任务超时用）。 */
   async abort(path: string) {
     await this.live.get(path)?.abort();

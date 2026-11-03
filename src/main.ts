@@ -21,10 +21,10 @@ import { A2AAgent } from "./a2a.js";
 import { AcpAgent } from "./acp.js";
 import { WatchAgent } from "./watch.js";
 import { Notifier } from "./notify.js";
-import { makeTriage } from "./triage.js";
+import { makeTriage, watchForTask, Watchlist } from "./triage.js";
 import { startServer } from "./server.js";
-import { FileTaskStore } from "./tasks.js";
-import { taskTools } from "./tasktool.js";
+import { FileTaskStore, taskPrompt } from "./tasks.js";
+import { taskTools, type WatchList } from "./tasktool.js";
 import { Updater, VERSION } from "./update.js";
 
 // 自动更新装新版本前会先跑一次 --selftest：能走到这里说明 Node 和全部代码都加载成功了
@@ -79,7 +79,10 @@ const TOOL_FEATURE: Record<string, FeatureId> = {
   kiki_task: "schedule",
   kiki_ask_user: "background",
   kiki_outside: "postroom",
+  kiki_watch: "background",
 };
+// 关注清单（收发室接上后赋值，每个宝一份，在 agents/<宝>/ 下）：任务做完还要盯的事；有相关新消息时收发室调 router.tasks.followUp(任务id, 消息)
+let watchList: WatchList | undefined;
 // 每段对话一句话摘要：回完话后台更新（registry.json 里的 summary），路由和主对话都只看摘要
 const summaries = new Summaries({
   registry,
@@ -95,7 +98,8 @@ agents.extensions.push((pi) => {
     const file = ctx.sessionManager.getSessionFile();
     const rec = file ? registry.byPath(file) : undefined;
     if (rec?.name !== MAIN_SESSION) return;
-    const digest = router.threadDigest(rec.agent);
+    // 再加一行后台任务的数：奇奇看全部，别的宝看自己的
+    const digest = [router.threadDigest(rec.agent), router.taskCount(rec.agent === DEFAULT_BAO ? undefined : rec.agent)].filter(Boolean).join("\n\n");
     return digest ? { systemPrompt: `${ev.systemPrompt}\n\n${digest}` } : undefined;
   });
 });
@@ -127,6 +131,25 @@ postroom.triage = makeTriage({
 });
 // 通知通道：要告诉你的事从这里发出去。现在只有 Kiki 界面（server.ts 挂上），以后的 Telegram、微信做成插件也挂这里
 const notifier = new Notifier();
+// 收发室和任务接起来：派给外部 agent 的任务由收发室去办；任务做完还要盯的事记进宝的关注清单；有相关新消息就交回那个任务
+router.tasks.executorFor = (name) =>
+  postroom.configs().some((c) => c.name === name)
+    ? { run: (t, signal) => postroom.run(name, taskPrompt(t), { title: t.title, origin: t.origin, from: t.reportTo ?? t.origin, signal }) }
+    : undefined;
+watchList = {
+  add: (w) => {
+    watchForTask(dataDir, { taskId: w.taskId, agent: w.agent, about: w.until ? `${w.about}（盯到 ${w.until}）` : w.about, match: w.match, session: w.session });
+    return `已记进「${w.agent}」的关注清单：${w.about}`;
+  },
+  remove: (id, agent) => {
+    new Watchlist(dataDir, agent).removeByTask(id);
+  },
+};
+postroom.followTask = async (id, text) => router.tasks.followUp(id, text);
+// 任务被取消了，它在盯的事也从关注清单里拿掉
+router.tasks.on("update", (t) => {
+  if (t.status === "cancelled" && t.watching) void Promise.resolve(watchList?.remove(t.id, t.agent)).catch(() => {});
+});
 // 设置页关掉的能力不挂给 agent（新开的对话生效）
 agents.toolsFor = () =>
   [
@@ -138,7 +161,7 @@ agents.toolsFor = () =>
       return r && `${r.agent}/${r.name}`;
     }),
     // 待办、定时任务、等某件事做完再做；后台任务卡住时停下来问用户
-    ...taskTools({ tasks: router.tasks, listBaos: () => agents.listAgents(), baoOf: (p) => (p ? registry.byPath(p)?.agent : undefined) }),
+    ...taskTools({ tasks: router.tasks, listBaos: () => agents.listAgents(), baoOf: (p) => (p ? registry.byPath(p)?.agent : undefined), watch: () => watchList }),
   ].filter((t) => !TOOL_FEATURE[t.name] || isOn(dataDir, TOOL_FEATURE[t.name]));
 
 // 每个宝一段主对话，老对话都当讨论串。放在扩展和工具都挂好之后，启动时补建的主对话也带着它们

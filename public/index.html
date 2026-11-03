@@ -589,12 +589,12 @@ function renderBoard() {
   const st = { queued: "排队中", running: "进行中", done: "完成", failed: "失败", interrupted: "中断", cancelled: "已取消" };
   const btn = (act, id, label, cls = "") => `<button class="${cls}" data-task-act="${act}" data-id="${esc(id)}">${label}</button>`;
   const open = (t) => (t.session ? `<button data-thread="${esc(t.session)}">打开对话</button>` : "");
-  const tcard = (t, meta, acts, extra = "") => `<div class="tcard"><div class="t">${avatar(t.agent)}<span class="tt" title="${esc(t.prompt || "")}">${esc(t.title)}</span></div><div class="meta">${meta}</div>${extra}${acts ? `<div class="acts">${acts}</div>` : ""}</div>`;
+  const tcard = (t, meta, acts, extra = "") => `<div class="tcard"><div class="t">${avatar(t.agent)}<span class="tt" title="${esc(t.prompt || "")}">${esc(t.title)}</span></div><div class="meta">${meta}</div>${t.doneWhen ? `<div class="meta" title="完成标准">✓ ${esc(t.doneWhen)}</div>` : ""}${t.watching ? `<div class="meta" title="做完后还在盯的事，有新消息会接着办">👀 ${esc(t.watching)}</div>` : ""}${extra}${acts ? `<div class="acts">${acts}</div>` : ""}</div>`;
   const cols = [
     ["待办", tasks.filter((t) => t.status === "todo").sort((x, y) => String(x.when || "z").localeCompare(String(y.when || "z"))),
       (t) => tcard(t, esc(todoWhen(t)), btn("run", t.id, t.repeat ? "现在跑一次" : "开始") + btn("cancel", t.id, "取消", "danger"))],
     ["进行中", tasks.filter((t) => t.status === "running" || t.status === "queued"),
-      (t) => { const s = t.session && find(t.session); return tcard(t, esc(t.status === "queued" ? "排队中" : s && s.live ? s.live.status : "进行中"), open(t) + (t.status === "queued" ? btn("cancel", t.id, "取消", "danger") : "")); }],
+      (t) => { const s = t.session && find(t.session); return tcard(t, esc(t.status === "queued" ? "排队中" : s && s.live ? s.live.status : t.executor ? `${t.executor} 在做` : "进行中"), open(t) + btn("stop", t.id, t.status === "queued" ? "取消" : "停下", "danger")); }],
     ["等你", tasks.filter((t) => t.status === "blocked"),
       (t) => tcard(t, "卡住了，等你回答", (t.session ? `<button data-thread="${esc(t.session)}">去回答</button>` : "") + btn("cancel", t.id, "不做了", "danger"), `<div class="q">${esc(t.question || "")}</div>`)],
     ["完成", tasks.filter((t) => ["done", "failed", "interrupted", "cancelled"].includes(t.status)).sort((x, y) => String(y.finished || "").localeCompare(String(x.finished || ""))).slice(0, 30),

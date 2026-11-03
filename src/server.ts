@@ -400,11 +400,15 @@ export function startServer(opts: {
       return;
     }
 
-    // 看板上的按钮：马上开始 / 取消 / 重跑
+    // 看板上的按钮：马上开始 / 取消或停下 / 重跑
     if (url.pathname.startsWith("/api/tasks/") && req.method === "POST") {
       const { id } = await body();
       const act = url.pathname.slice("/api/tasks/".length);
-      const t = act === "run" ? router.tasks.runNow(id) : act === "cancel" ? router.tasks.cancel(id) : act === "retry" ? router.tasks.retry(id) : undefined;
+      const t =
+        act === "run" ? router.tasks.runNow(id)
+        : act === "cancel" || act === "stop" ? await router.tasks.stop(id)
+        : act === "retry" ? router.tasks.retry(id)
+        : undefined;
       if (!t) return json({ error: "这个任务现在不能这样操作" }, 400);
       return json(t);
     }
