@@ -78,23 +78,55 @@
   .msg { font-size: 12.5px; color: var(--muted); }
   .msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
   p.msg { margin: 12px 0 0; line-height: 1.6; }
-  .prov-list { margin-top: 10px; display: flex; flex-direction: column; }
-  .prov { border-top: 1px solid var(--line); padding: 10px 2px; }
-  .prov:first-child { border-top: 0; }
-  .prov .ptop { display: flex; flex-direction: row; justify-content: flex-start; text-align: left; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .prov .n { font-weight: 600; font-size: 13.5px; }
-  .prov .st { font-size: 12px; color: var(--muted); }
-  .prov .st.ok { color: #2f9e57; }
-  .prov .acts { margin-left: auto; display: flex; gap: 6px; }
-  .prov .flow { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--fill, rgba(127,127,127,.08)); font-size: 13px; line-height: 1.6; }
-  .prov .flow .row { margin-top: 8px; }
-  .prov .flow input:not([type=checkbox]) { flex: 1; min-width: 200px; }
-  .prov .mrow input { flex: none; width: auto; min-width: 0; margin: 0; }
-  .prov .mrow { justify-content: flex-start; text-align: left; }
-  .prov .flow code { font-family: var(--mono); font-size: 15px; font-weight: 700; letter-spacing: 1px; }
-  .prov .err { color: #e0475f; }
-  .prov .mlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 12px; max-height: 260px; overflow: auto; margin-top: 8px; }
-  .prov .mrow { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 2px 0; cursor: pointer; }
+  /* 模型页：每个用途一行，右边是下拉框 */
+  .mrole { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .card .mrole:first-child { border-top: 0; padding-top: 2px; }
+  .card .mrole:last-child { padding-bottom: 2px; }
+  .mrole .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .mrole .t b { font-weight: 500; font-size: 13.5px; }
+  .mrole .t span { font-size: 12px; color: var(--muted); }
+  .mrole select { width: 250px; flex: none; min-height: 30px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--raised); color: var(--text); font-size: 13px; }
+  .mrole select.follow { color: var(--muted); }
+  @media (max-width: 600px) { .mrole { flex-wrap: wrap; } .mrole select { width: 100%; } }
+  .sec { font-size: 12px; font-weight: 600; color: var(--muted); margin: 0 4px 6px; }
+  /* 服务商页：左边列表，右边详情（像 Cherry Studio） */
+  .wrap:has(#pane-providers.on) { max-width: 880px; }
+  .pv { display: flex; padding: 0; overflow: hidden; min-height: 520px; }
+  .pv-list { width: 220px; flex: none; border-right: 1px solid var(--line); display: flex; flex-direction: column; max-height: 680px; }
+  .pv-list .q { width: auto; margin: 10px; min-width: 0; padding: 5px 10px; border: 0; border-radius: 7px; background: var(--fill); font-size: 13px; outline: none; }
+  .pv-items { overflow: auto; padding-bottom: 8px; }
+  .pv-g { font-size: 11.5px; font-weight: 600; color: var(--muted); padding: 8px 14px 3px; }
+  button.pv-g { border: 0; background: none; width: 100%; text-align: left; cursor: pointer; }
+  .pv-it { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 14px; border: 0; background: none; text-align: left; font-size: 13px; cursor: pointer; }
+  .pv-it:hover { background: var(--hover); }
+  .pv-it.on { background: var(--accent-soft); }
+  .pv-it .lg { width: 22px; height: 22px; flex: none; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+  .pv-it .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv-it .dot { margin: 0; }
+  .pv-d { flex: 1; min-width: 0; padding: 16px 20px; }
+  .pv-d h3 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pv-d .tag { font-size: 11.5px; font-weight: 500; padding: 1px 7px; border-radius: 6px; background: var(--fill); color: var(--muted); }
+  .pv-d .tag.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+  .pv-d .lbl { font-size: 12px; color: var(--muted); margin: 16px 0 6px; display: flex; align-items: center; gap: 8px; }
+  .pv-d .lbl .show { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .pv-d .acct { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .pv-d .acct .st { font-size: 12.5px; color: var(--muted); }
+  .pv-d .flow { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--fill); font-size: 13px; line-height: 1.6; }
+  .pv-d .flow .row { margin-top: 8px; }
+  .pv-d .flow input { flex: 1; min-width: 200px; }
+  .pv-d .flow code { font-family: var(--mono); font-size: 15px; font-weight: 700; letter-spacing: 1px; }
+  .pv-d .err { color: var(--err); }
+  .pv-d .mq { width: 100%; margin-bottom: 6px; }
+  .pv-d .mlist { max-height: 340px; overflow: auto; }
+  .pv-d .mrow { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; cursor: pointer; }
+  .pv-d .mrow:first-child { border-top: 0; }
+  .pv-d .mrow .nm { flex: 1; min-width: 0; }
+  .pv-d .mrow .mt { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; margin-left: 4px; }
+  .pv-d .mrow input { flex: none; width: auto; margin: 0; }
+  .pv-d details { margin-top: 18px; font-size: 13px; }
+  .pv-d details summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+  .pv-empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  @media (max-width: 640px) { .pv { flex-direction: column; } .pv-list { width: auto; border-right: 0; border-bottom: 1px solid var(--line); max-height: 260px; } }
   .mono { font-family: var(--mono); font-size: 12px; word-break: break-all; }
   .bao { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
   .bao .avatar.bot { background: none; } .bao .avatar.bot svg { width: 100%; height: 100%; display: block; }
@@ -210,39 +242,34 @@
     </div>
   </section>
 
-  <section class="pane" id="pane-model" data-title="模型与密钥">
-    <h2>模型与密钥</h2>
+  <section class="pane" id="pane-model" data-title="模型">
+    <h2>模型 <small>每个用到模型的环节都能单独选。下拉框里是你在「服务商」里勾选的模型。</small></h2>
     <div class="card">
-    <div class="grid">
-      <div class="field">
-        <label for="MODEL">默认模型</label>
-        <input type="text" id="MODEL" list="models" placeholder="deepseek/deepseek-flash">
-        <datalist id="models"><option value="deepseek/deepseek-flash"></option></datalist>
-        <span class="src" data-src="MODEL"></span>
-      </div>
-      <div class="field">
-        <label for="DEEPSEEK_API_KEY">DeepSeek API 密钥</label>
-        <input type="text" id="DEEPSEEK_API_KEY" autocomplete="off" spellcheck="false" placeholder="sk-…、keychain:名字 或 op://…">
-        <span class="src" data-src="DEEPSEEK_API_KEY"></span>
-      </div>
+      <div class="mrole"><div class="t"><b>主模型</b><span>聊天、干活都用它；输入框旁的模型按钮换的也是它</span></div><select id="main-model" aria-label="主模型"></select></div>
     </div>
-    <div class="row">
-      <button class="btn primary" id="save-model">保存</button>
-      <button class="btn" id="test">测试连接</button>
-      <span class="msg" id="model-msg"></span>
+    <div class="sec">按用途（不选就跟主模型走）</div>
+    <div class="card" id="roles"></div>
+    <div class="row" style="padding:0 4px"><span class="msg" id="roles-msg"></span></div>
+    <div class="card" id="no-models" hidden><p class="msg" style="margin:0">还没有能用的模型。先去连接一家服务商，填密钥或用订阅登录。</p><div class="row"><button class="btn primary" data-goto="providers">去连接服务商</button></div></div>
+  </section>
+
+  <section class="pane" id="pane-providers" data-title="服务商">
+    <h2>服务商 <small>连上一家，勾选要用的模型，它们就会出现在「模型」页和输入框旁的模型按钮里。凭证只存在这台电脑上。</small></h2>
+    <div class="card pv">
+      <div class="pv-list"><input type="text" class="q" id="prov-q" placeholder="搜索服务商" aria-label="搜索服务商"><div class="pv-items" id="prov-list"></div></div>
+      <div class="pv-d" id="prov-detail"></div>
     </div>
-    <p class="msg">到 <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a> 申请一个 API 密钥（sk- 开头），粘贴到上面，点「保存」就能用。密钥只存在这台电脑的数据目录里（<span class="mono">.env</span>，只有你能读）。<br>进阶：也可以填 <span class="mono">keychain:名字</span> 从 macOS 钥匙串取，或填 1Password 引用 <span class="mono">op://…</span>，这两种要重启后生效，做法见 docs/mac-app.md。</p>
-    </div>
-    <div class="card" id="roles-card">
-      <h3 class="sub" style="margin:0 0 4px">各用途用哪个模型 <small>不选就跟默认模型走；改完马上生效</small></h3>
-      <div id="roles" class="grid"></div>
-      <span class="msg" id="roles-msg"></span>
-    </div>
-    <div class="card" id="prov-card">
-      <h3 class="sub" style="margin:0 0 4px">所有模型服务商 <small>打开开关，填密钥或用订阅登录就能用；再点「选模型」勾选要用的，它们会出现在输入框旁的模型按钮里</small></h3>
-      <div class="row" style="margin-top:8px"><input type="text" id="prov-q" placeholder="搜索服务商，比如 Claude、Gemini、OpenRouter" style="flex:1;min-width:200px"></div>
-      <div id="prov-list" class="prov-list"></div>
-    </div>
+    <template id="ds-adv">
+      <details id="ds-adv-box"><summary>进阶：用环境变量 / 钥匙串 / 1Password 存 DeepSeek 密钥</summary>
+        <div class="field" style="margin-top:10px">
+          <label for="DEEPSEEK_API_KEY">DEEPSEEK_API_KEY（存在数据目录的 .env 里）</label>
+          <input type="text" id="DEEPSEEK_API_KEY" autocomplete="off" spellcheck="false" placeholder="sk-…、keychain:名字 或 op://…">
+          <span class="src" data-src="DEEPSEEK_API_KEY"></span>
+        </div>
+        <div class="row"><button class="btn" id="save-dskey">保存</button><button class="btn" id="test">测试连接</button><span class="msg" id="ds-msg"></span></div>
+        <p class="msg">填 <span class="mono">keychain:名字</span> 从 macOS 钥匙串取，或填 1Password 引用 <span class="mono">op://…</span>，这两种要重启后生效，做法见 docs/mac-app.md。</p>
+      </details>
+    </template>
   </section>
 
   <section class="pane" id="pane-about" data-title="关于我">
@@ -351,6 +378,7 @@ const W = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-widt
 const ICONS = {
   look: ["#636366", W('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="#fff"/>')],
   model: ["#ff9500", W('<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/>')],
+  providers: ["#5856d6", W('<rect x="4" y="4" width="16" height="6" rx="2"/><rect x="4" y="14" width="16" height="6" rx="2"/><path d="M8 7h.01M8 17h.01"/>')],
   about: ["#007aff", W('<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/>')],
   baos: ["#af52de", W('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>')],
   approval: ["#ff3b30", W('<path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/>')],
@@ -422,9 +450,10 @@ async function load() {
   $("#about-ver").textContent = `版本 ${S.version}`;
   $("#about-env").textContent = S.envFile;
   if (!$("#ver").textContent) $("#ver").textContent = `Kiki v${S.version}`;
-  for (const k of ["MODEL", "DEEPSEEK_API_KEY", "DEFAULT_AGENT"]) {
+  for (const k of ["DEEPSEEK_API_KEY", "DEFAULT_AGENT"]) {
     const e = S.env[k];
     const input = $("#" + k);
+    if (!input) continue; // DeepSeek 的进阶框只在选中 DeepSeek 时才有
     input.value = k === "DEEPSEEK_API_KEY" && e.source !== "ref" ? "" : e.value;
     if (k === "DEEPSEEK_API_KEY" && e.source !== "ref" && e.value) input.placeholder = `${e.value}（留空表示不改）`;
     input.disabled = e.source === "external";
@@ -438,6 +467,7 @@ async function load() {
   $("#restart").hidden = !S.canRestart;
   if (!S.canRestart) say("#restart-msg", "开发模式下请在终端里重启（npm start）。");
   renderBaos();
+  if (selProv === "deepseek") renderDetail(); // 进阶框里要显示 .env 里的 DeepSeek 密钥
 }
 
 function renderBaos() {
@@ -465,22 +495,21 @@ function alertMsg(el, e) { el.textContent = e.message; el.className = "msg err";
 
 async function setEnv(key, value) { const r = await api("/api/settings/env", { key, value }); if (r.changed) $("#banner").classList.add("on"); return r; }
 
-$("#save-model").onclick = async () => {
-  try {
-    // 模型没改就不写，免得只填了密钥也要重启
-    let restart = false;
-    if (!$("#MODEL").disabled && $("#MODEL").value.trim() !== (S.env.MODEL.value || "")) restart = (await setEnv("MODEL", $("#MODEL").value)).changed;
-    const key = $("#DEEPSEEK_API_KEY").value.trim();
-    if (key && !$("#DEEPSEEK_API_KEY").disabled) restart = (await setEnv("DEEPSEEK_API_KEY", key)).changed;
-    say("#model-msg", restart ? "已保存，重启后生效" : "已保存，现在就能用了", "ok");
-    await load();
-  } catch (e) { say("#model-msg", e.message, "err"); }
-};
-$("#test").onclick = async () => {
-  say("#model-msg", "测试中…");
-  try { const r = await api("/api/settings/test", {}); r.ok ? say("#model-msg", "连接正常", "ok") : say("#model-msg", r.error, "err"); }
-  catch (e) { say("#model-msg", e.message, "err"); }
-};
+// DeepSeek 进阶：.env 里的 DEEPSEEK_API_KEY（可以是钥匙串 / 1Password 引用）
+document.addEventListener("click", async (e) => {
+  if (e.target.id === "save-dskey") {
+    try {
+      const key = $("#DEEPSEEK_API_KEY").value.trim();
+      const restart = key && !$("#DEEPSEEK_API_KEY").disabled ? (await setEnv("DEEPSEEK_API_KEY", key)).changed : false;
+      say("#ds-msg", restart ? "已保存，重启后生效" : "已保存，现在就能用了", "ok");
+      await load(); provCall("/api/models/providers");
+    } catch (err) { say("#ds-msg", err.message, "err"); }
+  } else if (e.target.id === "test") {
+    say("#ds-msg", "测试中…");
+    try { const r = await api("/api/settings/test", {}); r.ok ? say("#ds-msg", "连接正常", "ok") : say("#ds-msg", r.error, "err"); }
+    catch (err) { say("#ds-msg", err.message, "err"); }
+  } else if (e.target.dataset?.goto) showPane(e.target.dataset.goto);
+});
 $("#save-default").onclick = async () => {
   try { await setEnv("DEFAULT_AGENT", $("#DEFAULT_AGENT").value); say("#default-msg", "已保存，重启后生效", "ok"); await load(); }
   catch (e) { say("#default-msg", e.message, "err"); }
@@ -712,38 +741,87 @@ $("#new-mcp-go").onclick = async () => {
 };
 loadMcp();
 
-// 模型按用途配置（src/modelroles.ts）：路由、摘要、先回一句、看图，各选各的
-async function loadRoles(body) {
-  const r = await fetch("/api/models/roles", body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) return say("#roles-msg", j.error || "出错了", "err");
-  if (body) say("#roles-msg", "改好了", "ok");
-  const opts = (sel) => j.models.map((m) => `<option value="${esc(m.spec)}"${m.spec === sel ? " selected" : ""}>${esc((m.providerName ? m.providerName + " · " : "") + m.name)}</option>`).join("");
-  $("#roles").innerHTML = j.roles.map((x) => `<div class="field"><label for="role-${x.id}" title="${esc(x.desc)}">${esc(x.name)}</label>
-    <select id="role-${x.id}" data-role="${x.id}"><option value="">${esc(x.unset)}</option>${opts(x.spec)}${x.spec && !j.models.some((m) => m.spec === x.spec) ? `<option value="${esc(x.spec)}" selected>${esc(x.spec)}（不可用）</option>` : ""}</select>
-    <span class="src">${esc(x.desc)}</span></div>`).join("");
+// 「模型」页：主模型 + 各用途（src/modelroles.ts：路由、摘要、先回一句、看图），下拉框里只有服务商页勾选的模型
+const optLabel = (m) => (m.providerName ? m.providerName + " · " : "") + m.name;
+function modelOptions(models, sel, filter = () => true) {
+  const groups = new Map();
+  for (const m of models.filter(filter)) groups.set(m.providerName || m.provider, [...(groups.get(m.providerName || m.provider) || []), m]);
+  return [...groups].map(([g, ms]) => `<optgroup label="${esc(g)}">${ms.map((m) => `<option value="${esc(m.spec)}"${m.spec === sel ? " selected" : ""}>${esc(m.name)}${m.image ? "（能看图）" : ""}</option>`).join("")}</optgroup>`).join("");
 }
-$("#roles").addEventListener("change", (e) => { const t = e.target.closest("[data-role]"); if (t) loadRoles({ id: t.dataset.role, spec: t.value }); });
-loadRoles();
+async function loadModels(change) {
+  let j, info;
+  try {
+    if (change?.main) await api("/api/models/use", { spec: change.main });
+    j = await api("/api/models/roles", change?.role);
+    info = await api("/api/models");
+    if (change) say("#roles-msg", "改好了，马上生效", "ok");
+  } catch (e) { say("#roles-msg", e.message, "err"); if (!j) return; }
+  const models = j.models, cur = info?.current || "";
+  $("#no-models").hidden = models.length > 0;
+  $("#main-model").innerHTML = (models.some((m) => m.spec === cur) ? "" : `<option value="${esc(cur)}" selected>${esc(cur || "还没选")}${cur ? "（不可用）" : ""}</option>`) + modelOptions(models, cur);
+  $("#roles").innerHTML = j.roles.map((x) => {
+    const unset = x.unset.replace("默认模型", "主模型");
+    const bad = x.spec && !models.some((m) => m.spec === x.spec);
+    return `<div class="mrole"><div class="t"><b>${esc(x.name)}</b><span>${esc(x.desc)}</span></div>
+      <select data-role="${x.id}" aria-label="${esc(x.name)}" class="${x.spec ? "" : "follow"}"><option value="">${esc(unset)}</option>${modelOptions(models, x.spec, x.id === "vision" ? (m) => m.image : undefined)}${bad ? `<option value="${esc(x.spec)}" selected>${esc(x.spec)}（不可用）</option>` : ""}</select></div>`;
+  }).join("");
+}
+$("#main-model").onchange = (e) => loadModels({ main: e.target.value });
+$("#roles").addEventListener("change", (e) => { const t = e.target.closest("[data-role]"); if (t) loadModels({ role: { id: t.dataset.role, spec: t.value } }); });
+loadModels();
 
-// 所有模型服务商：填密钥或订阅登录（都走 Kiki 内核自己的登录流程，凭证存在 engine/auth.json）
-let provs = [], plogin = { status: "idle" }, provPoll = null;
+// 「服务商」页：左边列表（已连接 / 常用 / 更多），右边这家的连接方式和模型。都走 Kiki 内核自己的登录流程，凭证存在 engine/auth.json
+const COMMON = ["anthropic", "openai", "google", "xai", "deepseek", "openrouter", "moonshotai", "kimi-coding", "qwen-token-plan", "zai", "minimax", "github-copilot"];
+let provs = [], plogin = { status: "idle" }, provPoll = null, selProv = null, moreOpen = false;
+const provModels = {}; // 服务商 → 它的模型（勾选用）
+const provMq = {}; // 服务商 → 模型搜索词
 async function provCall(path, body) {
   const r = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { plogin = { ...plogin, error: j.error || "出错了" }; renderProvs(); return null; }
   const wasWaiting = plogin.status === "waiting";
   provs = j.providers; plogin = j.login;
-  if (wasWaiting && plogin.status === "done" && plogin.provider) { openProv.add(plogin.provider); loadProvModels(plogin.provider); } // 配好了就直接让你勾模型
+  if (wasWaiting && plogin.status === "done" && plogin.provider) { loadProvModels(plogin.provider); loadModels(); } // 配好了就直接让你勾模型
+  if (!selProv || !provs.some((p) => p.id === selProv)) selProv = (provs.find((p) => p.configured) || provs.find((p) => p.id === "deepseek") || provs[0])?.id;
+  const sp = provs.find((p) => p.id === selProv);
+  if (sp?.configured && !provModels[sp.id]) loadProvModels(sp.id);
   renderProvs();
   clearInterval(provPoll);
   if (plogin.status === "waiting") provPoll = setInterval(() => provCall("/api/models/providers"), 2000); // 等浏览器那边登完
   return j;
 }
+async function loadProvModels(id) {
+  const r = await fetch(`/api/models/provider?id=${encodeURIComponent(id)}`);
+  if (r.ok) provModels[id] = (await r.json()).models;
+  renderProvs();
+}
+function logo(p) {
+  let h = 0;
+  for (const c of p.id) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return `<span class="lg" style="background:hsl(${h} 45% 52%)">${esc(p.name[0].toUpperCase())}</span>`;
+}
+function provItem(p) {
+  return `<button class="pv-it${p.id === selProv ? " on" : ""}" data-sel="${p.id}">${logo(p)}<span class="n">${esc(p.name)}</span>${p.configured ? `<span class="dot${p.on ? " ok" : ""}" title="${p.on ? "已连接" : "已连接，但在菜单里隐藏了"}"></span>` : ""}</button>`;
+}
+function renderList() {
+  const q = $("#prov-q").value.trim().toLowerCase();
+  if (q) {
+    const hit = provs.filter((p) => (p.name + " " + p.id + " " + (p.oauth || "")).toLowerCase().includes(q));
+    $("#prov-list").innerHTML = hit.map(provItem).join("") || '<div class="pv-g">没找到</div>';
+    return;
+  }
+  const conn = provs.filter((p) => p.configured);
+  const common = COMMON.map((id) => provs.find((p) => p.id === id)).filter((p) => p && !p.configured);
+  const rest = provs.filter((p) => !p.configured && !COMMON.includes(p.id));
+  $("#prov-list").innerHTML =
+    (conn.length ? `<div class="pv-g">已连接</div>${conn.map(provItem).join("")}` : "") +
+    `<div class="pv-g">常用</div>${common.map(provItem).join("")}` +
+    `<button class="pv-g" data-more>更多（${rest.length} 家）${moreOpen ? "▾" : "▸"}</button>${moreOpen ? rest.map(provItem).join("") : ""}`;
+}
 function flowHtml(p) {
   const L = plogin;
   if (L.provider !== p.id) return "";
-  if (L.status === "done") return `<div class="flow">${L.type === "oauth" ? "登录好了" : "密钥存好了"}，在输入框旁的模型按钮里就能选它的模型。</div>`;
+  if (L.status === "done") return `<div class="flow">${L.type === "oauth" ? "登录好了" : "密钥存好了"}，在下面勾选要用的模型。</div>`;
   if (L.status === "error") return `<div class="flow err">没成功：${esc(L.error || "")}</div>`;
   if (L.status !== "waiting") return L.error ? `<div class="flow err">${esc(L.error)}</div>` : "";
   let h = "";
@@ -759,100 +837,90 @@ function flowHtml(p) {
   if (L.error) h += `<div class="err">${esc(L.error)}</div>`;
   return `<div class="flow">${h || "请稍等…"}<div class="row"><button class="btn" data-cancel>取消</button></div></div>`;
 }
-const openProv = new Set(); // 展开看模型的服务商
-const provModels = {}; // 服务商 → 它的模型（勾选用）
-const provMq = {}; // 服务商 → 模型搜索词
-async function loadProvModels(id) {
-  const r = await fetch(`/api/models/provider?id=${encodeURIComponent(id)}`);
-  if (r.ok) provModels[id] = (await r.json()).models;
-  renderProvs();
-}
 function modelsHtml(p) {
   const ms = provModels[p.id];
-  if (!ms) return '<div class="flow">正在读取模型…</div>';
+  if (!ms) return '<div class="msg">正在读取模型…</div>';
   const q = (provMq[p.id] || "").toLowerCase();
   const shown = ms.filter((m) => !q || (m.name + " " + m.spec).toLowerCase().includes(q));
-  const n = ms.filter((m) => m.checked).length;
-  const acct = [
-    p.oauth ? `<button class="btn" data-login="oauth" data-p="${p.id}">${p.oauthActive ? "重新登录" : "订阅登录"}</button>` : "",
-    p.apiKey ? `<button class="btn" data-login="api_key" data-p="${p.id}">${p.configured && !p.oauthActive ? "换密钥" : "填密钥"}</button>` : "",
-    p.oauthActive || p.source === "stored" ? `<button class="btn" data-logout="${p.id}">${p.oauthActive ? "退出登录" : "删掉密钥"}</button>` : "",
-  ].join("");
-  return `<div class="flow"><div>勾上的模型会出现在输入框旁的模型按钮里（已勾 ${n} 个，共 ${ms.length} 个）。</div>
-    ${ms.length > 12 ? `<div class="row"><input type="text" data-mq="${p.id}" placeholder="搜索这家的模型" value="${esc(provMq[p.id] || "")}"></div>` : ""}
-    <div class="mlist">${shown.map((m) => `<label class="mrow"><input type="checkbox" data-pick="${esc(m.spec)}" data-p="${p.id}"${m.checked ? " checked" : ""}> ${esc(m.name)}${m.image ? ' <span class="st">能看图</span>' : ""}</label>`).join("") || '<span class="st">没找到</span>'}</div>
-    <div class="row">${acct}</div></div>`;
+  return (ms.length > 12 ? `<input type="text" class="mq" data-mq="${p.id}" placeholder="搜索这家的 ${ms.length} 个模型" value="${esc(provMq[p.id] || "")}">` : "") +
+    `<div class="mlist">${shown.map((m) => `<label class="mrow"><span class="nm">${esc(m.name)}${m.image ? '<span class="mt">能看图</span>' : ""}</span><span class="switch"><input type="checkbox" data-pick="${esc(m.spec)}" data-p="${p.id}"${m.checked ? " checked" : ""} aria-label="${esc(m.name)}"><i></i></span></label>`).join("") || '<span class="msg">没找到</span>'}</div>`;
 }
-function renderProvs() {
-  const q = $("#prov-q").value.trim().toLowerCase();
+function renderDetail() {
+  const p = provs.find((x) => x.id === selProv);
+  if (!p) { $("#prov-detail").innerHTML = '<div class="pv-empty">在左边选一家服务商</div>'; return; }
+  const how = p.oauthActive ? "订阅登录" : p.source === "stored" ? "密钥" : p.source ? "来自 " + esc(p.source) : "";
+  const tag = p.configured ? `<span class="tag ok">已连接${how ? " · " + how : ""}</span>` : '<span class="tag">未连接</span>';
+  const busy = plogin.provider === p.id && plogin.status === "waiting";
+  const acct = `<div class="acct">` + [
+    p.oauth ? `<button class="btn${p.configured ? "" : " primary"}" data-login="oauth" data-p="${p.id}"${busy ? " disabled" : ""}>${p.oauthActive ? "重新登录" : "用订阅登录"}（${esc(p.oauth)}）</button>` : "",
+    p.apiKey ? `<button class="btn${p.configured || p.oauth ? "" : " primary"}" data-login="api_key" data-p="${p.id}"${busy ? " disabled" : ""}>${p.configured && !p.oauthActive ? "换密钥" : "填 API 密钥"}</button>` : "",
+    p.oauthActive || p.source === "stored" ? `<button class="btn" data-logout="${p.id}">${p.oauthActive ? "退出登录" : "删掉密钥"}</button>` : "",
+  ].join("") + `</div>`;
+  const flow = plogin.provider === p.id && plogin.status !== "idle" ? flowHtml(p) : plogin.error && !plogin.provider ? `<div class="flow err">${esc(plogin.error)}</div>` : "";
+  let models = "";
+  if (p.configured) {
+    const ms = provModels[p.id], n = ms ? ms.filter((m) => m.checked).length : 0;
+    models = `<div class="lbl">模型${ms ? `（勾了 ${n} 个，共 ${ms.length} 个）` : ""}<span class="show">在菜单里显示<label class="switch" title="关掉：模型菜单和「模型」页里不再列这家，凭证留着"><input type="checkbox" data-toggle="${p.id}"${p.on ? " checked" : ""} aria-label="在菜单里显示 ${esc(p.name)}"><i></i></label></span></div>` +
+      (p.on ? modelsHtml(p) : '<div class="msg">已隐藏：这家的模型不会出现在菜单里，凭证还留着。</div>');
+  }
   const keep = $("#prov-answer"), val = keep?.value, focused = keep && document.activeElement === keep; // 每 2 秒刷新时别把正在填的弄丢
   const af = document.activeElement?.dataset?.mq, afPos = af ? document.activeElement.selectionStart : 0;
-  const list = provs.filter((p) => !q || (p.name + " " + p.id + " " + (p.oauth || "")).toLowerCase().includes(q));
-  $("#prov-list").innerHTML = list.map((p) => {
-    const busy = plogin.provider === p.id && plogin.status === "waiting";
-    const choosing = choose === p.id;
-    const st = p.on ? `<span class="st ok">${p.oauthActive ? "订阅登录" : p.source === "stored" ? "密钥已存" : p.source ? "来自 " + esc(p.source) : "已配置"}</span>`
-      : p.configured ? '<span class="st">已关掉（凭证还留着）</span>' : '<span class="st">未配置</span>';
-    const info = `<span class="st">${p.models} 个模型${p.oauth ? " · 可订阅登录" : ""}</span>`;
-    const more = p.on ? `<button class="btn" data-open="${p.id}">${openProv.has(p.id) ? "收起" : "选模型"}</button>` : "";
-    let body = "";
-    if (choosing) body = `<div class="flow"><div>用哪种方式接 ${esc(p.name)}？</div><div class="row"><button class="btn primary" data-login="oauth" data-p="${p.id}">订阅登录（${esc(p.oauth)}）</button><button class="btn" data-login="api_key" data-p="${p.id}">填 API 密钥</button><button class="btn" data-cancel>取消</button></div></div>`;
-    else if (plogin.provider === p.id && plogin.status !== "idle" && (plogin.status !== "done" || !openProv.has(p.id))) body = flowHtml(p);
-    if (p.on && openProv.has(p.id)) body += modelsHtml(p);
-    return `<div class="prov"><div class="ptop"><label class="switch" title="${p.on ? "关掉：模型菜单里不再显示这家" : "打开：填密钥或登录后就能用"}"><input type="checkbox" data-toggle="${p.id}"${p.on || busy || choosing ? " checked" : ""}><i></i></label><span class="n">${esc(p.name)}</span>${st}${info}<span class="acts">${more}</span></div>${body}</div>`;
-  }).join("") || '<p class="msg">没找到。</p>';
+  const advOpen = $("#ds-adv-box")?.open, dsVal = $("#DEEPSEEK_API_KEY")?.value;
+  $("#prov-detail").innerHTML = `<h3>${esc(p.name)} ${tag}</h3><div class="lbl">连接方式</div>${acct}${flow}${models}`;
+  if (p.id === "deepseek") { // DeepSeek 还能用 .env 里的密钥（钥匙串 / 1Password 引用）
+    $("#prov-detail").append($("#ds-adv").content.cloneNode(true));
+    $("#ds-adv-box").open = !!advOpen;
+    if (S) {
+      const e = S.env.DEEPSEEK_API_KEY, input = $("#DEEPSEEK_API_KEY"), src = document.querySelector('[data-src="DEEPSEEK_API_KEY"]');
+      input.value = dsVal ?? (e.source === "ref" ? e.value : "");
+      if (e.source !== "ref" && e.value) input.placeholder = `${e.value}（留空表示不改）`;
+      input.disabled = e.source === "external";
+      src.textContent = SRC[e.source]; src.className = "src " + e.source;
+    }
+  }
   const now = $("#prov-answer");
   if (now && val) now.value = val;
   if (now && (focused || !val)) now.focus();
   if (af) { const el = document.querySelector(`[data-mq="${af}"]`); if (el) { el.focus(); el.setSelectionRange(afPos, afPos); } }
 }
-let choose = null; // 正在选“订阅登录还是填密钥”的服务商
-$("#prov-q").oninput = renderProvs;
-$("#prov-list").addEventListener("change", async (e) => {
+function renderProvs() { renderList(); renderDetail(); }
+$("#prov-q").oninput = renderList;
+$("#prov-list").addEventListener("click", (e) => {
+  if (e.target.closest("[data-more]")) { moreOpen = !moreOpen; renderList(); return; }
+  const b = e.target.closest("[data-sel]");
+  if (!b) return;
+  selProv = b.dataset.sel;
+  const p = provs.find((x) => x.id === selProv);
+  if (p.configured && !provModels[p.id]) loadProvModels(p.id);
+  renderProvs();
+});
+$("#prov-detail").addEventListener("change", async (e) => {
   const t = e.target;
-  if (t.dataset.toggle) {
-    const p = provs.find((x) => x.id === t.dataset.toggle);
-    if (!t.checked) { // 关掉：只是不在菜单里显示，凭证留着；正在登录的就取消
-      if (choose === p.id) choose = null;
-      if (plogin.provider === p.id && plogin.status === "waiting") await provCall("/api/models/login/cancel", {});
-      if (p.configured) await provCall("/api/models/prefs", { provider: p.id, on: false });
-      else renderProvs();
-      return;
-    }
-    if (p.configured) { await provCall("/api/models/prefs", { provider: p.id, on: true }); return; }
-    // 还没配置：打开就要填信息
-    if (p.oauth && p.apiKey) { choose = p.id; renderProvs(); return; }
-    startLogin(p.id, p.oauth ? "oauth" : "api_key");
-    return;
-  }
+  if (t.dataset.toggle) { await provCall("/api/models/prefs", { provider: t.dataset.toggle, on: t.checked }); loadModels(); return; }
   if (t.dataset.pick) {
     const id = t.dataset.p, ms = provModels[id];
-    const m = ms.find((x) => x.spec === t.dataset.pick); m.checked = t.checked;
+    ms.find((x) => x.spec === t.dataset.pick).checked = t.checked;
     await provCall("/api/models/prefs", { provider: id, models: ms.filter((x) => x.checked).map((x) => x.spec.slice(id.length + 1)) });
+    loadModels();
   }
 });
-$("#prov-list").addEventListener("input", (e) => { const id = e.target.dataset.mq; if (id) { provMq[id] = e.target.value; renderProvs(); } });
+$("#prov-detail").addEventListener("input", (e) => { const id = e.target.dataset.mq; if (id) { provMq[id] = e.target.value; renderDetail(); } });
 async function startLogin(id, type) {
-  choose = null;
   await provCall("/api/models/prefs", { provider: id, on: true }); // 登录好了就直接是打开的
   const j = await provCall("/api/models/login/start", { provider: id, type });
   if (j?.login?.url) window.open(j.login.url, "_blank", "noopener");
 }
-$("#prov-list").addEventListener("click", async (e) => {
+$("#prov-detail").addEventListener("click", async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.login) startLogin(b.dataset.p, b.dataset.login);
-  else if (b.dataset.open) {
-    const id = b.dataset.open;
-    if (openProv.has(id)) openProv.delete(id); else { openProv.add(id); loadProvModels(id); }
-    renderProvs();
-  } else if (b.dataset.answer !== undefined) {
+  else if (b.dataset.answer !== undefined) {
     const v = b.dataset.answer || $("#prov-answer")?.value.trim();
     if (v) provCall("/api/models/login/answer", { value: v });
-  } else if ("cancel" in b.dataset) { choose = null; provCall("/api/models/login/cancel", {}); }
-  else if (b.dataset.logout) provCall("/api/models/login/logout", { provider: b.dataset.logout });
+  } else if ("cancel" in b.dataset) { provCall("/api/models/login/cancel", {}); }
+  else if (b.dataset.logout) { await provCall("/api/models/login/logout", { provider: b.dataset.logout }); loadModels(); }
 });
-$("#prov-list").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "prov-answer") { e.preventDefault(); $("#prov-list [data-answer='']")?.click(); } });
+$("#prov-detail").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "prov-answer") { e.preventDefault(); $("#prov-detail [data-answer='']")?.click(); } });
 provCall("/api/models/providers");
 </script>
 </body>
