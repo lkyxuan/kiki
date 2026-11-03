@@ -201,8 +201,10 @@ export class WorkBook extends EventEmitter {
     for (const it of items.slice(0, 3)) {
       let w = it.work && it.work !== "new" ? open.find((x) => x.id === it.work) : undefined;
       if (w?.left?.includes(path)) continue; // 你拆出去过的，不再并回
+      if (w?.status === "dropped") continue; // 你说了不做的，自动归类不改它
       if (!w) {
         if (!it.title) continue;
+        if (open.some((x) => x.title === it.title && x.status === "dropped")) continue; // 也不换个 id 再建一件
         // 同名的就当同一件，免得模型忘了 id 又建一件
         w = open.find((x) => x.title === it.title && x.status !== "done" && x.status !== "dropped" && !x.left?.includes(path));
         if (!w) {
@@ -247,11 +249,12 @@ export const WORK_SYSTEM = `你是一个宝（负责某个领域的助理）的�
 只输出 JSON 数组，每项字段：
 {"work": "已有 id 或 new", "title": "8 到 14 个字的事名，像待办标题", "goal": "要办成什么，一句话", "doneWhen": "做到什么算完，一句话", "status": "doing|watching|todo|done|dropped", "next": "下一步谁做什么，一句话，没有就空字符串", "progress": "这次新进展一句话，不超过 30 字，没有新进展就省略"}
 status：doing 正在办；watching 办完了还在盯着某个消息；todo 说好以后再做；done 做完了；dropped 用户说不做了。
-已有的字段没变化可以省略，不要编造对话里没有的事。`;
+已有的字段没变化可以省略，不要编造对话里没有的事。
+标着“不做了”的是用户取消的，对话还在说它就用它的 id，不要当新的再建。`;
 
 export function buildWorkInput(o: { agent: string; thread: string; summary?: string; lines: { role: string; text: string }[]; works: Work[]; mine: string[] }): string {
   const works = o.works
-    .filter((w) => w.status !== "dropped" && (w.status !== "done" || o.mine.includes(w.id)))
+    .filter((w) => (w.status !== "dropped" && w.status !== "done") || o.mine.includes(w.id)) // 做完、不做了的，只给这段对话自己在里面的
     .slice(0, 20)
     .map((w) => `- id=${w.id}${o.mine.includes(w.id) ? "（这段对话已在里面）" : ""}｜${w.title}｜${STATUS_NAME[w.status]}${w.next ? `｜下一步：${w.next}` : ""}`)
     .join("\n");
@@ -318,7 +321,9 @@ export class WorkSorter {
       } catch (e) {
         console.warn("[work] 归类失败：", (e as Error).message);
       }
-      return items ? this.o.book.apply(rec.agent, path, items) : [];
+      // 等模型的时候对话可能被删了、清空换了文件：那这次结果作废，免得把删掉的对话又加回工作里
+      if (!items || this.o.thread(path)?.agent !== rec.agent) return [];
+      return this.o.book.apply(rec.agent, path, items);
     } finally {
       this.running.delete(path);
       if (this.again.delete(path)) void this.run(path);

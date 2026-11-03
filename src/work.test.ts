@@ -74,3 +74,26 @@ test("归类器：后台对话跳过，模型出错不动工作", async () => {
   assert.equal((await s.run("/a")).length, 0);
   assert.equal(b.list("宝").length, 1);
 });
+
+test("不做了的工作：归类不改它、不再同名新建；等模型时对话被删，结果作废", async () => {
+  const b = book();
+  const w = b.apply("宝", "/a", [{ work: "new", title: "换交易所" }])[0];
+  b.set("宝", w.id, { status: "dropped" });
+  b.apply("宝", "/a", [{ work: w.id, status: "doing" }, { work: "new", title: "换交易所" }]);
+  assert.equal(b.list("宝").length, 1);
+  assert.equal(b.get("宝", w.id)!.status, "dropped");
+
+  let alive = true, release!: (v: string) => void;
+  const s = new WorkSorter({
+    book: b,
+    thread: (p) => (alive ? { agent: "宝", name: p } : undefined),
+    history: () => [{ role: "user", text: "做个报告" }],
+    complete: () => new Promise((r) => (release = r)),
+  });
+  const run = s.run("/z");
+  await new Promise((x) => setTimeout(x, 5));
+  alive = false;
+  release('[{"work":"new","title":"Q3 报告"}]');
+  assert.equal((await run).length, 0);
+  assert.equal(b.list("宝").length, 1);
+});
