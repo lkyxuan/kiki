@@ -37,7 +37,7 @@
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-base="light"]) {
+  :root:not([data-theme]) { /* 只管「跟随系统」；选了深色或外部主题看下面那条。特异性保持 (0,2,0)，外部主题同级、后加载，盖得过 */
     color-scheme: dark;
     --bg: #19191b; --side: #2a2a2d; --grouped: #1e1e20; --card: #333337; --raised: #252528;
     --line: rgba(255, 255, 255, .08); --line-strong: rgba(255, 255, 255, .14); --divider: #000000;

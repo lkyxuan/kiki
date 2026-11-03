@@ -15,6 +15,9 @@ function setup() {
   writeFileSync(join(t, "glass", "evil.js"), "x");
   mkdirSync(join(t, "nometa"));
   writeFileSync(join(t, "nometa", "theme.css"), "");
+  mkdirSync(join(t, "nulljson"));
+  writeFileSync(join(t, "nulljson", "theme.css"), "");
+  writeFileSync(join(t, "nulljson", "theme.json"), "null");
   mkdirSync(join(t, "nocss"));
   mkdirSync(join(t, "dark")); // 和内置重名
   writeFileSync(join(t, "dark", "theme.css"), "");
@@ -34,6 +37,7 @@ test("listThemes：有 theme.css 才算，json 缺了用默认", () => {
   assert.deepEqual(listThemes(data), [
     { id: "glass", name: "玻璃", base: "dark", author: "me" },
     { id: "nometa", name: "nometa", base: "light" },
+    { id: "nulljson", name: "nulljson", base: "light" },
   ]);
   assert.deepEqual(listThemes(join(data, "nothing")), []);
 });

@@ -32,7 +32,10 @@ export function listThemes(dataDir: string): ThemeInfo[] {
     const d = join(dir, id);
     try { if (!statSync(d).isDirectory() || !existsSync(join(d, "theme.css"))) continue; } catch { continue; }
     let meta: Record<string, unknown> = {};
-    try { meta = JSON.parse(readFileSync(join(d, "theme.json"), "utf8")); } catch {}
+    try {
+      const j: unknown = JSON.parse(readFileSync(join(d, "theme.json"), "utf8"));
+      if (j && typeof j === "object" && !Array.isArray(j)) meta = j as Record<string, unknown>; // null、数组之类的当没写
+    } catch {}
     const str = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
     out.push({
       id,
