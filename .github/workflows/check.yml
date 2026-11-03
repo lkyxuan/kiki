@@ -1,9 +1,21 @@
-# 每个 PR：类型检查、测试，并在 Mac 上真打一次包（确认原生窗口能编译）
+# 每个 PR：类型检查和测试（Linux，便宜）。在 Mac 上真打一次包只在公开仓库跑（公开仓库 Mac 免费）；
+# 私有仓库 kiki-pro 不在 PR 上用 Mac（按 10 倍扣费），打包问题在发版时由 build-from-pro 发现。
 name: check
 on:
   pull_request:
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check && npm test
   check:
+    if: github.repository == 'lkyxuan/kiki'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
