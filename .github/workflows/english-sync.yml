@@ -1,0 +1,78 @@
+# 中文仓库每次合并到 main，就把改动翻译成英文，推到英文仓库（见 english/README.md）。
+# 需要的配置：
+#   Secrets  DEEPSEEK_API_KEY    翻译用的模型密钥（见 english/rules.json 的 api）
+#            KIKI_EN_TOKEN       能推送英文仓库的 GitHub 令牌（Fine-grained，只给英文仓库 Contents + Pull requests 读写）
+#   Variables KIKI_EN_ENABLED=true  配好之后再打开，没打开时这个工作流什么都不做
+name: english-sync
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: 从头整份重翻（第一次或改了术语表之后）
+        type: boolean
+        default: false
+concurrency:
+  group: english-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: vars.KIKI_EN_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 取英文仓库
+        env:
+          TOKEN: ${{ secrets.KIKI_EN_TOKEN }}
+        run: |
+          EN_REPO=$(node -p "require('./english/rules.json').targetRepo")
+          EN_BRANCH=$(node -p "require('./english/rules.json').targetBranch")
+          echo "EN_REPO=$EN_REPO" >> "$GITHUB_ENV"
+          echo "EN_BRANCH=$EN_BRANCH" >> "$GITHUB_ENV"
+          git clone "https://x-access-token:${TOKEN}@github.com/${EN_REPO}.git" en
+          cd en
+          git checkout "$EN_BRANCH" 2>/dev/null || git checkout -b "$EN_BRANCH"
+      - name: 翻译
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          npm ci --prefix english
+          node english/sync.mjs --en en ${{ inputs.full && '--full' || '' }}
+      - name: 英文版自检（类型检查和测试）
+        id: test
+        continue-on-error: true
+        working-directory: en
+        run: npm ci && npm run check && npm test
+      - name: 推送
+        working-directory: en
+        env:
+          GH_TOKEN: ${{ secrets.KIKI_EN_TOKEN }}
+        run: |
+          git config user.name "kiki-bot"
+          git config user.email "kiki-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "没有变化"; exit 0; fi
+          git commit -q -F .translation/commit-message.txt
+          if [ "${{ steps.test.outcome }}" = "success" ] && [ ! -s .translation/leftovers.txt ]; then
+            git push origin "HEAD:$EN_BRANCH"
+          else
+            BR="sync/${GITHUB_SHA::7}"
+            git push -f origin "HEAD:$BR"
+            {
+              echo "Automatic sync needs a look before merging."
+              echo
+              echo "- Tests: ${{ steps.test.outcome }}"
+              if [ -s .translation/leftovers.txt ]; then echo "- Files that still contain Chinese:"; sed 's/^/  - /' .translation/leftovers.txt; fi
+            } > /tmp/body.md
+            if git ls-remote --exit-code origin "$EN_BRANCH" >/dev/null; then
+              gh pr create -R "$EN_REPO" -B "$EN_BRANCH" -H "$BR" -t "$(head -1 .translation/commit-message.txt)" -F /tmp/body.md || true
+            fi
+            echo "::warning::英文版没通过自检，已推到分支 $BR 并开 PR"
+          fi

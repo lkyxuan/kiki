@@ -60,6 +60,13 @@
   .bao-head button:hover { background: var(--active); color: var(--text); }
   .avatar { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; flex: none; color: #fff; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.1); }
   .sess { padding-left: 58px; min-height: 32px; }
+  /* 讨论串右边的「⋯」：鼠标移上去才出现（触屏一直显示），点开菜单可以删除 */
+  .sess .more { flex: none; width: 22px; height: 22px; margin-right: -4px; border-radius: 5px; display: none; place-items: center; color: var(--muted); }
+  .sess .more svg { width: 16px; height: 16px; }
+  .sess .more:hover, .sess .more.open { background: var(--active); color: var(--text); }
+  .sess:hover .more, .sess:focus-within .more, .sess .more.open { display: grid; }
+  .sess:hover .spin, .sess:hover .dot, .sess:has(.more.open) .spin, .sess:has(.more.open) .dot { display: none; }
+  @media (hover: none) { .sess .more { display: grid; } .sess .spin, .sess .dot { margin-right: 2px; } }
   .tag { font-size: 11px; color: var(--muted); background: var(--fill); border-radius: 4px; padding: 0 5px; line-height: 17px; }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
   .spin { width: 11px; height: 11px; border: 2px solid var(--faint); border-top-color: transparent; border-radius: 50%; animation: r .8s linear infinite; flex: none; }
@@ -528,6 +535,7 @@ function md(src) {
 const emojiOf = (name) => tree?.agents?.find((a) => a.name === name)?.emoji;
 const avatar = (name) => { const e = emojiOf(name); return e ? `<span class="avatar emoji">${esc(e)}</span>` : `<span class="avatar bot">${kikiBot(name)}</span>`; };
 const GEAR = '<svg class="i" viewBox="-1.5 -1.5 27 27" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+const MORE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg>';
 const PLUS = '<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15"/></svg>';
 
 function find(path) {
@@ -558,6 +566,7 @@ function renderSide() {
           <span class="name">${esc(s.name)}</span>
           ${s.background ? '<span class="tag">后台</span>' : ""}
           ${s.busy ? '<span class="spin"></span>' : unread.has(s.path) ? '<span class="dot"></span>' : ""}
+          <span class="more" role="button" tabindex="0" data-more="${esc(s.path)}" aria-label="更多操作" title="更多操作">${MORE}</span>
         </button>`).join(""); };
   const newBtn = (name) => `<button title="在${esc(name)}里新开讨论串" aria-label="在${esc(name)}里新开讨论串" data-new="${esc(name)}">${PLUS}</button>`;
   // 奇奇是默认的宝：它的对话直接列在主按钮下面；别的宝都是从奇奇分出去的，列在“我的宝”
@@ -1180,6 +1189,8 @@ document.body.addEventListener("click", (e) => {
   const st = e.target.closest("[data-settings]");
   if (st && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); return openSettings(st.dataset.settings); }
   if (e.target.closest("[data-board]")) return openBoard();
+  const mo = e.target.closest("[data-more]");
+  if (mo) { e.preventDefault(); e.stopPropagation(); return threadMenu(mo); }
   const th = e.target.closest("[data-thread]");
   if (th) return openPeek(th.dataset.thread, true);
   const be = e.target.closest("[data-bao-edit]");
@@ -1235,7 +1246,7 @@ async function clearMain(path) {
   if (current === path) { forget(path); open(r.path || "main"); }
 }
 const ctx = $("#ctx");
-function hideCtx() { ctx.hidden = true; }
+function hideCtx() { ctx.hidden = true; document.querySelectorAll(".more.open").forEach((b) => b.classList.remove("open")); }
 function showCtx(x, y, items) {
   ctx.innerHTML = items.map((it, i) => `<button role="menuitem" class="${it.danger ? "danger" : ""}" data-i="${i}">${esc(it.label)}</button>`).join("");
   ctx.querySelectorAll("button").forEach((b) => { b.onclick = () => { hideCtx(); items[+b.dataset.i].run(); }; });
@@ -1245,6 +1256,16 @@ function showCtx(x, y, items) {
   ctx.style.top = `${Math.min(y, innerHeight - h - 8)}px`;
   ctx.querySelector("button")?.focus();
 }
+// 讨论串的菜单：右键和「⋯」按钮用同一份
+const threadItems = (s) => [{ label: "在右边打开", run: () => openPeek(s.path, true) }, { label: "删除讨论串…", danger: true, run: () => deleteThread(s.path) }];
+function threadMenu(btn) {
+  const s = find(btn.dataset.more);
+  if (!s || s.name === MAIN_SESSION) return;
+  if (!ctx.hidden && btn.classList.contains("open")) return hideCtx(); // 再点一下收起
+  const r = btn.getBoundingClientRect();
+  showCtx(r.left, r.bottom + 4, threadItems(s));
+  btn.classList.add("open");
+}
 // 右键：讨论串 → 删除；宝名 → 清空主对话；奇奇 → 清空聊天记录
 document.addEventListener("contextmenu", (e) => {
   const th = e.target.closest("aside [data-thread], #panel [data-thread]");
@@ -1252,7 +1273,7 @@ document.addEventListener("contextmenu", (e) => {
   const bh = !th && e.target.closest("[data-bao]");
   const kk = !th && !bh && e.target.closest(".kiki");
   let items = null;
-  if (s && s.name !== MAIN_SESSION) items = [{ label: "在右边打开", run: () => openPeek(s.path, true) }, { label: "删除讨论串…", danger: true, run: () => deleteThread(s.path) }];
+  if (s && s.name !== MAIN_SESSION) items = threadItems(s);
   else if (bh) {
     const m = mainOf(tree.agents.find((a) => a.name === bh.dataset.bao) || { sessions: [] });
     if (m) items = [{ label: "清空主对话…", danger: true, run: () => clearMain(m.path) }];
@@ -1261,7 +1282,9 @@ document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   showCtx(e.clientX, e.clientY, items);
 });
-document.addEventListener("pointerdown", (e) => { if (!ctx.hidden && !ctx.contains(e.target)) hideCtx(); }, true);
+document.addEventListener("pointerdown", (e) => { if (!ctx.hidden && !ctx.contains(e.target) && !e.target.closest?.(".more.open")) hideCtx(); }, true);
+// 「⋯」用键盘也能点开
+document.addEventListener("keydown", (e) => { const mo = e.target.closest?.("[data-more]"); if (mo && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); e.stopPropagation(); threadMenu(mo); } }, true);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !ctx.hidden) { e.preventDefault(); hideCtx(); } });
 addEventListener("blur", hideCtx);
 addEventListener("resize", hideCtx);

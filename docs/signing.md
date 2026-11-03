@@ -24,9 +24,9 @@
 
 1. 把证书导入一个临时钥匙串（跑完就删）。
 2. `packaging/sign.sh app`：由内向外签名，全部开「加固运行时」并打时间戳。依赖里的原生模块（`.node`）先签；自带的 Node 包在「Kiki 后台」小 App（`Contents/Helpers/KikiAgent.app`）里，带上 `packaging/entitlements.plist` 里的权限（JIT、加载原生模块、自动化和日历/通讯录/照片/麦克风/摄像头这些隐私权限）；`Contents/MacOS/kiki-server` 脚本单独签；最后签整个 App。
-3. `packaging/sign.sh notarize-app`：App 交给苹果公证，通过后把票据钉进 App，再打成自动更新用的 `.zip`。
-4. `packaging/sign.sh dmg`：`.dmg` 签名、公证、钉票据。
-5. 公证没通过，这一版直接不发布，日志里有苹果给的原因。
+3. 打 `.dmg`，`packaging/sign.sh dmg`：给 `.dmg` 签名，整个交给苹果公证（每种芯片只交一次，里面的 App 一起公证），通过后把票据钉进 `.dmg` 和 App。
+4. 再从钉好票据的 App 打自动更新用的 `.zip`。
+5. 公证没通过或者等超过 2 小时，这一版直接不发布，日志里有苹果给的原因。新账号刚开始时苹果审得慢（第一次要等一小时左右），之后一般几分钟。
 
 每个 PR 的检查（`check.yml`）会用本地签名把同样的加固运行时签名做一遍并跑自检，确认 Node 在公证要求下还能正常跑。
 
