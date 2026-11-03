@@ -1523,6 +1523,8 @@ es.addEventListener("update", (e) => renderUpdate(JSON.parse(e.data)));
 // 每次（重新）连上都刷新一下；Kiki 更新重启后版本号变了，就整页重载，用上新网页
 let seenVersion = null;
 es.addEventListener("actions", (e) => { actions = JSON.parse(e.data); renderSide(); });
+// 第一次在 Mac 上打开：先把“Mac 权限”那页打开，一次把系统权限要齐
+fetch("/api/settings/mac-permissions").then((r) => r.ok && r.json()).then((m) => { if (m && m.mac && !m.asked) openSettings("macperm"); }).catch(() => {});
 es.addEventListener("open", () => { loadAsks(); loadActions(); return fetch("/api/update").then((r) => r.ok && r.json()).then((u) => {
     if (!u) return;
     if (seenVersion && seenVersion !== u.current) return location.reload();

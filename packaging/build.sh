@@ -33,6 +33,15 @@ curl -fsSL "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt" | grep " $TGZ
 (cd "$CACHE" && { command -v sha256sum >/dev/null && sha256sum -c "$TGZ.sha256" || shasum -a 256 -c "$TGZ.sha256"; } >/dev/null)
 tar -xzf "$CACHE/$TGZ" -C "$RES/node" --strip-components=1 "node-v$NODE_VERSION-darwin-$ARCH/bin/node" "node-v$NODE_VERSION-darwin-$ARCH/LICENSE"
 
+# 3b. Node 包成「Kiki 后台」小 App（Contents/Helpers/KikiAgent.app）：系统隐私设置里认的是它，
+#     显示成“Kiki 后台”，签名标识固定，自动更新后权限还在。原来的 node/bin/node 留一个指过去的链接。
+AGENT="$APP/Contents/Helpers/KikiAgent.app"
+mkdir -p "$AGENT/Contents/MacOS" "$AGENT/Contents/Resources"
+mv "$RES/node/bin/node" "$AGENT/Contents/MacOS/kiki-node"
+ln -s ../../../Helpers/KikiAgent.app/Contents/MacOS/kiki-node "$RES/node/bin/node"
+sed "s/__VERSION__/$VERSION/g" packaging/agent-Info.plist > "$AGENT/Contents/Info.plist"
+cp packaging/AppIcon.icns "$AGENT/Contents/Resources/"
+
 # 4. App 外壳
 sed "s/__VERSION__/$VERSION/g" packaging/Info.plist > "$APP/Contents/Info.plist"
 cp packaging/kiki-server "$APP/Contents/MacOS/"
@@ -46,7 +55,7 @@ else
   echo "（这台机器编译不了原生窗口，Kiki.app 会用浏览器打开界面）"
   cp packaging/mac/launcher.sh "$APP/Contents/MacOS/Kiki"
 fi
-chmod +x "$APP/Contents/MacOS/"* "$RES/kiki-setup" "$RES/swap.sh" "$RES/client-update.sh" "$RES/node/bin/node"
+chmod +x "$APP/Contents/MacOS/"* "$RES/kiki-setup" "$RES/swap.sh" "$RES/client-update.sh" "$AGENT/Contents/MacOS/kiki-node"
 
 # 签名：配了开发者证书（KIKI_SIGN_IDENTITY）就正式签名并交给苹果公证，没配就照旧本地签名。见 docs/signing.md
 packaging/sign.sh app "$APP"

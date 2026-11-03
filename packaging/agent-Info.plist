@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Kiki 后台（Contents/Helpers/KikiAgent.app）：真正干活的 Node 包成一个小 App。
+     这样系统设置的「隐私与安全性」里显示的是“Kiki 后台”和 Kiki 的图标，而不是一个叫 node 的程序；
+     开发者签名 + 固定的标识（com.lkyxuan.kiki.agent），自动更新后已经给过的权限还在，不用重新给。 -->
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>Kiki 后台</string>
+  <key>CFBundleDisplayName</key><string>Kiki 后台</string>
+  <key>CFBundleIdentifier</key><string>com.lkyxuan.kiki.agent</string>
+  <key>CFBundleExecutable</key><string>kiki-node</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>__VERSION__</string>
+  <key>CFBundleVersion</key><string>__VERSION__</string>
+  <key>LSMinimumSystemVersion</key><string>12.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSAppleEventsUsageDescription</key><string>Kiki 要替你操作日历、备忘录、提醒事项、通讯录、Finder 这些 App。</string>
+  <key>NSCalendarsUsageDescription</key><string>Kiki 要看你的日程、帮你建会。</string>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>Kiki 要看你的日程、帮你建会。</string>
+  <key>NSRemindersUsageDescription</key><string>Kiki 要看和添加你的待办。</string>
+  <key>NSRemindersFullAccessUsageDescription</key><string>Kiki 要看和添加你的待办。</string>
+  <key>NSContactsUsageDescription</key><string>Kiki 要认出消息和邮件是谁发的。</string>
+  <key>NSPhotoLibraryUsageDescription</key><string>Kiki 要按你的要求找照片、整理相册。</string>
+  <key>NSMicrophoneUsageDescription</key><string>Kiki 要听你说话（语音输入）。</string>
+  <key>NSCameraUsageDescription</key><string>Kiki 要在你需要时拍照或扫码。</string>
+  <key>NSLocalNetworkUsageDescription</key><string>Kiki 要连接你在 Tailscale 或局域网里的另一台电脑。</string>
+</dict>
+</plist>

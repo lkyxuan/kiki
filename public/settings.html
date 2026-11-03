@@ -333,10 +333,11 @@
   </section>
 
   <section class="pane" id="pane-macperm" data-title="Mac 权限">
-    <h2>Mac 权限 <small>装好 Kiki 后一次给全，以后她做事就不会被系统弹窗卡住</small></h2>
+    <h2>Mac 权限 <small>装好后一次给全，以后 Kiki 做事就不会被系统弹窗卡住</small></h2>
     <div class="card">
+    <div class="row"><button class="btn primary" id="mp-all">一键申请全部</button><span class="msg" id="mp-msg">会依次弹出系统对话框，每个点“允许”或“好”就行</span></div>
     <div id="macperm" class="msg">读取中…</div>
-    <p class="msg">这些开关苹果规定只能你亲手点：点“去打开”会跳到系统设置的那一页，在列表里打开 Kiki（没有就点 ＋ 把 Kiki 加进去）。要在跑 Kiki 的那台 Mac 上开（连远程时是远程那台）。<span id="mp-node"></span></p>
+    <p class="msg">权限给的是“Kiki 后台”（真正干活的那部分），系统设置里也显示这个名字。苹果规定开关只能你亲手点；完全磁盘访问没有弹窗，点“去打开”会打开系统设置那一页，并在 Finder 里指出“Kiki 后台”，把它拖进列表再打开开关。这些都发生在跑 Kiki 的那台 Mac 上（连远程时是远程那台）。</p>
     </div>
   </section>
 
@@ -761,18 +762,30 @@ async function loadActions() {
     };
   }
 }
+let mpTimer = 0;
 async function loadMacPerm() {
   let r;
   try { r = await api("/api/settings/mac-permissions"); } catch (e) { $("#macperm").textContent = e.message; return; }
   const box = $("#macperm");
-  if (!r.mac) { box.textContent = "Kiki 现在不是跑在 Mac 上，不用设置这些。"; return; }
+  if (!r.mac) { box.textContent = "Kiki 现在不是跑在 Mac 上，不用设置这些。"; $("#mp-all").hidden = true; return; }
+  if (!r.asked) api("/api/settings/mac-permissions/seen", {}).catch(() => {});
   box.className = "";
   const ST = { on: '<span class="msg ok">已开</span>', off: '<span class="msg err">没开</span>', unknown: "" };
   box.innerHTML = r.items.map((p) => `
-    <div class="toggle-row"><div class="t"><b>${esc(p.name)}</b><span>${esc(p.why)}</span></div>
-      ${ST[p.status] || ""}<a class="btn" href="${esc(p.url)}">去打开</a></div>`).join("");
-  if (r.node) $("#mp-node").textContent = ` 如果开了还显示“没开”，把这个程序也加进去：${r.node}`;
+    <div class="toggle-row" data-id="${esc(p.id)}"><div class="t"><b>${esc(p.name)}</b><span>${esc(p.why)}</span></div>
+      ${ST[p.status] || ""}<button class="btn mp-open">去打开</button></div>`).join("");
+  for (const row of document.querySelectorAll("#macperm .toggle-row"))
+    row.querySelector(".mp-open").onclick = () => api("/api/settings/mac-permissions/open", { id: row.dataset.id }).catch((e) => say("#mp-msg", e.message, "err"));
+  $("#mp-all").disabled = r.requesting;
+  if (r.requesting) say("#mp-msg", `正在申请：${r.step}…（看看屏幕上的系统对话框）`);
+  else if (mpTimer) say("#mp-msg", r.items.every((p) => p.status !== "off") ? "申请完了。完全磁盘访问记得在打开的设置页里打开开关。" : "有几项没开，点旁边的“去打开”再开一下。", "ok");
+  clearTimeout(mpTimer);
+  mpTimer = r.requesting ? setTimeout(loadMacPerm, 1500) : 0;
 }
+$("#mp-all").onclick = async () => {
+  try { await api("/api/settings/mac-permissions/request", {}); mpTimer = 1; setTimeout(loadMacPerm, 500); }
+  catch (e) { say("#mp-msg", e.message, "err"); }
+};
 loadMacPerm();
 loadApproval();
 
