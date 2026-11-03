@@ -123,22 +123,24 @@ export function taskTools(opts: {
 
   const ask: ToolDefinition = {
     name: "kiki_ask_user",
-    label: "停下来问你",
+    label: "缺材料才停",
     description:
-      "只在后台任务里用：缺了没法自己判断的关键信息、猜错代价很大时，把问题交给用户，然后结束这一轮（简短说清做到哪了、卡在哪）。用户回答后会在这段对话里接着说，你接着干。",
-    promptSnippet: "kiki_ask_user：后台任务卡住、必须用户拍板时停下来问",
+      "只在后台任务里用，而且只在缺一样只有用户手里才有的东西时用：照片、证件、验证码、没给过的密码或账号、要用户本人登录。" +
+      "拿不准怎么选、缺偏好这类能自己判断的，不要用它：按最合理的假设做完，在结果最前面写清你假设了什么、用户想改可以直接说。" +
+      "用了以后这个任务会停下来等材料，用户给了会在这段对话里接着说。",
+    promptSnippet: "kiki_ask_user：后台任务缺照片/验证码/密码这类只有用户有的东西时才停下来要",
     promptGuidelines: [
-      "能自己合理判断的就自己定，在结果里写明你的假设，不要动不动就问；只有缺关键信息、猜错代价大时才用 kiki_ask_user。",
-      "调用 kiki_ask_user 后不要继续干活，回一两句说明卡在哪就结束这一轮。",
+      "Kiki 是全自动的：拿不准就按最合理的假设做完，结果开头写“我假设了…，要改直接说”，不要停下来问。",
+      "只有缺用户手里的材料（照片、证件、验证码、没给过的密码、要本人登录）才用 kiki_ask_user，用了就不要继续干活，一两句说明缺什么就结束这一轮。",
     ],
     parameters: Type.Object({
-      question: Type.String({ description: "要用户回答的问题，自带背景，最好给出选项" }),
+      question: Type.String({ description: "要用户给的东西：具体缺什么、做什么用、给了以后接着做什么" }),
     }),
     async execute(_id, p: any, _signal, _onUpdate, ctx) {
       const from: string | undefined = ctx?.sessionManager?.getSessionFile?.();
       const t = from ? opts.tasks.ask(from, p.question ?? "") : undefined;
-      if (!t) return text("这里不是后台任务，直接在回答里问用户就行。", true);
-      return text("问题已经交给用户。现在停下，用一两句话说明做到哪了、卡在哪，然后结束这一轮。");
+      if (!t) return text("这里不是后台任务，直接在回答里说缺什么就行。", true);
+      return text("已经告诉用户缺这样东西。现在停下，用一两句话说明做到哪了、缺什么，然后结束这一轮。");
     },
   };
 

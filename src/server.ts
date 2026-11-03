@@ -115,7 +115,8 @@ export function startServer(opts: {
     push("tree", tree());
   });
   opts.updater?.on("state", (s) => push("update", s));
-  opts.approvals?.on("change", (list) => push("approvals", list)); // 等你点头的卡片
+  opts.approvals?.on("change", (list) => push("approvals", list)); // 待发、超预算的卡片
+  opts.approvals?.actions.on("change", () => push("actions", opts.approvals!.actions.list(20))); // Kiki 自动做了什么
 
   const mainSay = (role: ChatLine["role"], text: string, ack?: string) => {
     appendFileSync(mainLog, JSON.stringify({ role, text, ts: new Date().toISOString() }) + "\n");
@@ -282,7 +283,7 @@ export function startServer(opts: {
       }
     }
 
-    // 审批：GET 看等你点头的卡片，POST /api/approvals/decide {id, decision: yes|no|always}
+    // 卡片：GET 看待发和要你点的卡片，POST /api/approvals/decide {id, decision: yes|no|always}（待发的 no = 撤回）
     if (url.pathname === "/api/approvals" && opts.approvals) return json(opts.approvals.list());
     if (url.pathname === "/api/approvals/decide" && req.method === "POST" && opts.approvals) {
       const { id, decision } = await body();
@@ -293,6 +294,17 @@ export function startServer(opts: {
         return json({ error: (e as Error).message }, 400);
       }
       return json({ ok: true });
+    }
+
+    // Kiki 做了什么：GET 最近自动做掉的危险动作；POST /api/actions/undo {id} 撤回
+    if (url.pathname === "/api/actions" && opts.approvals) return json(opts.approvals.actions.list(Number(url.searchParams.get("limit")) || 50));
+    if (url.pathname === "/api/actions/undo" && req.method === "POST" && opts.approvals) {
+      const { id } = await body();
+      try {
+        return json({ ok: true, note: opts.approvals.actions.undo(String(id)) });
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
     }
 
     // 模型：GET 看菜单；POST /api/models/use {spec} 换模型（写回 .env，重启后还是它）

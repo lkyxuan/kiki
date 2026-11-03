@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- 自带的 Node 在「加固运行时」下要的权限（公证要求开加固运行时）：
-     V8 要 JIT；原生模块（.node）要能加载。sign.sh 只给 node 本体用这个文件。 -->
+<!-- Kiki 后台（自带的 Node，包在 Contents/Helpers/KikiAgent.app 里）在「加固运行时」下要的权限：
+     V8 要 JIT；原生模块（.node）要能加载；
+     加固运行时下，没写进这里的隐私权限连系统弹窗都不会出来，直接被拒——所以 Kiki 要用到的都写上。 -->
 <plist version="1.0">
 <dict>
   <key>com.apple.security.cs.allow-jit</key><true/>
   <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
   <key>com.apple.security.cs.disable-library-validation</key><true/>
+  <key>com.apple.security.automation.apple-events</key><true/>
+  <key>com.apple.security.personal-information.calendars</key><true/>
+  <key>com.apple.security.personal-information.addressbook</key><true/>
+  <key>com.apple.security.personal-information.photos-library</key><true/>
+  <key>com.apple.security.device.audio-input</key><true/>
+  <key>com.apple.security.device.camera</key><true/>
 </dict>
 </plist>

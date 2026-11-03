@@ -31,7 +31,7 @@ export interface WorkerHooks {
   /** 在主程序里执行 Kiki 的工具，返回 pi 的工具结果 */
   runTool(agent: string, name: string, params: unknown, path: string, cwd: string, toolCallId: string): Promise<unknown>;
   /** 审批：拦下返回原因 */
-  approve(req: { toolName: string; input: unknown; cwd: string; path: string }, signal: AbortSignal): Promise<{ block: true; reason: string } | undefined>;
+  approve(req: { toolName: string; input: unknown; cwd: string; path: string; turn?: import("./outside.js").TurnInfo }, signal: AbortSignal): Promise<{ block: true; reason: string } | undefined>;
 }
 
 export interface WorkerInit {
@@ -145,7 +145,7 @@ export class Worker extends EventEmitter {
         const c = new AbortController();
         this.asks.set(m.id, c);
         this.hooks
-          .approve({ toolName: m.toolName, input: m.input, cwd: m.cwd, path: this.path ?? "" }, c.signal)
+          .approve({ toolName: m.toolName, input: m.input, cwd: m.cwd, path: this.path ?? "", turn: m.turn }, c.signal)
           .catch(() => ({ block: true as const, reason: "审批出错了，这一步先不做。" }))
           .then((r) => {
             this.asks.delete(m.id);

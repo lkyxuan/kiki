@@ -13,6 +13,12 @@
   <key>LSMinimumSystemVersion</key><string>12.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+  <key>NSAppleEventsUsageDescription</key><string>Kiki 要替你操作日历、备忘录、提醒事项、Finder 这些 App。</string>
+  <key>NSCalendarsUsageDescription</key><string>Kiki 要看你的日程、帮你建会。</string>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>Kiki 要看你的日程、帮你建会。</string>
+  <key>NSRemindersUsageDescription</key><string>Kiki 要看和添加你的待办。</string>
+  <key>NSRemindersFullAccessUsageDescription</key><string>Kiki 要看和添加你的待办。</string>
+  <key>NSContactsUsageDescription</key><string>Kiki 要认出消息和邮件是谁发的。</string>
   <key>NSLocalNetworkUsageDescription</key><string>Kiki 需要连接你在 Tailscale 或局域网里的另一台电脑（比如家里的 Mac mini）。</string>
   <key>NSAppTransportSecurity</key>
   <dict><key>NSAllowsLocalNetworking</key><true/></dict>

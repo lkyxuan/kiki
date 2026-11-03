@@ -10,9 +10,10 @@
 //   event {name, data}                            Agents 的 delta / busy / activity / message
 //   reply {id, text} · fail {id, message}
 //   tool {id, agent, name, params, toolCallId, cwd}   Kiki 的工具在主程序里执行
-//   approve {id, toolName, input, cwd} · approve-cancel {id}
+//   approve {id, toolName, input, cwd, turn} · approve-cancel {id}
 // 停任务时主程序直接关掉子程序；主程序没了（IPC 断开）子程序也跟着退出。
 import type { ExtensionFactory, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { turnInfo } from "./outside.js";
 import type { OpenSpec, ToolMeta } from "./workerhost.js";
 
 /** 子程序用到的 Agents 的那几样（测试时换成假的）。 */
@@ -62,7 +63,7 @@ export function serve(port: Port, makeAgents: (dataDir: string, model: string) =
       const p = new Promise<any>((resolve) => {
         id = ++seq;
         waiting.set(id, resolve);
-        out({ t: "approve", id, toolName: ev.toolName, input: ev.input, cwd: ctx.cwd });
+        out({ t: "approve", id, toolName: ev.toolName, input: ev.input, cwd: ctx.cwd, turn: turnInfo(ctx.sessionManager) });
       });
       ctx.signal?.addEventListener("abort", cancel, { once: true });
       const r = await p;

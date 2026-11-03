@@ -55,11 +55,11 @@ case "${1:-}" in
     fi
     echo "签名：${ID}"
     RES="$APP/Contents/Resources"
-    NODE="$RES/node/bin/node"
-    # 由内向外：先签依赖里所有 Mach-O（原生模块、自带的小程序），再签 Node（带 JIT 等权限），最后签 App
-    find "$RES" -type f ! -path "$NODE" -print0 | xargs -0 file -N -F $'\t' | { grep -F 'Mach-O' || true; } | cut -f1 |
+    AGENT="$APP/Contents/Helpers/KikiAgent.app"
+    # 由内向外：先签依赖里所有 Mach-O（原生模块、自带的小程序），再签「Kiki 后台」（Node，带 JIT 和隐私权限），最后签 App
+    find "$RES" -type f -print0 | xargs -0 file -N -F $'\t' | { grep -F 'Mach-O' || true; } | cut -f1 |
       while IFS= read -r f; do cs "$f"; done
-    cs --entitlements "$HERE/entitlements.plist" "$NODE"
+    cs --entitlements "$HERE/entitlements.plist" "$AGENT"
     # Contents/MacOS 里的后台脚本也要单独签（签名存在扩展属性里，ditto 和 .dmg 都会保留）
     for f in "$APP/Contents/MacOS/"*; do
       [ "$(basename "$f")" = Kiki ] || cs "$f"

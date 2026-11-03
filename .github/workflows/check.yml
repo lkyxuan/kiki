@@ -24,7 +24,8 @@ jobs:
           H=out/hardened/Kiki.app
           rm -rf out/hardened && mkdir -p out/hardened && ditto out/build-arm64/Kiki.app "$H"
           KIKI_SIGN_IDENTITY=- packaging/sign.sh app "$H"
-          codesign -dv --verbose=4 "$H/Contents/Resources/node/bin/node" 2>&1 | grep -E "flags=.*runtime"
+          codesign -dv --verbose=4 "$H/Contents/Helpers/KikiAgent.app" 2>&1 | grep -E "flags=.*runtime"
+          codesign -d --entitlements - "$H/Contents/Helpers/KikiAgent.app" 2>&1 | grep -q automation.apple-events
           "$H/Contents/Resources/node/bin/node" "$H/Contents/Resources/app/dist/main.js" --selftest
       - uses: actions/upload-artifact@v4
         with:
