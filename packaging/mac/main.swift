@@ -65,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "kikiWindow", let v = message.body as? String { windowAction(v); return }
         if message.name == "kikiConnect", let v = message.body as? String { pickFromWelcome(v); return }
+        if message.name == "kikiSave", let v = message.body as? [String: Any] { saveFile(v); return }
         guard message.name == "kikiTheme", let v = message.body as? String, ["system", "light", "dark"].contains(v) else { return }
         theme = v
         applyTheme()
@@ -246,6 +247,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         config.userContentController.add(self, name: "kikiTheme")
         config.userContentController.add(self, name: "kikiWindow")
         config.userContentController.add(self, name: "kikiConnect")
+        config.userContentController.add(self, name: "kikiSave")
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
 
         webView = WKWebView(frame: .zero, configuration: config)
@@ -488,6 +490,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         a.addButton(withTitle: "好")
         a.addButton(withTitle: "取消")
         a.beginSheetModal(for: window) { r in completionHandler(r == .alertFirstButtonReturn) }
+    }
+
+    // 网页要存一个文件（比如导出的 .bao）：弹「存储」窗口，写好后告诉网页存没存
+    func saveFile(_ v: [String: Any]) {
+        guard let text = v["text"] as? String else { return }
+        let name = (v["name"] as? String).map { $0.replacingOccurrences(of: "/", with: "-") } ?? "Kiki"
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        panel.canCreateDirectories = true
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        panel.beginSheetModal(for: window) { [weak self] r in
+            var ok = false
+            if r == .OK, let url = panel.url {
+                ok = (try? text.write(to: url, atomically: true, encoding: .utf8)) != nil
+            }
+            self?.webView.evaluateJavaScript("window.kikiSaved && kikiSaved(\(ok))", completionHandler: nil)
+        }
+    }
+
+    // 网页里的 <input type=file>：弹「打开」窗口
+    func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+        panel.beginSheetModal(for: window) { r in completionHandler(r == .OK ? panel.urls : nil) }
     }
 
     // MARK: 菜单

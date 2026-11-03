@@ -319,31 +319,67 @@
   .avatar.bot svg, .faces .bot svg { width: 100%; height: 100%; display: block; }
   .receipt .avatar.emoji { font-size: 17px; }
   /* 新建宝：小弹窗，只问名字、负责什么、头像 */
-  #newbao { position: fixed; inset: 0; z-index: 21; display: grid; place-items: center; background: var(--scrim); }
-  #newbao[hidden] { display: none; }
-  #newbao form { width: min(400px, calc(100% - 32px)); background: var(--grouped); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 20px 20px 16px; display: grid; gap: 12px; animation: nb-in .2s cubic-bezier(.2,.8,.2,1); }
+  :is(#newbao, #impbao) { position: fixed; inset: 0; z-index: 21; display: grid; place-items: center; background: var(--scrim); }
+  :is(#newbao, #impbao)[hidden] { display: none; }
+  :is(#newbao, #impbao) form { width: min(400px, calc(100% - 32px)); background: var(--grouped); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 20px 20px 16px; display: grid; gap: 12px; animation: nb-in .2s cubic-bezier(.2,.8,.2,1); }
   @keyframes nb-in { from { transform: scale(.96) translateY(6px); opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { #newbao form { animation: none; } }
-  #newbao h2 { margin: 0; font-size: 15px; font-weight: 600; }
-  #newbao .sub { margin: -8px 0 0; font-size: 12.5px; color: var(--muted); }
-  #newbao label { display: grid; gap: 5px; font-size: 12.5px; color: var(--muted); }
-  #newbao input, #newbao textarea { font: inherit; font-size: 13.5px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; outline: none; resize: none; }
-  #newbao input:focus, #newbao textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
-  #newbao .faces { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  #newbao .faces button { width: 32px; height: 32px; border-radius: 8px; font-size: 17px; display: grid; place-items: center; background: var(--fill); }
-  #newbao .faces button.on { box-shadow: 0 0 0 2px var(--accent); }
-  #newbao .faces .bot { padding: 3px; }
-  #newbao .faces input { width: 64px; text-align: center; padding: 6px; }
-  #newbao .edit-only { margin: -4px 0 0; font-size: 12.5px; color: var(--muted); }
-  #newbao .edit-only a { color: var(--accent); text-decoration: none; margin: 0 2px; }
-  #newbao .edit-only a:hover { text-decoration: underline; }
-  #newbao input[readonly] { color: var(--muted); background: var(--fill); }
-  #newbao .err { color: #e0475f; font-size: 12.5px; min-height: 0; margin: -4px 0 0; }
-  #newbao .err:empty { display: none; }
-  #newbao .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-  #newbao .btns button { font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 7px; background: var(--fill); color: var(--text); }
-  #newbao .btns .primary { background: var(--accent); color: #fff; }
-  #newbao .btns .primary:disabled { opacity: .5; }
+  @media (prefers-reduced-motion: reduce) { :is(#newbao, #impbao) form { animation: none; } }
+  :is(#newbao, #impbao) h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  :is(#newbao, #impbao) .sub { margin: -8px 0 0; font-size: 12.5px; color: var(--muted); }
+  :is(#newbao, #impbao) label { display: grid; gap: 5px; font-size: 12.5px; color: var(--muted); }
+  :is(#newbao, #impbao) :is(input, textarea) { font: inherit; font-size: 13.5px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; outline: none; resize: none; }
+  :is(#newbao, #impbao) :is(input, textarea):focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  :is(#newbao, #impbao) .faces { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  :is(#newbao, #impbao) .faces button { width: 32px; height: 32px; border-radius: 8px; font-size: 17px; display: grid; place-items: center; background: var(--fill); }
+  :is(#newbao, #impbao) .faces button.on { box-shadow: 0 0 0 2px var(--accent); }
+  :is(#newbao, #impbao) .faces .bot { padding: 3px; }
+  :is(#newbao, #impbao) .faces input { width: 64px; text-align: center; padding: 6px; }
+  :is(#newbao, #impbao) .edit-only { margin: -4px 0 0; font-size: 12.5px; color: var(--muted); }
+  :is(#newbao, #impbao) .edit-only a { color: var(--accent); text-decoration: none; margin: 0 2px; }
+  :is(#newbao, #impbao) .edit-only a:hover { text-decoration: underline; }
+  :is(#newbao, #impbao) input[readonly] { color: var(--muted); background: var(--fill); }
+  :is(#newbao, #impbao) .err { color: #e0475f; font-size: 12.5px; min-height: 0; margin: -4px 0 0; }
+  :is(#newbao, #impbao) .err:empty { display: none; }
+  :is(#newbao, #impbao) .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  :is(#newbao, #impbao) .btns button { font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 7px; background: var(--fill); color: var(--text); }
+  :is(#newbao, #impbao) .btns .primary { background: var(--accent); color: #fff; }
+  :is(#newbao, #impbao) .btns .primary:disabled { opacity: .5; }
+  /* 宝设置里的「分享」一行，和导入宝的弹窗 */
+  #newbao .share { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); padding-top: 10px; border-top: 1px solid var(--line); }
+  #newbao .share[hidden], #impbao [hidden] { display: none !important; }
+  #impbao .pick, #impbao .review { display: grid; gap: 12px; }
+  #newbao .share button, :is(#newbao, #impbao) .linkbtn { font: inherit; color: var(--accent); background: none; padding: 0; }
+  #newbao .share button:hover, :is(#newbao, #impbao) .linkbtn:hover { text-decoration: underline; }
+  #newbao .share .done { color: var(--muted); }
+  #impbao form { width: min(480px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+  #impbao .drop { display: grid; place-items: center; gap: 4px; text-align: center; padding: 22px 12px; border: 1.5px dashed var(--line); border-radius: 10px; font-size: 13px; color: var(--muted); cursor: pointer; }
+  #impbao .drop.over, #impbao .drop:hover { border-color: var(--accent); color: var(--text); }
+  #impbao .drop b { color: var(--text); font-weight: 600; }
+  #impbao .or { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  #impbao .or::before, #impbao .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+  #impbao .row { display: flex; gap: 8px; }
+  #impbao .row input { flex: 1; min-width: 0; }
+  #impbao .who { display: flex; gap: 10px; align-items: center; }
+  #impbao .who .face { width: 40px; height: 40px; border-radius: 10px; background: var(--fill); display: grid; place-items: center; font-size: 22px; flex: none; overflow: hidden; }
+  #impbao .who .face svg { width: 100%; height: 100%; }
+  #impbao .who label { flex: 1; }
+  #impbao .duty { margin: 0; font-size: 13px; color: var(--text); line-height: 1.5; }
+  #impbao .sec { display: grid; gap: 6px; }
+  #impbao .sec h3 { margin: 0; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+  #impbao .sec ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px; }
+  #impbao .skill { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  #impbao .skill b { font-weight: 600; }
+  #impbao .skill small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  #impbao .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  #impbao .chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--fill); color: var(--text); }
+  #impbao .chip.none { color: var(--muted); }
+  #impbao .warn { font-size: 12.5px; padding: 7px 10px; border-radius: 8px; line-height: 1.45; }
+  #impbao .warn.red { background: color-mix(in srgb, #e0475f 14%, transparent); color: #c7354c; }
+  #impbao .warn.yellow { background: color-mix(in srgb, #e9a23b 16%, transparent); color: var(--text); }
+  #impbao details { font-size: 12.5px; color: var(--muted); }
+  #impbao details ul { margin: 6px 0 0; padding-left: 16px; font-size: 12px; line-height: 1.6; }
+  #impbao .note { margin: 0; font-size: 12px; color: var(--muted); }
+  #impbao .btns .primary.danger { background: #e0475f; }
   #sheet[hidden] { display: none; } /* 关着时彻底移出 Tab 键顺序 */
   #updating[hidden] { display: none !important; } /* 行内 display:grid 会盖过 hidden，必须单独写 */
   #sheet .win { width: min(960px, calc(100% - 48px)); height: min(88vh, 920px); background: var(--grouped); border-radius: 14px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; position: relative; transform: scale(.97) translateY(6px); transition: transform .22s cubic-bezier(.2,.8,.2,1); }
@@ -369,6 +405,7 @@
   <div class="label" id="baos-label">我的宝</div>
   <div id="agents"></div>
   <button class="item add-bao" id="add-bao"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="name">新建一个宝</span></button>
+  <button class="item add-bao" id="import-bao"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="name">导入一个宝</span></button>
   <a class="item settings" href="/settings.html" data-settings><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="name">设置</span></a>
 </aside>
 <main>
@@ -433,8 +470,33 @@
     <label>我负责什么（可不填）<textarea name="about" rows="2" maxlength="500" placeholder="比如：帮我管工作上的项目、会议和邮件"></textarea></label>
     <div><label style="margin-bottom:5px">头像</label><div class="faces"></div></div>
     <p class="edit-only" hidden>改了之后，新开的对话按新的来。更细的规矩在<a href="#">完整说明</a>里改。</p>
+    <div class="share" hidden><span>分享给别人：</span><button type="button" class="export">导出成 .bao 文件</button><span class="done" aria-live="polite"></span></div>
     <p class="err" role="alert"></p>
     <div class="btns"><button type="button" class="cancel">取消</button><button type="submit" class="primary">创建</button></div>
+  </form>
+</div>
+<div id="impbao" role="dialog" aria-modal="true" aria-labelledby="impbao-title" hidden>
+  <form autocomplete="off">
+    <h2 id="impbao-title">导入一个宝</h2>
+    <div class="pick">
+      <p class="sub">别人分享的 .bao 文件，或者 GitHub 上的宝、Claude 技能文件夹都行。装之前先给你看它会做什么。</p>
+      <div class="drop" tabindex="0" role="button"><b>把 .bao 文件拖到这里</b><span>或者点这里选文件</span></div>
+      <input type="file" class="file" accept=".bao,application/json" hidden>
+      <div class="or">或者</div>
+      <div class="row"><input name="url" placeholder="https://github.com/某人/某仓库/tree/main/某个宝"><button type="button" class="look">看一眼</button></div>
+    </div>
+    <div class="review" hidden>
+      <div class="who"><div class="face"></div><label>装成叫<input name="name" maxlength="40" required></label></div>
+      <p class="duty"></p>
+      <div class="warns sec"></div>
+      <div class="sec"><h3>会用的技能</h3><ul class="skills"></ul></div>
+      <div class="sec"><h3>会做的事</h3><div class="chips abilities"></div></div>
+      <div class="sec"><h3>会联系谁</h3><div class="chips contacts"></div></div>
+      <details class="files"><summary></summary><ul></ul></details>
+      <p class="note">不会带进来：对话记录、密钥。装好后照你的全自动设置干活，不会再问。</p>
+    </div>
+    <p class="err" role="alert"></p>
+    <div class="btns"><button type="button" class="cancel">取消</button><button type="submit" class="primary" hidden>装上</button></div>
   </form>
 </div>
 <div id="sheet" role="dialog" aria-modal="true" aria-label="设置" hidden>
@@ -1070,6 +1132,9 @@ function baoDialog(editing, info = {}) {
   box.querySelector("h2").textContent = editing ? `设置 · ${editing}` : "新建一个宝";
   box.querySelector(".sub").hidden = !!editing;
   box.querySelector(".edit-only").hidden = !editing;
+  const share = box.querySelector(".share");
+  share.hidden = !editing; share.querySelector(".done").textContent = "";
+  share.querySelector(".export").onclick = () => exportBao(editing, share.querySelector(".done"));
   f.querySelector(".primary").textContent = editing ? "保存" : "创建";
   f.name.readOnly = !!editing;
   f.name.title = editing ? "宝的名字暂时不能改" : "";
@@ -1117,6 +1182,115 @@ function baoDialog(editing, info = {}) {
       await openBao(name); // 直接进新宝的主对话
     } catch { err.textContent = "连不上 Kiki，再试一次"; }
     finally { btn.disabled = false; }
+  };
+}
+
+// 分享宝：导出成一个 .bao 文件（只带说明和技能，不带对话、笔记、关注清单和密钥）
+async function exportBao(name, note) {
+  note.textContent = "正在打包…";
+  try {
+    const r = await fetch("/api/bao/export?name=" + encodeURIComponent(name));
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    const saved = await saveFile(data.file, data.text);
+    if (!saved) { note.textContent = ""; return; }
+    const left = data.skipped.filter((x) => !x.path.endsWith("/") && !x.path.endsWith("清单.md"));
+    note.textContent = `已导出 ${data.count} 个文件` + (left.length ? `，${left.length} 个没带（${left.map((x) => x.path + "：" + x.why).join("；")}）` : "");
+  } catch (e) { note.textContent = `没导出来：${e.message || "连不上 Kiki"}`; }
+}
+// 存文件：Kiki.app 里交给外壳弹「存储」窗口；浏览器里直接下载
+function saveFile(name, text) {
+  const h = window.webkit?.messageHandlers?.kikiSave;
+  if (h) {
+    return new Promise((done) => {
+      window.kikiSaved = (ok) => { window.kikiSaved = null; done(ok); };
+      h.postMessage({ name, text });
+    });
+  }
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text], { type: "application/json" })), download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return Promise.resolve(true);
+}
+
+// 导入宝：先选文件或贴 GitHub 链接，看一眼它会做什么（技能、脚本、会联系谁、可疑的话），你点「装上」才装。只在这里提示一次
+function importBao() {
+  const box = $("#impbao"), f = box.querySelector("form"), err = box.querySelector(".err"), drop = box.querySelector(".drop");
+  const pick = box.querySelector(".pick"), review = box.querySelector(".review"), go = f.querySelector(".primary");
+  let source = null; // { text } 或 { url }
+  f.reset(); err.textContent = ""; pick.hidden = false; review.hidden = true; go.hidden = true;
+  box.querySelector("h2").textContent = "导入一个宝";
+  box.hidden = false;
+  const last = document.activeElement;
+  drop.focus();
+  const close = () => { box.hidden = true; box.onkeydown = f.onsubmit = box.onclick = drop.onclick = drop.onkeydown = drop.ondragover = drop.ondragleave = drop.ondrop = null; last?.focus?.(); };
+  const look = async (src) => {
+    err.textContent = ""; source = src;
+    const btn = box.querySelector(".look"); btn.disabled = true;
+    try {
+      const r = await fetch("/api/bao/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(src) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "读不了");
+      source = { text: data.text }; // 装的时候用看过的这份，不再重新去拿
+      show(data.preview);
+    } catch (e) { err.textContent = e.message || "连不上 Kiki"; }
+    finally { btn.disabled = false; }
+  };
+  const readFile = (file) => {
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { err.textContent = "文件太大了，不像一个宝"; return; }
+    file.text().then((text) => look({ text }), () => { err.textContent = "读不了这个文件"; });
+  };
+  const show = (p) => {
+    box.querySelector("h2").textContent = `导入「${p.originalName}」`;
+    pick.hidden = true; review.hidden = false; go.hidden = false;
+    f.name.value = p.name;
+    box.querySelector(".face").innerHTML = p.emoji ? esc(p.emoji) : kikiBot(p.name);
+    box.querySelector(".duty").textContent = p.duty || "（它没写自己负责什么）";
+    const red = p.warnings.some((w) => w.level === "red");
+    box.querySelector(".warns").innerHTML = p.warnings.map((w) => `<div class="warn ${w.level}">${w.level === "red" ? "⚠️ " : ""}${esc(w.text)}</div>`).join("");
+    box.querySelector(".skills").innerHTML = p.skills.length
+      ? p.skills.map((k) => `<li class="skill"><b>${esc(k.name)}</b>${k.scripts.length ? ` · 带 ${k.scripts.length} 个脚本` : ""}<small>${esc(k.description || "没写说明")}${k.tools ? `<br>想直接用的工具：${esc(k.tools)}` : ""}</small></li>`).join("")
+      : `<li class="chip none">没带技能，只有说明</li>`;
+    box.querySelector(".abilities").innerHTML = p.abilities.length ? p.abilities.map((a) => `<span class="chip">${esc(a)}</span>`).join("") : `<span class="chip none">只聊天，没看到别的</span>`;
+    const who = [...p.contacts.channels, ...p.contacts.domains, ...p.contacts.emails];
+    box.querySelector(".contacts").innerHTML = who.length ? who.map((a) => `<span class="chip">${esc(a)}</span>`).join("") : `<span class="chip none">没提到任何网站或联系人</span>`;
+    box.querySelector(".files summary").textContent = `${p.files.length} 个文件会装进来` + (p.dropped.length ? `，${p.dropped.length} 个不装` : "");
+    box.querySelector(".files ul").innerHTML = p.files.map((x) => `<li>${esc(x.path)}</li>`).join("") + p.dropped.map((x) => `<li>不装：${esc(x.path)}（${esc(x.why)}）</li>`).join("");
+    go.textContent = red ? "我知道风险，仍然装上" : "装上";
+    go.classList.toggle("danger", red);
+    f.name.focus(); f.name.select();
+  };
+  const inp = box.querySelector(".file");
+  inp.value = "";
+  inp.onchange = () => readFile(inp.files[0]);
+  drop.onclick = () => inp.click();
+  drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); drop.click(); } };
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); readFile(e.dataTransfer.files[0]); };
+  box.querySelector(".look").onclick = () => { const u = f.url.value.trim(); if (u) look({ url: u }); else f.url.focus(); };
+  box.querySelector(".cancel").onclick = close;
+  box.onclick = (e) => { if (e.target === box) close(); };
+  box.onkeydown = (e) => {
+    if (e.key === "Escape") { e.stopPropagation(); close(); }
+    if (e.key === "Enter" && e.target === f.url && !e.isComposing) { e.preventDefault(); box.querySelector(".look").click(); }
+  };
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    if (review.hidden || !source) return;
+    const name = f.name.value.trim();
+    if (!name) return f.name.focus();
+    go.disabled = true; err.textContent = "";
+    try {
+      const r = await fetch("/api/bao/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...source, install: true, name }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { err.textContent = data.error || "没装上，再试一次"; return; }
+      close();
+      await loadTree();
+      await openBao(data.name); // 直接进新宝的主对话
+    } catch { err.textContent = "连不上 Kiki，再试一次"; }
+    finally { go.disabled = false; }
   };
 }
 
@@ -1175,7 +1349,7 @@ try { if (localStorage.getItem("kiki.panel") === "off") document.body.classList.
 if (document.documentElement.classList.contains("kiki-fullsize")) {
   const winMsg = (m) => { try { window.webkit.messageHandlers.kikiWindow.postMessage(m); } catch {} };
   const dragZone = (e) => e.button === 0 && (e.clientY < 28 || e.target.closest("header"))
-    && !e.target.closest("button, a, input, textarea, select, [data-path], [data-bao], [data-thread], #sheet, #newbao, #board");
+    && !e.target.closest("button, a, input, textarea, select, [data-path], [data-bao], [data-thread], #sheet, #newbao, #impbao, #board");
   document.addEventListener("mousedown", (e) => { if (e.detail === 1 && dragZone(e)) winMsg("drag"); });
   document.addEventListener("dblclick", (e) => { if (dragZone(e)) winMsg("zoom"); });
 }
@@ -1335,6 +1509,7 @@ addEventListener("blur", hideCtx);
 addEventListener("resize", hideCtx);
 $("#peek-del").onclick = () => peek && deleteThread(peek);
 $("#add-bao").onclick = newBao;
+$("#import-bao").onclick = () => importBao();
 $("aside").addEventListener("keydown", (e) => { const bh = e.target.closest?.("[data-bao]"); if (bh && e.target === bh && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openBao(bh.dataset.bao); } });
 $("#panel-toggle").onclick = togglePanel;
 $("#send").onclick = send;
