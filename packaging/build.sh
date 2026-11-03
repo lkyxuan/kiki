@@ -19,7 +19,7 @@ mkdir -p "$APP/Contents/MacOS" "$RES/app" "$RES/node/bin"
 # 1. 编译 TypeScript
 rm -rf dist
 npx tsc -p tsconfig.build.json
-cp -R dist public data-template package.json package-lock.json "$RES/app/"
+cp -R dist public data-template bao-skills package.json package-lock.json "$RES/app/"
 
 # 2. 只装生产依赖，按 macOS 平台挑可选依赖；不跑安装脚本（这些依赖都不需要）
 (cd "$RES/app" && npm ci --omit=dev --ignore-scripts --os=darwin --cpu="$ARCH" --no-audit --no-fund --loglevel=error)
