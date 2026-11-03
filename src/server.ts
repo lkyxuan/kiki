@@ -23,6 +23,7 @@ import { Logins } from "./login.js";
 import { setProviderModels, setProviderOn } from "./modelprefs.js";
 import { imageMime, saveImage, uploadsDir, validImageName } from "./images.js";
 import { baoLook, setEnvLine, settingsApi } from "./settings.js";
+import { baoShareApi } from "./baoshare.js";
 import { type Updater, VERSION } from "./update.js";
 
 const run = promisify(execFile);
@@ -60,6 +61,7 @@ export function startServer(opts: {
   const mainLog = join(opts.dataDir, "main.jsonl"); // 主 bot 的聊天记录
   const clients = new Set<ServerResponse>();
   const settings = settingsApi({ dataDir: opts.dataDir, port: opts.port });
+  const baoShare = baoShareApi({ dataDir: opts.dataDir }); // 宝的导出 / 导入，见 baoshare.ts
   const logins = new Logins(() => agents.modelRuntime(), opts.dataDir, agents.engineDir);
   // 模型菜单：现在用的、能选的、ChatGPT 登没登录
   const modelInfo = async () => {
@@ -221,6 +223,7 @@ export function startServer(opts: {
       return json(tree());
     }
     if (url.pathname.startsWith("/api/settings")) return settings(req, res, url); // 设置页，见 settings.ts
+    if (url.pathname.startsWith("/api/bao/")) return baoShare(req, res, url); // 宝的导出 / 导入
 
     // 收发室：GET 看一览；POST /api/postroom/poll 立刻收一轮、send {agent, text, title} 派活、dismiss {id} 不用再看
     // 网页报：你现在正开着哪几段对话（页面藏到后台时报空）。收发室据此决定提不提醒、清掉未读

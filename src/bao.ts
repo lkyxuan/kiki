@@ -8,6 +8,9 @@ export const MAIN_SESSION = "主对话";
 /** 每个宝的说明文件（pi 会读进系统提示词）。 */
 export const BAO_FILE = "AGENTS.md";
 
+/** 宝自己的技能放在 skills/<技能名>/SKILL.md（Claude / Agent Skills 格式），开对话时 Kiki 会读进去。 */
+export const SKILLS_DIR = "skills";
+
 export const baoDir = (dataDir: string, name: string) => join(dataDir, "agents", name);
 export const baoFile = (dataDir: string, name: string) => join(baoDir(dataDir, name), BAO_FILE);
 

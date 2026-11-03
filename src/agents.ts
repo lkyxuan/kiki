@@ -18,7 +18,7 @@ import {
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { type Live, type Step, describeTool, stepsFromMessages } from "./activity.js";
-import { baoFile, createBao } from "./bao.js";
+import { SKILLS_DIR, baoFile, createBao } from "./bao.js";
 import { explainError } from "./errors.js";
 import { existsSync as fileExists, readFileSync as readText, writeFileSync as writeText } from "node:fs";
 import { pickedIds, readPrefs } from "./modelprefs.js";
@@ -241,10 +241,13 @@ export class Agents extends EventEmitter {
     // SDK 嵌入的会话默认不带 MCP，要自己加上（和 pi 命令行一样）：
     // MCP 读 engine/mcp.json（设置页「MCP 服务器」改的就是它）；codemode 和 tool_search 平时不启用，
     // 只有服务器设成 codemode / deferred 方式时 MCP 扩展才会打开它们。
+    // 宝自己的技能（agents/<宝>/skills/<技能>/SKILL.md，导入的宝带来的就放这）：直接读，不走 pi 的「信任这个文件夹」
+    const skills = join(cwd, SKILLS_DIR);
     const resourceLoader = new DefaultResourceLoader({
       cwd,
       agentDir: this.engineDir,
       settingsManager,
+      additionalSkillPaths: existsSync(skills) ? [skills] : [],
       extensionFactories: [...this.extensions, createCodemodeExtension(), createToolSearchExtension(), createMcpExtension()],
     });
     await resourceLoader.reload();
