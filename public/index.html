@@ -1083,6 +1083,7 @@ function importBao() {
       const r = await fetch("/api/bao/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(src) });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data.error || "读不了");
+      source = { text: data.text }; // 装的时候用看过的这份，不再重新去拿
       show(data.preview);
     } catch (e) { err.textContent = e.message || "连不上 Kiki"; }
     finally { btn.disabled = false; }

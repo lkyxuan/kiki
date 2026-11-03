@@ -419,12 +419,14 @@ export function baoShareApi(opts: { dataDir: string; onInstalled?: (name: string
     if (url.pathname === "/api/bao/import" && req.method === "POST") {
       let body: any;
       try {
-        let s = "";
+        const chunks: Buffer[] = [];
+        let n = 0;
         for await (const c of req) {
-          s += c;
-          if (s.length > MAX_TOTAL * 2) return json({ error: "文件太大了" }, 413);
+          chunks.push(c as Buffer);
+          n += (c as Buffer).length;
+          if (n > MAX_TOTAL * 3) return json({ error: "文件太大了" }, 413);
         }
-        body = JSON.parse(s || "{}");
+        body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"); // 先拼起来再解码，免得汉字被切成两半
       } catch {
         return json({ error: "读不懂请求" }, 400);
       }
@@ -436,7 +438,10 @@ export function baoShareApi(opts: { dataDir: string; onInstalled?: (name: string
       } catch (e) {
         return json({ error: (e as Error).message }, 400);
       }
-      if (!body.install) return json({ preview: previewBundle(bundle, list()) });
+      // 看一眼时把整理好的包原样交回去，「装上」时网页带着它回来：装的就是你看过的那份，
+      // 不会在看完之后再去 GitHub 拿一次（中间被改过就装成别的了）
+      if (!body.install) return json({ preview: previewBundle(bundle, list()), text: JSON.stringify(bundle) });
+      if (typeof body.text !== "string") return json({ error: "装之前要先看一眼" }, 400);
       try {
         const name = installBundle(opts.dataDir, bundle, String(body.name ?? "").trim());
         opts.onInstalled?.(name);
