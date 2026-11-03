@@ -4,7 +4,9 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
+import { FIRST_LINE_RULE } from "./ack.js";
 import { Agents } from "./agents.js";
+import { roleModel } from "./modelroles.js";
 import { Approvals } from "./approval.js";
 import { handoffTool } from "./handoff.js";
 import { loadRules } from "./rules.js";
@@ -77,19 +79,19 @@ const TOOL_FEATURE: Record<string, FeatureId> = {
 const summaries = new Summaries({
   registry,
   history: (p) => agents.history(p),
-  complete: (sys, user) => agents.complete(sys, user, process.env.SUMMARY_MODEL || undefined),
+  complete: (sys, user) => agents.complete(sys, user, roleModel("summary")),
 });
 agents.on("busy", ({ path, busy }: { path: string; busy: boolean }) => {
   if (!busy) summaries.schedule(path);
 });
-// 宝的主对话每轮自动看到本宝讨论串的摘要，不用靠它想起来去翻
+// 每段对话都带上“先接住用户”的规矩（要干活先说一句理解再动手，见 ack.ts）；
+// 宝的主对话每轮还自动看到本宝讨论串的摘要，不用靠它想起来去翻
 agents.extensions.push((pi) => {
   pi.on("before_agent_start", (ev, ctx) => {
     const file = ctx.sessionManager.getSessionFile();
     const rec = file ? registry.byPath(file) : undefined;
-    if (rec?.name !== MAIN_SESSION) return;
-    const digest = router.threadDigest(rec.agent);
-    return digest ? { systemPrompt: `${ev.systemPrompt}\n\n${digest}` } : undefined;
+    const digest = rec?.name === MAIN_SESSION ? router.threadDigest(rec.agent) : "";
+    return { systemPrompt: [ev.systemPrompt, FIRST_LINE_RULE, digest].filter(Boolean).join("\n\n") };
   });
 });
 router.isOn = (id) => isOn(dataDir, id);

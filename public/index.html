@@ -91,6 +91,13 @@
   #log { flex: 1; overflow: auto; padding: 28px 24px; }
   .msgs { max-width: 740px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
   .msg { white-space: normal; word-wrap: break-word; }
+  /* 先接住你：气泡左下角的小表情（👀 收到、🕐 排队中、⏳ 后台、✅ 做完、✋ 等你、❗ 出错） */
+  .msg.user { position: relative; }
+  .msg.user.acked { margin-bottom: 12px; }
+  .msg.user .ack { position: absolute; left: -6px; bottom: -12px; display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-sm); font-size: 12px; line-height: 18px; color: var(--muted); white-space: nowrap; animation: ack-pop .18s ease-out; }
+  .msg.user .ack.queued, .msg.user .ack.bg { font-size: 11px; }
+  .msg.ack-say { align-self: flex-start; color: var(--muted); font-size: 14px; padding: 0 2px; animation: ack-pop .18s ease-out; }
+  @keyframes ack-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   .msg.user { align-self: flex-end; background: var(--me); color: var(--me-text); padding: 8px 14px; border-radius: 18px 18px 6px 18px; max-width: 78%; white-space: pre-wrap; box-shadow: var(--shadow-sm); }
   .msg.assistant p { margin: 0 0 .6em; } .msg.assistant p:last-child { margin: 0; }
   .msg pre { background: var(--fill); padding: 12px 14px; border-radius: 10px; overflow: auto; font: 13px/1.55 var(--mono); }
@@ -99,6 +106,7 @@
   .msg a { color: var(--accent); text-decoration: none; }
   .msg a:hover { text-decoration: underline; }
   .pending { color: var(--muted); display: flex; gap: 8px; align-items: center; font-size: 14px; min-width: 0; }
+  .pending .via-live { flex: none; display: inline-flex; align-items: center; gap: 4px; }
   .pending .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .pending .elapsed { color: var(--faint); flex: none; font-variant-numeric: tabular-nums; }
   /* 做过的步骤（像 Claude 的工具卡片）：干活时展开，做完折叠成“用了 3 个工具” */
@@ -431,6 +439,36 @@ const chip = (to, title) => `<button class="chip" data-peek="${to}" title="在�
 const PIC = /!\[图片\]\(\/api\/image\/([a-f0-9]{32}\.(?:png|jpg|gif|webp))\)\n*/g;
 // 当前模型看不了图时，后台附上的「看图模型读到的内容」：网页上收起来，只留一行小字
 const NOTE = /\n*&lt;kiki-image-note&gt;[\s\S]*?&lt;\/kiki-image-note&gt;/g;
+// 先接住你：每条消息挂的表情，服务端发来（见 src/ack.ts），id -> {path, text, mark}
+let acks = {};
+const ACK = { seen: ["👀", "收到了，在看"], queued: ["🕐 排队中", "前面还在做，做完接着处理这条"], bg: ["⏳ 后台", "放到后台去做了，做完会回报"], done: ["✅", "后台做完了"], ask: ["✋", "卡住了，等你回答"], error: ["❗", "出错了"] };
+// 把表情画到这个容器里对应的气泡上：按原话从下往上找（打开老记录时也认得出来）
+function paintAcks(box, path) {
+  if (!box) return;
+  const bubbles = [...box.querySelectorAll(".msg.user")];
+  bubbles.forEach((b) => { b.querySelector(".ack")?.remove(); b.classList.remove("acked"); });
+  box.querySelectorAll(".ack-say").forEach((x) => x.remove());
+  const used = new Set();
+  for (const a of Object.values(acks).filter((x) => x.path === path).reverse()) {
+    const want = a.text.trim();
+    const b = [...bubbles].reverse().find((x) => !used.has(x) && (x.dataset.text || "").trim().startsWith(want));
+    if (!b) continue;
+    used.add(b);
+    if (a.say) b.insertAdjacentHTML("afterend", `<div class="msg ack-say" title="先回的一句（设置 › 模型与密钥 › 先回一句）">${esc(a.say)}</div>`);
+    const [label, tip] = ACK[a.mark] || [];
+    if (!label) continue;
+    b.classList.add("acked");
+    b.insertAdjacentHTML("beforeend", `<span class="ack ${a.mark}" title="${esc(tip)}">${esc(label)}</span>`);
+  }
+}
+function repaintAcks() {
+  paintAcks($("#msgs"), current);
+  if (peek) paintAcks($("#peek-msgs"), peek);
+}
+function setAcks(list) {
+  acks = {};
+  for (const a of list || []) acks[a.id] = a;
+}
 const userHtml = (text) => esc(text).replace(NOTE, '<span class="seen">图片已先交给看图模型读过</span>').replace(PIC, (_, n) => `<img class="pic" src="/api/image/${n}" alt="图片" data-full="/api/image/${n}">`);
 // 极简 Markdown：代码块、行内代码、粗体、链接、段落
 function md(src) {
@@ -646,7 +684,7 @@ function addMsg(role, text, steps) {
   if (steps?.length) $("#msgs").appendChild(stepsBox(steps, false));
   const el = document.createElement("div");
   el.className = `msg ${role}`;
-  if (role === "user") el.innerHTML = userHtml(text); else el.innerHTML = render(text);
+  if (role === "user") { el.innerHTML = userHtml(text); el.dataset.text = text; } else el.innerHTML = render(text);
   $("#msgs").appendChild(el);
   $("#log").scrollTop = $("#log").scrollHeight;
   return el;
@@ -673,6 +711,7 @@ async function open(path) {
   if (!hist.length && path === "main") void keyHint();
   shown.clear(); lastStreamed = null;
   hist.forEach((m) => addMsg(m.role, m.text, m.steps));
+  paintAcks($("#msgs"), path);
   renderLive();
   $("#input").focus();
 }
@@ -737,10 +776,11 @@ async function refreshPeek(expect) {
   const log = $("#peek-log"), atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
   const keep = peekStream; // 请求发出后才流进来的字，快照里没有，不能丢
   const lastA = [...hist].reverse().find((m) => m.role === "assistant")?.text.trim();
-  $("#peek-msgs").innerHTML = hist.length ? hist.map((m) => `<div class="msg ${m.role}">${m.role === "user" ? userHtml(m.text) : render(m.text)}</div>`).join("") : '<div class="hint">这段对话还没有消息。</div>';
+  $("#peek-msgs").innerHTML = hist.length ? hist.map((m) => `<div class="msg ${m.role}"${m.role === "user" ? ` data-text="${esc(m.text)}"` : ""}>${m.role === "user" ? userHtml(m.text) : render(m.text)}</div>`).join("") : '<div class="hint">这段对话还没有消息。</div>';
   peekStream = null;
   if (keep && keep.dataset.raw.trim() && keep.dataset.raw.trim() !== lastA && live[path]) { $("#peek-msgs").appendChild(keep); peekStream = keep; }
   if (expect && expect.trim() !== lastA && !(keep && keep.dataset.raw.trim() === expect.trim())) $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg assistant">${render(expect)}</div>`);
+  paintAcks($("#peek-msgs"), path);
   if (atBottom || !log.dataset.seen) log.scrollTop = log.scrollHeight;
   log.dataset.seen = "1";
 }
@@ -751,7 +791,7 @@ async function sendPeek() {
   if (!text) return;
   t.value = "";
   clearAtts("peek-input");
-  $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg user">${userHtml(text)}</div>`);
+  $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg user" data-text="${esc(text)}">${userHtml(text)}</div>`);
   $("#peek-log").scrollTop = $("#peek-log").scrollHeight;
   const r = await fetch("/api/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: peek, text }) });
   if (!r.ok) $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg assistant">${esc("出错了：" + (await r.json()).error)}</div>`);
@@ -866,6 +906,7 @@ function baoDialog(editing, info = {}) {
 
 async function loadTree() {
   tree = await (await fetch("/api/tree")).json();
+  setAcks(tree.acks); repaintAcks();
   syncLive();
   renderSide();
 }
@@ -1219,8 +1260,18 @@ es.addEventListener("message", (e) => {
   if (m.role === "assistant" && lastStreamed && lastStreamed.dataset.raw.trim() === m.text.trim()) { lastStreamed.innerHTML = render(m.text); lastStreamed = null; return; }
   $(".hint")?.remove();
   addMsg(m.role, m.text);
-  if (m.role === "user") lastStreamed = null;
+  if (m.role === "user") { lastStreamed = null; paintAcks($("#msgs"), current); }
   const p = $(".pending"); if (p) $("#msgs").appendChild(p); // 等待提示始终在最下面
+});
+// 表情换了：👀 → 去掉 / ⏳ → ✅ …
+es.addEventListener("ack", (e) => {
+  const d = JSON.parse(e.data);
+  if (d.mark === null && !acks[d.id]?.say) delete acks[d.id];
+  else if (acks[d.id]) { acks[d.id].mark = d.mark; if (d.say) acks[d.id].say = d.say; }
+  else if (d.text != null) acks[d.id] = { id: d.id, path: d.path, text: d.text, mark: d.mark }; // 新消息
+  else return loadTree(); // 漏掉了开头：拿一遍全的
+  if (d.path === current) paintAcks($("#msgs"), current);
+  if (d.path === peek) paintAcks($("#peek-msgs"), peek);
 });
 es.addEventListener("delta", (e) => {
   const d = JSON.parse(e.data);
@@ -1289,8 +1340,9 @@ function liveOf(path) {
   if (!m) return null;
   const f = m.follow ? live[m.follow] : null;
   const where = m.follow ? find(m.follow) : null;
-  const who = where ? `${where.agent} › ${where.name}：` : "";
-  return { since: m.since, status: f ? who + f.status : m.status, steps: f ? f.steps : [], follow: m.follow };
+  // 已经交出去、那边开始干了：前面放一张能点开的小卡片（交给谁），后面是那边的进度
+  const to = f && where ? { lbl: `${where.agent}/${where.name}`, title: where.name === MAIN_SESSION ? where.agent : `${where.agent} › ${where.name}` } : null;
+  return { since: m.since, status: f ? f.status : m.status, steps: f ? f.steps : [], follow: m.follow, to };
 }
 // 在改内容之前先看一眼是不是在最下面；是的话改完再滚到底（内容一下长很多也照样跟着）
 function nearBottom() {
@@ -1324,7 +1376,7 @@ function renderLive() {
   let line = $(".pending");
   if (!line) { line = document.createElement("div"); line.className = "msg pending"; line.setAttribute("aria-live", "polite"); }
   const waiting = asks.some((a) => a.path === (l.follow || current));
-  line.innerHTML = `<span class="spin"></span><span class="what">${esc(waiting ? "等你点头：看下面的卡片" : l.status)}</span><span class="elapsed" data-since="${l.since}">· ${secs(Date.now() - l.since)}</span>`;
+  line.innerHTML = `<span class="spin"></span>${l.to && !waiting ? `<span class="via-live">交给 ${chip(esc(l.to.lbl), esc(l.to.title))}</span>` : ""}<span class="what">${esc(waiting ? "等你点头：看下面的卡片" : l.status)}</span><span class="elapsed" data-since="${l.since}">· ${secs(Date.now() - l.since)}</span>`;
   $("#msgs").appendChild(line);
   $(".hint")?.remove();
   stickBottom(atBottom);
@@ -1353,6 +1405,7 @@ function sideStatus(path) {
 }
 es.addEventListener("tree", (e) => {
   tree = JSON.parse(e.data);
+  if (tree.acks) { setAcks(tree.acks); repaintAcks(); }
   if (peek && !find(peek)) forget(peek); // 在别处删掉了
   syncLive(); renderSide();
 });

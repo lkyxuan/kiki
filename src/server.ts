@@ -8,6 +8,9 @@ import { execFile } from "node:child_process";
 import { networkInterfaces } from "node:os";
 import { promisify } from "node:util";
 import { join } from "node:path";
+import { Acks, markForReply } from "./ack.js";
+import { ackPrompt, cleanAck, ROLES, roleModel, roleOf, validSpec } from "./modelroles.js";
+import { MAIN_SESSION } from "./bao.js";
 import type { Agents, ChatLine } from "./agents.js";
 import type { Approvals, Decision } from "./approval.js";
 import { rejectReason, tailscaleIp } from "./guard.js";
@@ -89,21 +92,36 @@ export function startServer(opts: {
     push("activity", { path: MAIN, live: mainLive });
   };
   agents.on("message", (d) => push("message", d)); // 后台任务回报到原对话
+  // 先接住你：消息一到就在气泡上打表情（👀 / 排队中 / ⏳ / ✅ / ✋ / ❗），不用等模型，见 ack.ts
+  const acks = new Acks();
+  acks.on("change", (d) => push("ack", d));
+  // “先回一句”：选了小模型才做，和主模型同时跑；它答得比主回答还慢就不显示了
+  const quickLine = (ack: string, who: string, text: string) => {
+    const spec = roleModel("ack");
+    if (!spec || text.trim().startsWith("/")) return;
+    agents
+      .complete(ackPrompt(who), text.slice(0, 2000), spec)
+      .then((raw) => acks.say(ack, cleanAck(raw)))
+      .catch((e) => console.warn("[ack] 先回一句失败：", (e as Error).message));
+  };
   router.tasks.on("update", (t) => {
+    acks.onTask(t);
     push("task", t);
     push("tree", tree());
   });
   opts.updater?.on("state", (s) => push("update", s));
   opts.approvals?.on("change", (list) => push("approvals", list)); // 等你点头的卡片
 
-  const mainSay = (role: ChatLine["role"], text: string) => {
+  const mainSay = (role: ChatLine["role"], text: string, ack?: string) => {
     appendFileSync(mainLog, JSON.stringify({ role, text, ts: new Date().toISOString() }) + "\n");
     if (role === "assistant" && mainLive) {
       mainLive = null; // 奇奇回话了，这一轮算做完
       push("activity", { path: MAIN, live: null });
     }
-    push("message", { path: MAIN, role, text });
+    push("message", { path: MAIN, role, text, ...(ack ? { ack } : {}) });
   };
+  // 刚从这个聊天开出去的后台任务（奇奇回执“已交给后台”时，它就是最新的那个）
+  const lastTaskOf = (chatId: string) => router.tasks.list((t) => t.chatId === chatId).at(-1)?.id;
 
   const mainHistory = (): ChatLine[] =>
     existsSync(mainLog)
@@ -115,6 +133,7 @@ export function startServer(opts: {
     tasks: [...router.tasks.list((t) => OPEN.includes(t.status)), ...router.tasks.list((t) => !OPEN.includes(t.status)).slice(-40)],
     current: registry.current(CHAT_ID)?.path,
     main: mainLive, // 奇奇正在分派的进度，没有就是 null
+    acks: acks.list(), // 气泡上挂着的表情
     agents: agents.listAgents().map((name) => ({
       name,
       ...baoLook(opts.dataDir, name), // 头像 emoji
@@ -187,6 +206,20 @@ export function startServer(opts: {
       saveEnv("MODEL", spec);
       push("model", { current: spec });
       return json(await modelInfo());
+    }
+    // 模型按用途配置（modelroles.ts）：GET 看每个用途选了什么；POST {id, spec} 改，spec 为空是不选
+    if (url.pathname === "/api/models/roles") {
+      if (req.method === "POST") {
+        const { id, spec } = await body();
+        const role = roleOf(String(id));
+        const want = String(spec ?? "").trim();
+        if (!role || !validSpec(want)) return json({ error: "用途或模型名不对" }, 400);
+        if (want && !(await agents.modelChoices()).some((c) => c.spec === want)) return json({ error: "没有这个模型，或者还没登录那家服务商" }, 400);
+        saveEnv(role.env, want);
+        if (role.id === "vision") agents.visionSpec = want;
+        push("model", {});
+      }
+      return json({ roles: ROLES.map((r) => ({ ...r, spec: roleModel(r.id) ?? "" })), models: await agents.modelChoices() });
     }
     // 看图模型：POST /api/models/vision {spec}
     if (url.pathname === "/api/models/vision" && req.method === "POST") {
@@ -272,30 +305,46 @@ export function startServer(opts: {
       if (!text?.trim()) return json({ error: "空消息" }, 400);
       if (path === MAIN) {
         // 主 bot：交给路由器，命令和转发都在那里
-        mainSay("user", text);
-        json({ ok: true });
+        const ack = acks.add(MAIN, text);
+        mainSay("user", text, ack);
+        json({ ok: true, ack });
+        quickLine(ack, "奇奇，负责把用户的事分给合适的宝去做", text);
         router
           .handle(CHAT_ID, text, async (r) => {
+            const m = markForReply(r);
+            if (m !== undefined) acks.set(ack, m, m === "bg" ? lastTaskOf(CHAT_ID) : undefined);
             mainSay("assistant", r);
             push("tree", tree()); // /new /bg 之类会改列表
           })
-          .catch((e) => mainSay("assistant", `出错了：${(e as Error).message}`));
+          .catch((e) => {
+            acks.set(ack, "error");
+            mainSay("assistant", `出错了：${(e as Error).message}`);
+          });
         return;
       }
       const rec = registry.byPath(path);
       if (!rec) return json({ error: "没有这段对话" }, 404);
-      json({ ok: true });
-      push("message", { path, role: "user", text });
       // 这段对话是卡住等你回答的后台任务：回答交给任务，让它接着干、做完照常回报
       const stuck = router.tasks.blockedBySession(path);
+      const ack = acks.add(path, text, !stuck && agents.occupied(path));
+      json({ ok: true, ack });
+      push("message", { path, role: "user", text, ack });
       if (stuck) {
         router.tasks.answer(stuck.id, text);
+        acks.set(ack, "bg", stuck.id);
         return;
       }
+      quickLine(ack, rec.name === MAIN_SESSION ? `${rec.agent}（${agents.describe(rec.agent) || "一个助理"}）` : `${rec.agent}，正在讨论「${rec.name}」`, text);
       agents
-        .send(rec.agent, rec.path, text)
-        .then((r) => push("message", { path, role: "assistant", text: r }))
-        .catch((e) => push("message", { path, role: "assistant", text: `出错了：${(e as Error).message}` }));
+        .send(rec.agent, rec.path, text, { onStart: () => acks.start(ack) })
+        .then((r) => {
+          acks.set(ack, null);
+          push("message", { path, role: "assistant", text: r });
+        })
+        .catch((e) => {
+          acks.set(ack, "error");
+          push("message", { path, role: "assistant", text: `出错了：${(e as Error).message}` });
+        });
       return;
     }
 

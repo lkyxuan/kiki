@@ -7,6 +7,7 @@ import { MemoryTaskStore, OPEN, type Task, Tasks, type TaskStore } from "./tasks
 import { taskLine } from "./tasktool.js";
 import { buildRouteInput, buildRouteSystem, type Decision, type Part, parseDecision, type RouteCandidate } from "./route.js";
 import { MAIN_SESSION } from "./bao.js";
+import { roleModel } from "./modelroles.js";
 
 /** 路由器对 pi 那一层的全部要求，测试时可以换成假的。 */
 export interface AgentBackend {
@@ -18,7 +19,7 @@ export interface AgentBackend {
   send(agent: string, path: string, text: string): Promise<string>;
   isBusy(path: string): boolean;
   /** 一次性问模型（不进对话），路由用 */
-  complete(system: string, user: string): Promise<string>;
+  complete(system: string, user: string, spec?: string): Promise<string>;
   /** 这个宝负责什么，一句话 */
   describe(agent: string): string;
   /** 这段对话里用户最近说的几句（给路由看） */
@@ -210,6 +211,7 @@ export class Router {
       const raw = await this.agents.complete(
         buildRouteSystem(this.rules()),
         buildRouteInput({ text, candidates, current: cur ? label(cur) : undefined, onlyAgent, now: nowText() }),
+        roleModel("route"), // 模型按用途配置：没选就用默认模型
       );
       const d = parseDecision(raw, {
         agents: onlyAgent ? [onlyAgent] : agents,
@@ -271,7 +273,8 @@ export class Router {
       }
     }
     this.registry.setCurrent(chatId, rec.path);
-    this.progress(chatId, { status: `已交给 ${label(rec)}`, path: rec.path });
+    const busy = this.agents.isBusy(rec.path) ? "，前面还在做，排队中" : ""; // 那段对话手上有活：先告诉用户在排队
+    this.progress(chatId, { status: `已交给 ${label(rec)}${busy}`, path: rec.path });
     const pending = this.agents.send(rec.agent, rec.path, text); // 已排进对话队列
     release();
     const answer = await pending;
