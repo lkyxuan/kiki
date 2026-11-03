@@ -2,7 +2,7 @@
 //
 // .bao 文件就是一个 JSON：{ kiki: "bao", format: 1, name, look: {emoji}, files: { "AGENTS.md": "…", "skills/x/SKILL.md": "…" } }
 // 只带“配方”：说明文件（AGENTS.md 和宝目录下其他自己写的 .md）和技能（skills/ 下，Claude / Agent Skills 的格式）。
-// 不带：对话记录（sessions/）、笔记（notes/）、关注清单、任务、密钥；看着像密钥的文件也不带。
+// 不带：对话记录（sessions/）、笔记（notes/）、工作（work/）、关注清单、任务、密钥；看着像密钥的文件也不带。
 //
 // 导入分两步：先「看一眼」（preview）列出它会做什么——用哪些技能、会跑脚本吗、会联系谁、有没有可疑的话，
 // 你看过点「装上」才真的写进 agents/<名字>/。这是导入时唯一的一次提示，装好以后照全自动规则跑，不再问。
@@ -112,8 +112,8 @@ export function exportBao(dataDir: string, name: string): ExportResult {
     }
   };
   if (existsSync(join(dir, SKILLS_DIR))) walk(join(dir, SKILLS_DIR));
-  for (const d of ["sessions", "notes", "tasks"])
-    if (existsSync(join(dir, d))) skipped.push({ path: `${d}/`, why: d === "sessions" ? "对话记录不带" : d === "notes" ? "笔记是你的私事，不带" : "任务不带" });
+  const PRIVATE_DIRS: Record<string, string> = { sessions: "对话记录不带", notes: "笔记是你的私事，不带", tasks: "任务不带", work: "你在做的工作不带" };
+  for (const [d, why] of Object.entries(PRIVATE_DIRS)) if (existsSync(join(dir, d))) skipped.push({ path: `${d}/`, why });
   if (!files[BAO_FILE]) throw new Error(`宝「${name}」没有 ${BAO_FILE}，没法导出`);
   const emoji = baoLook(dataDir, name).emoji;
   return {

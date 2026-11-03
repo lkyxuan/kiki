@@ -18,7 +18,7 @@ import {
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import { type Live, type Step, describeTool, stepsFromMessages } from "./activity.js";
-import { SKILLS_DIR, baoFile, createBao } from "./bao.js";
+import { baoFile, createBao } from "./bao.js";
 import { explainError } from "./errors.js";
 import { existsSync as fileExists, readFileSync as readText, writeFileSync as writeText } from "node:fs";
 import { pickedIds, readPrefs } from "./modelprefs.js";
@@ -61,6 +61,8 @@ export class Agents extends EventEmitter {
   toolsFor?: (agent: string) => ToolDefinition[];
   /** Kiki 自己的 pi 扩展（比如审批），由 main.ts 注入。 */
   extensions: ExtensionFactory[] = [];
+  /** 某个宝额外的技能文件夹（Kiki 自带的宝技能、宝自己的 skills/），由 main.ts 注入。走 SDK 参数，不经过 pi 的“项目信任” */
+  skillPaths?: (agent: string) => string[];
   private live = new Map<string, AgentSession>(); // path -> 已打开的对话
   private queues = new Map<string, Promise<unknown>>(); // path -> 排队，同一段对话一次只跑一句
   private inflight = new Map<string, number>(); // path -> 还没答完的 send 数（含正在答的）
@@ -241,13 +243,11 @@ export class Agents extends EventEmitter {
     // SDK 嵌入的会话默认不带 MCP，要自己加上（和 pi 命令行一样）：
     // MCP 读 engine/mcp.json（设置页「MCP 服务器」改的就是它）；codemode 和 tool_search 平时不启用，
     // 只有服务器设成 codemode / deferred 方式时 MCP 扩展才会打开它们。
-    // 宝自己的技能（agents/<宝>/skills/<技能>/SKILL.md，导入的宝带来的就放这）：直接读，不走 pi 的「信任这个文件夹」
-    const skills = join(cwd, SKILLS_DIR);
     const resourceLoader = new DefaultResourceLoader({
       cwd,
       agentDir: this.engineDir,
       settingsManager,
-      additionalSkillPaths: existsSync(skills) ? [skills] : [],
+      additionalSkillPaths: (this.skillPaths?.(agent) ?? []).filter((p) => existsSync(p)),
       extensionFactories: [...this.extensions, createCodemodeExtension(), createToolSearchExtension(), createMcpExtension()],
     });
     await resourceLoader.reload();
