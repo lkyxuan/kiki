@@ -102,8 +102,17 @@ async function ask(user, { json = false, maxTokens = api.maxOutputTokens } = {})
 function clean(text) {
   const junk = /^\s*(```[\w-]*|<\/?(chinese|english|old_english|current_english|chinese_diff)>)\s*$/;
   const lines = text.split("\n");
-  while (lines.length && junk.test(lines[0])) lines.shift();
-  while (lines.length && junk.test(lines.at(-1))) lines.pop();
+  // 包装行前后可能还有空行：找到第一/最后一个非空行，是包装行就连同外侧空行一起去掉
+  for (;;) {
+    const i = lines.findIndex((l) => l.trim());
+    if (i < 0 || !junk.test(lines[i])) break;
+    lines.splice(0, i + 1);
+  }
+  for (;;) {
+    const i = lines.findLastIndex((l) => l.trim());
+    if (i < 0 || !junk.test(lines[i])) break;
+    lines.splice(i);
+  }
   return lines.join("\n");
 }
 
