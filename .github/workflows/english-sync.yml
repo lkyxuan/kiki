@@ -1,7 +1,7 @@
 # 中文仓库每次合并到 main，就把改动翻译成英文，推到英文仓库（见 english/README.md）。
 # 需要的配置：
 #   Secrets  DEEPSEEK_API_KEY    翻译用的模型密钥（见 english/rules.json 的 api）
-#            KIKI_EN_TOKEN       能推送英文仓库的 GitHub 令牌（Fine-grained，只给英文仓库 Contents + Pull requests 读写）
+#            KIKI_EN_TOKEN       能推送英文仓库的 GitHub 令牌（Fine-grained，只给英文仓库 Contents、Pull requests、Workflows 读写）
 #   Variables KIKI_EN_ENABLED=true  配好之后再打开，没打开时这个工作流什么都不做
 name: english-sync
 on:
@@ -50,6 +50,17 @@ jobs:
         continue-on-error: true
         working-directory: en
         run: npm ci && npm run check && npm test
+      - name: 没过自检时保存翻译结果，方便排查
+        if: steps.test.outcome != 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiki-agent-translation
+          path: |
+            en
+            !en/node_modules
+            !en/.git
+          include-hidden-files: true
+          retention-days: 7
       - name: 推送
         working-directory: en
         env:

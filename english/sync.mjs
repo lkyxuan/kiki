@@ -89,13 +89,22 @@ async function ask(user, { json = false, maxTokens = api.maxOutputTokens } = {})
       const data = await res.json();
       const choice = data.choices[0];
       if (choice.finish_reason === "length") throw new Error("output too long");
-      return choice.message.content.replace(/^```[a-z]*\n([\s\S]*?)\n```\s*$/, "$1");
+      return clean(choice.message.content);
     } catch (e) {
       if (attempt >= 3) throw e;
       console.log(`  retry ${attempt}: ${e.message.slice(0, 200)}`);
       await new Promise((r) => setTimeout(r, 5000 * attempt));
     }
   }
+}
+
+// 模型偶尔会把输入的包装标签或代码块围栏一起吐回来，去掉首尾这些行
+function clean(text) {
+  const junk = /^\s*(```[\w-]*|<\/?(chinese|english|old_english|current_english|chinese_diff)>)\s*$/;
+  const lines = text.split("\n");
+  while (lines.length && junk.test(lines[0])) lines.shift();
+  while (lines.length && junk.test(lines.at(-1))) lines.pop();
+  return lines.join("\n");
 }
 
 // 按行切块，每块不超过 chunkChars，整份翻译时逐块翻
