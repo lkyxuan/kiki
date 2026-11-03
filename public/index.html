@@ -460,7 +460,7 @@ function paintAcks(box, path) {
       || [...bubbles].reverse().find((x) => !used.has(x) && !x.dataset.ack && plain(x.dataset.text) === plain(a.text));
     if (!b || used.has(b)) continue;
     used.add(b);
-    if (a.say) b.insertAdjacentHTML("afterend", `<div class="msg ack-say" title="先回的一句（设置 › 模型与密钥 › 先回一句）">${esc(a.say)}</div>`);
+    if (a.say) b.insertAdjacentHTML("afterend", `<div class="msg ack-say" title="先回的一句（设置 › 模型 › 先回一句）">${esc(a.say)}</div>`);
     const [label, tip] = ACK[a.mark] || [];
     if (!label) continue;
     b.classList.add("acked");
@@ -964,18 +964,18 @@ if (document.documentElement.classList.contains("kiki-fullsize")) {
   document.addEventListener("dblclick", (e) => { if (dragZone(e)) winMsg("zoom"); });
 }
 
-// 第一次用、还没填模型密钥：在奇奇的空白页提示一句，点一下直接打开「模型与密钥」
+// 第一次用、还没有能用的模型：在奇奇的空白页提示一句，点一下直接打开「服务商」
 async function keyHint() {
   let need = false;
   try {
-    const s = await (await fetch("/api/settings")).json();
-    need = (s.env.MODEL.value || "deepseek/").startsWith("deepseek/") && s.env.DEEPSEEK_API_KEY.source === "unset";
+    // 一家服务商都没连上（不能看模型菜单长短：菜单里总会带上当前模型，哪怕它没登录）
+    need = !(await (await fetch("/api/models/providers")).json()).providers.some((p) => p.configured && p.on);
   } catch {}
   const hint = $("#msgs .hint");
   hint?.querySelector(".need-key")?.remove();
   if (!need || !hint || current !== "main") return;
   hint.insertAdjacentHTML("beforeend", '<div class="need-key">开始前先填一个模型密钥<button type="button">去填写</button></div>');
-  hint.querySelector(".need-key button").onclick = () => openSettings("model");
+  hint.querySelector(".need-key button").onclick = () => openSettings("providers");
 }
 
 // 设置：弹窗打开，不离开聊天页
@@ -1245,7 +1245,7 @@ document.addEventListener("click", (e) => { if (!e.target.closest?.(".model-wrap
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#model-menu").hidden) closeModelMenu(); });
 $("#model-menu").addEventListener("click", async (e) => {
   const opt = e.target.closest("[data-model]"), gpt = e.target.closest("[data-gpt]"), eye = e.target.closest("[data-vision]");
-  if (e.target.closest("[data-more]")) { closeModelMenu(); openSettings("model"); return; }
+  if (e.target.closest("[data-more]")) { closeModelMenu(); openSettings("providers"); return; }
   if (eye) {
     const r = await fetch("/api/models/vision", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ spec: eye.dataset.vision }) });
     const j = await r.json();

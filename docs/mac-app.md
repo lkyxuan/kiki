@@ -28,7 +28,7 @@ npm ci && packaging/build.sh arm64 && packaging/install.sh out/Kiki-mac-arm64.zi
 
 ### 第一次装好以后
 
-1. 第一次打开选「在这台电脑上运行」，然后填模型密钥：点 Kiki 左下角「设置 → 模型与密钥」，粘贴 DeepSeek API 密钥（到 https://platform.deepseek.com/api_keys 申请），点「保存」，马上就能用。密钥存在 `~/kiki-data/.env`，只有你自己能读。
+1. 第一次打开选「在这台电脑上运行」，然后填模型密钥：点 Kiki 左下角「设置 → 服务商」，选 DeepSeek，点「填 API 密钥」粘贴密钥（到 https://platform.deepseek.com/api_keys 申请），马上就能用；也可以选别家，用订阅登录。每个环节用哪个模型在「设置 → 模型」里选。密钥存在 `~/kiki-data/engine/auth.json`，只有你自己能读；DeepSeek 的密钥也可以写在 `~/kiki-data/.env` 的 `DEEPSEEK_API_KEY`（设置里 DeepSeek 下面的「进阶」）。
 
    进阶：不想让密钥以明文放在文件里，可以放进 macOS 钥匙串（登录后就能取）。Kiki 在后台运行、没人在电脑前点授权，所以密钥要放在它自己拿得到的地方：
    ```bash
