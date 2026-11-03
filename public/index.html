@@ -968,7 +968,8 @@ if (document.documentElement.classList.contains("kiki-fullsize")) {
 async function keyHint() {
   let need = false;
   try {
-    need = (await (await fetch("/api/models")).json()).models.length === 0; // 一家服务商都没连上
+    // 一家服务商都没连上（不能看模型菜单长短：菜单里总会带上当前模型，哪怕它没登录）
+    need = !(await (await fetch("/api/models/providers")).json()).providers.some((p) => p.configured && p.on);
   } catch {}
   const hint = $("#msgs .hint");
   hint?.querySelector(".need-key")?.remove();

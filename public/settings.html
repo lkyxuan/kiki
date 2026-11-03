@@ -757,7 +757,8 @@ async function loadModels(change) {
     if (change) say("#roles-msg", "改好了，马上生效", "ok");
   } catch (e) { say("#roles-msg", e.message, "err"); if (!j) return; }
   const models = j.models, cur = info?.current || "";
-  $("#no-models").hidden = models.length > 0;
+  // 菜单里总会带上当前模型（哪怕没登录），所以“有没有能用的”看服务商有没有连上
+  try { $("#no-models").hidden = (await api("/api/models/providers")).providers.some((p) => p.configured && p.on); } catch {}
   $("#main-model").innerHTML = (models.some((m) => m.spec === cur) ? "" : `<option value="${esc(cur)}" selected>${esc(cur || "还没选")}${cur ? "（不可用）" : ""}</option>`) + modelOptions(models, cur);
   $("#roles").innerHTML = j.roles.map((x) => {
     const unset = x.unset.replace("默认模型", "主模型");
