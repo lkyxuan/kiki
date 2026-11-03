@@ -2,7 +2,7 @@
 // 👀 收到在看（答完就消失）；🕐 前面还在做、排队中；⏳ 放后台了；✅ 后台做完；✋ 等你回答；❗ 出错了。
 // 只放在内存里，不写进对话记录：重启后就没了，按状态实时显示就够。以后接微信等通道，也用同一个“收到”信号。
 import { EventEmitter } from "node:events";
-import type { Task } from "./tasks.js";
+import type { Task, TaskStatus } from "./tasks.js";
 
 export type Mark = "seen" | "queued" | "bg" | "done" | "ask" | "error";
 
@@ -11,7 +11,7 @@ export interface Ack {
   path: string; // 哪段对话（奇奇是 "main"）
   text: string; // 你发的原话，网页靠它在老记录里找到那个气泡
   mark: Mark | null; // null：表情去掉了，但还留着“先回一句”
-  task?: string; // 放到后台的任务 id
+  tasks?: Record<string, TaskStatus>; // 这条消息放到后台的任务（拆成几件时有好几个）和各自的状态
   say?: string; // 小模型先回的一句（模型按用途配置里的“先回一句”）
 }
 
@@ -34,10 +34,9 @@ export class Acks extends EventEmitter {
   }
 
   /** 换表情；null 是去掉。 */
-  set(id: string, mark: Mark | null, task?: string) {
+  set(id: string, mark: Mark | null) {
     const a = this.all.get(id);
     if (!a) return;
-    if (task) a.task = task;
     if (a.mark === mark) return;
     if (mark === null && !a.say) this.all.delete(id);
     else a.mark = mark;
@@ -66,13 +65,34 @@ export class Acks extends EventEmitter {
     return [...this.all.values()];
   }
 
+  /** 这条消息放到后台去的任务：之后表情跟着这些任务的状态走。 */
+  link(id: string, tasks: Task[]) {
+    const a = this.all.get(id);
+    if (!a || !tasks.length) return;
+    a.tasks = { ...a.tasks, ...Object.fromEntries(tasks.map((t) => [t.id, t.status])) };
+    this.refresh(a);
+  }
+
+  /** 这些任务已经挂在某条消息上了吗（免得两条消息抢同一个任务）。 */
+  linked(taskId: string) {
+    return [...this.all.values()].some((a) => a.tasks && taskId in a.tasks);
+  }
+
   /** 后台任务状态变了：跟着换表情。 */
   onTask(t: Task) {
     for (const a of this.all.values()) {
-      if (a.task !== t.id) continue;
-      const m = taskMark(t);
-      if (m !== undefined) this.set(a.id, m);
+      if (!a.tasks || !(t.id in a.tasks)) continue;
+      a.tasks[t.id] = t.status;
+      this.refresh(a);
     }
+  }
+
+  /** 按这条消息所有任务的状态合出一个表情：有出错就 ❗，有等你就 ✋，还有在做的就 ⏳，全做完才 ✅。 */
+  private refresh(a: Ack) {
+    const marks = Object.values(a.tasks ?? {}).map((status) => taskMark({ status } as Task));
+    const m = (["error", "ask", "bg", "done"] as const).find((x) => marks.includes(x));
+    if (m) this.set(a.id, m);
+    else if (marks.length && marks.every((x) => x === null)) this.set(a.id, null); // 全取消了
   }
 }
 

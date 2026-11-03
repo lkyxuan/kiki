@@ -449,10 +449,13 @@ function paintAcks(box, path) {
   bubbles.forEach((b) => { b.querySelector(".ack")?.remove(); b.classList.remove("acked"); });
   box.querySelectorAll(".ack-say").forEach((x) => x.remove());
   const used = new Set();
+  // 原话去掉后台附的看图说明，再比整句（不比开头，免得“查状态”的表情跑到“查状态再来一次”上）
+  const plain = (t) => (t || "").replace(/\n*<kiki-image-note>[\s\S]*?<\/kiki-image-note>/g, "").trim();
   for (const a of Object.values(acks).filter((x) => x.path === path).reverse()) {
-    const want = a.text.trim();
-    const b = [...bubbles].reverse().find((x) => !used.has(x) && (x.dataset.text || "").trim().startsWith(want));
-    if (!b) continue;
+    // 刚发的消息气泡上记着它的 id，直接对上；打开老记录时才按原话找没认领的气泡
+    const b = bubbles.find((x) => x.dataset.ack === a.id)
+      || [...bubbles].reverse().find((x) => !used.has(x) && !x.dataset.ack && plain(x.dataset.text) === plain(a.text));
+    if (!b || used.has(b)) continue;
     used.add(b);
     if (a.say) b.insertAdjacentHTML("afterend", `<div class="msg ack-say" title="先回的一句（设置 › 模型与密钥 › 先回一句）">${esc(a.say)}</div>`);
     const [label, tip] = ACK[a.mark] || [];
@@ -680,11 +683,11 @@ function render(text) {
   return md(text);
 }
 
-function addMsg(role, text, steps) {
+function addMsg(role, text, steps, ack) {
   if (steps?.length) $("#msgs").appendChild(stepsBox(steps, false));
   const el = document.createElement("div");
   el.className = `msg ${role}`;
-  if (role === "user") { el.innerHTML = userHtml(text); el.dataset.text = text; } else el.innerHTML = render(text);
+  if (role === "user") { el.innerHTML = userHtml(text); el.dataset.text = text; if (ack) el.dataset.ack = ack; } else el.innerHTML = render(text);
   $("#msgs").appendChild(el);
   $("#log").scrollTop = $("#log").scrollHeight;
   return el;
@@ -792,9 +795,11 @@ async function sendPeek() {
   t.value = "";
   clearAtts("peek-input");
   $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg user" data-text="${esc(text)}">${userHtml(text)}</div>`);
+  const mine = $("#peek-msgs").lastElementChild;
   $("#peek-log").scrollTop = $("#peek-log").scrollHeight;
   const r = await fetch("/api/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: peek, text }) });
   if (!r.ok) $("#peek-msgs").insertAdjacentHTML("beforeend", `<div class="msg assistant">${esc("出错了：" + (await r.json()).error)}</div>`);
+  else { const j = await r.json().catch(() => ({})); if (j.ack && mine.isConnected) { mine.dataset.ack = j.ack; paintAcks($("#peek-msgs"), peek); } }
 }
 $("#peek-close").onclick = closePeek;
 $("#peek-send").onclick = sendPeek;
@@ -1259,7 +1264,7 @@ es.addEventListener("message", (e) => {
   if (m.role === "assistant" && streaming) { streaming.innerHTML = render(m.text); streaming = null; lastStreamed = null; return; }
   if (m.role === "assistant" && lastStreamed && lastStreamed.dataset.raw.trim() === m.text.trim()) { lastStreamed.innerHTML = render(m.text); lastStreamed = null; return; }
   $(".hint")?.remove();
-  addMsg(m.role, m.text);
+  addMsg(m.role, m.text, undefined, m.ack);
   if (m.role === "user") { lastStreamed = null; paintAcks($("#msgs"), current); }
   const p = $(".pending"); if (p) $("#msgs").appendChild(p); // 等待提示始终在最下面
 });

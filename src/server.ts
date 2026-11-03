@@ -120,8 +120,9 @@ export function startServer(opts: {
     }
     push("message", { path: MAIN, role, text, ...(ack ? { ack } : {}) });
   };
-  // 刚从这个聊天开出去的后台任务（奇奇回执“已交给后台”时，它就是最新的那个）
-  const lastTaskOf = (chatId: string) => router.tasks.list((t) => t.chatId === chatId).at(-1)?.id;
+  // 这条消息发出后从这个聊天开出去、还没挂到别的消息上的后台任务（拆成几件时有好几个）
+  const tasksSince = (chatId: string, since: number) =>
+    router.tasks.list((t) => t.chatId === chatId && Date.parse(t.created) >= since - 1000 && !acks.linked(t.id));
 
   const mainHistory = (): ChatLine[] =>
     existsSync(mainLog)
@@ -306,13 +307,15 @@ export function startServer(opts: {
       if (path === MAIN) {
         // 主 bot：交给路由器，命令和转发都在那里
         const ack = acks.add(MAIN, text);
+        const sent = Date.now();
         mainSay("user", text, ack);
         json({ ok: true, ack });
         quickLine(ack, "奇奇，负责把用户的事分给合适的宝去做", text);
         router
           .handle(CHAT_ID, text, async (r) => {
             const m = markForReply(r);
-            if (m !== undefined) acks.set(ack, m, m === "bg" ? lastTaskOf(CHAT_ID) : undefined);
+            if (m === "bg") acks.link(ack, tasksSince(CHAT_ID, sent)); // 之后跟着这些任务的状态走
+            else if (m !== undefined && !acks.get(ack)?.tasks) acks.set(ack, m);
             mainSay("assistant", r);
             push("tree", tree()); // /new /bg 之类会改列表
           })
@@ -330,8 +333,8 @@ export function startServer(opts: {
       json({ ok: true, ack });
       push("message", { path, role: "user", text, ack });
       if (stuck) {
-        router.tasks.answer(stuck.id, text);
-        acks.set(ack, "bg", stuck.id);
+        const t = router.tasks.answer(stuck.id, text);
+        if (t) acks.link(ack, [t]);
         return;
       }
       quickLine(ack, rec.name === MAIN_SESSION ? `${rec.agent}（${agents.describe(rec.agent) || "一个助理"}）` : `${rec.agent}，正在讨论「${rec.name}」`, text);

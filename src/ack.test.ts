@@ -35,7 +35,9 @@ test("先回一句：答完前到的留着（表情去掉后也在），答完�
 test("后台任务的状态跟着换表情", () => {
   const a = new Acks();
   const id = a.add("main", "整理一下");
-  a.set(id, "bg", "t1");
+  a.link(id, [{ id: "t1", status: "running" } as Task]);
+  assert.equal(a.get(id)?.mark, "bg");
+  assert.equal(a.linked("t1"), true);
   a.onTask({ id: "t1", status: "blocked" } as Task);
   assert.equal(a.get(id)?.mark, "ask");
   a.onTask({ id: "t1", status: "done" } as Task);
@@ -62,4 +64,16 @@ test("模型按用途配置：没选是 undefined；先回一句的整理", () =
   assert.equal(cleanAck("SKIP"), "");
   assert.equal(cleanAck("“好，我先看下日程”\n多余的"), "好，我先看下日程");
   assert.equal(cleanAck(""), "");
+});
+
+test("拆成几件放后台：全做完才 ✅，有一件出错就 ❗", () => {
+  const a = new Acks();
+  const id = a.add("main", "两件事");
+  a.link(id, [{ id: "x", status: "queued" } as Task, { id: "y", status: "running" } as Task]);
+  a.onTask({ id: "x", status: "done" } as Task);
+  assert.equal(a.get(id)?.mark, "bg"); // y 还在做
+  a.onTask({ id: "y", status: "failed" } as Task);
+  assert.equal(a.get(id)?.mark, "error");
+  a.onTask({ id: "x", status: "done" } as Task); // 晚到的更新不会盖掉出错
+  assert.equal(a.get(id)?.mark, "error");
 });
