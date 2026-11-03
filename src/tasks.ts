@@ -528,7 +528,7 @@ export class Tasks extends EventEmitter {
         }
         const path = await this.backend.spawn(t.agent, t.title, t.origin);
         if (timedOut || this.stopping.has(t.id)) {
-          // 开对话时就超时/被停了（比如原对话一直忙），不再开始干活
+          // 开对话时就超时/被停了（比如原对话一直忙），不再开始干活；子程序已经起来的话关掉
           await this.backend.abort?.(path);
           return "";
         }

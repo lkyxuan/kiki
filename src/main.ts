@@ -64,6 +64,14 @@ const agents = new Agents(dataDir, process.env.MODEL || "deepseek/deepseek-flash
 // 审批：危险动作系统兜底、做完记一笔能撤回，只有超预算才问你（见 approval.ts）
 const approvals = new Approvals(dataDir);
 agents.extensions.push(approvals.extension());
+// 后台任务各自一个子程序（见 workerhost.ts）：崩了不连累别人，停任务就是关掉它。TASK_ISOLATION=0 改回在主程序里跑
+if (process.env.TASK_ISOLATION !== "0") {
+  const here = fileURLToPath(import.meta.url);
+  agents.isolation = {
+    script: join(dirname(here), `worker${here.endsWith(".ts") ? ".ts" : ".js"}`),
+    approve: (r, signal) => approvals.check(r.toolName, r.input, r.cwd, r.path, signal, r.turn),
+  };
+}
 const registry = new Registry(join(dataDir, "registry.json"));
 // 后台任务：每个任务一个 Markdown 文件，在数据目录 tasks/ 下
 // 默认的宝：.env 里写的那个不存在了（比如以前的 life 已归档）就回到奇奇

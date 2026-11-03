@@ -16,7 +16,7 @@ Kiki 装在 Mac mini 上一直开着，你在 MacBook、iPhone 上用浏览器�
 curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash
 ```
 
-它会下载最新版、核对校验和、放进“应用程序”、启动 Kiki。推荐用脚本装，是因为 Kiki 还没有苹果开发者签名，浏览器下载的 App 会被 macOS 拦一下。
+它会下载最新版、核对校验和、放进“应用程序”、启动 Kiki。推荐用脚本装，是因为 Kiki 还没有苹果开发者签名，浏览器下载的 App 会被 macOS 拦一下（签名和公证的流程已经准备好，见 [signing.md](signing.md)）。
 
 不想用终端的话，到 [发布页](https://github.com/lkyxuan/kiki/releases/latest) 下载 `.dmg`（Apple 芯片选 arm64，Intel 选 x64），打开后把 Kiki 拖进「应用程序」，**从「应用程序」里**打开（直接在安装盘里双击，Kiki 会提示你先拖进去）。第一次打开会提示无法验证开发者：点「完成」，到「系统设置 → 隐私与安全性」拉到最下面点「仍要打开」。
 
@@ -102,4 +102,4 @@ rm -rf /Applications/Kiki.app /Applications/.Kiki-previous.app
 
 ## 以后可以做的
 
-- 苹果开发者签名和公证（每年 99 美元）：之后可以直接从网页下载 .dmg 双击安装，不用终端。
+- 苹果开发者签名和公证：发布流程已经准备好，仓库里填好证书就生效，见 [signing.md](signing.md)。

@@ -35,6 +35,9 @@ export interface AgentBackend {
   abort?(path: string): Promise<void>;
   /** 往正在跑的对话里插一句话（改后台任务用，可选） */
   steer?(agent: string, path: string, text: string): Promise<void>;
+  /** 后台任务的对话：开（可分叉）和发话。有它们就交给它们（各自一个子程序），没有就用 create/fork/send（可选） */
+  spawnTask?(agent: string, name: string, from?: string): Promise<string>;
+  sendTask?(agent: string, path: string, text: string): Promise<string>;
   /** 关掉一段对话（停下手上的活、放开内存），并把它的记录挪进回收站（可选） */
   discard?(agent: string, path: string, name: string): Promise<void>;
 }
@@ -83,10 +86,13 @@ export class Router {
         spawn: async (agent, title, from) => {
           let name = `bg-${title}`;
           for (let i = 2; this.registry.get(agent, name); i++) name = `bg-${title}${i}`;
-          const rec = from ? await this.forkSession(agent, from, name) : await this.newSession(agent, name, true);
-          return rec.path;
+          if (!this.agents.spawnTask) return (from ? await this.forkSession(agent, from, name) : await this.newSession(agent, name, true)).path;
+          // 每个任务一个子程序：在子程序里开对话，这里只记名册
+          const path = await this.agents.spawnTask(agent, name, from);
+          this.registry.add({ agent, name, path, created: new Date().toISOString(), background: true });
+          return path;
         },
-        send: (agent, path, text) => this.agents.send(agent, path, text),
+        send: (agent, path, text) => (this.agents.sendTask ? this.agents.sendTask(agent, path, text) : this.agents.send(agent, path, text)),
         abort: this.agents.abort ? (path) => this.agents.abort!(path) : undefined,
         steer: this.agents.steer
           ? async (path, text) => {
