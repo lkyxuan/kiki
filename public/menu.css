@@ -1,0 +1,74 @@
+/* 呼出菜单和沉浸模式的样子（逻辑在 public/menu.js）。只用颜色变量，浅色、深色、外部主题都跟着变；
+   外部主题想换造型，就用 #ring-menu、.rm-btn、.rm-sub、.rm-row、#hp 这些选择器。 */
+
+/* ---------- 菜单：一竖列圆形按钮 ---------- */
+#ring-menu { position: fixed; z-index: 40; font-size: 14px; }
+#ring-menu .rm-col { display: flex; flex-direction: column; gap: 10px; }
+.rm-btn { position: relative; display: flex; align-items: center; gap: 10px; padding: 0; color: var(--text); cursor: pointer; outline: none;
+  animation: rm-pop .26s cubic-bezier(.2, 1.4, .4, 1) both; animation-delay: calc(var(--i) * 28ms); }
+.rm-btn .rm-ico { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; flex: none;
+  background: var(--raised); color: var(--muted); box-shadow: 0 0 0 1px var(--line-strong), var(--shadow); transition: transform .15s, box-shadow .15s, background .15s, color .15s; }
+.rm-btn .rm-ico img { width: 100%; height: 100%; display: block; }
+.rm-btn .rm-ico .avatar { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center; font-size: 22px; }
+.rm-btn .rm-ico .avatar.bot svg { width: 100%; height: 100%; }
+.rm-btn .rm-ico svg { width: 20px; height: 20px; }
+/* 名字：只在选中的那一个旁边显示，其余收起来，像一串按钮 */
+.rm-btn .rm-label { position: absolute; left: 54px; white-space: nowrap; padding: 3px 10px; border-radius: 6px; background: var(--raised); box-shadow: var(--shadow); font-weight: 500;
+  opacity: 0; transform: translateX(-4px); transition: opacity .12s, transform .12s; pointer-events: none; }
+/* 选中：放大一点、外面一圈强调色；纯图标的按钮（新建、看板、设置）整个填上强调色 */
+.rm-btn.hl .rm-ico { transform: scale(1.1); box-shadow: 0 0 0 3px var(--accent), 0 0 0 7px var(--accent-soft), var(--shadow); }
+.rm-btn.hl .rm-ico:has(> svg) { background: var(--accent); color: var(--on-accent); }
+.rm-btn.on .rm-ico { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+.rm-btn.hl .rm-label { opacity: 1; transform: none; }
+#ring-menu:has(.rm-sub) .rm-btn.hl .rm-label { opacity: 0; } /* 展开了右边的列表，名字写在列表头上 */
+.rm-btn:active .rm-ico { animation: rm-ring .35s ease-out; }
+.rm-dot, .rm-busy { position: absolute; top: 0; left: 34px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--raised); }
+.rm-busy { background: var(--ok); animation: rm-blink 1s ease-in-out infinite; }
+
+/* ---------- 右边展开的列表 ---------- */
+.rm-sub { position: absolute; left: 60px; min-width: 220px; max-width: 300px; padding: 6px; border-radius: 10px;
+  background: var(--raised); box-shadow: 0 0 0 1px var(--line), var(--shadow-lg); animation: rm-slide .18s ease-out both; }
+.rm-rows { max-height: min(60vh, 420px); overflow: auto; }
+.rm-sub-head { padding: 6px 10px 6px; font-size: 12px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.rm-row { position: relative; display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 7px 10px; border-radius: 6px; color: var(--text); cursor: pointer; outline: none;
+  animation: rm-slide .2s ease-out both; animation-delay: calc(var(--i) * 18ms); }
+.rm-row + .rm-row { box-shadow: 0 -1px 0 var(--line); }
+.rm-row:hover, .rm-row:focus-visible, .rm-row:focus { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.rm-row:hover + .rm-row, .rm-row:focus + .rm-row { box-shadow: none; }
+.rm-row.on { font-weight: 600; }
+.rm-row-ico { display: grid; place-items: center; color: var(--muted); }
+.rm-row:hover .rm-row-ico, .rm-row:focus .rm-row-ico { color: inherit; }
+.rm-row-ico svg { width: 15px; height: 15px; }
+.rm-row-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-row .rm-dot, .rm-row .rm-busy { position: static; box-shadow: none; flex: none; }
+/* 指回按钮的小三角 */
+#ring-menu .rm-sub::after { content: ""; position: absolute; left: -7px; top: calc(var(--arrow, 30px) - 7px); width: 14px; height: 14px; background: var(--raised);
+  transform: rotate(45deg); box-shadow: -1px 1px 0 var(--line); }
+
+#ring-menu.out { animation: rm-out .15s ease-in both; }
+#ring-menu.still *, #ring-menu.still { animation: none !important; }
+@keyframes rm-pop { from { opacity: 0; transform: translateY(-8px) scale(.6); } }
+@keyframes rm-slide { from { opacity: 0; transform: translateX(-8px); } }
+@keyframes rm-out { to { opacity: 0; transform: scale(.96); } }
+@keyframes rm-ring { 0% { box-shadow: 0 0 0 0 var(--accent-soft), var(--shadow); } 100% { box-shadow: 0 0 0 14px transparent, var(--shadow); } }
+@keyframes rm-blink { 50% { opacity: .35; } }
+
+/* ---------- 名牌（沉浸模式左上角）：头像 + 名字 + 今天任务的进度条 ---------- */
+#hp { display: none; align-items: center; gap: 8px; flex: none; cursor: pointer; padding: 3px 10px 3px 3px; border-radius: 99px; background: var(--fill); }
+#hp:hover { background: var(--active); }
+#hp .hp-ava { width: 26px; height: 26px; border-radius: 50%; overflow: hidden; flex: none; }
+#hp .hp-ava img, #hp .hp-ava .avatar { width: 100%; height: 100%; display: block; }
+#hp .hp-main { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+#hp .hp-top { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 600; line-height: 1.1; }
+#hp .hp-num { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+#hp .hp-bar { display: block; height: 5px; border-radius: 3px; background: var(--line-strong); overflow: hidden; }
+#hp .hp-fill { display: block; height: 100%; background: var(--ok); border-radius: inherit; transition: width .6s cubic-bezier(.2, .8, .2, 1); }
+#hp[data-level="mid"] .hp-fill { background: var(--warn); }
+#hp[data-level="low"] .hp-fill { background: var(--err); }
+
+/* ---------- 沉浸模式：只留中间的对话 ---------- */
+body.focus aside, body.focus #panel { display: none; }
+body.focus #hp { display: flex; }
+body.focus #title-ava, body.focus #panel-toggle { display: none; }
+.kiki-fullsize body.focus header { padding-left: 84px; } /* 让出左上角的红绿灯 */
+body.focus #log .msgs, body.focus .composer .box { max-width: 760px; }

@@ -337,6 +337,7 @@
   .kiki-fullsize header, .kiki-fullsize #panel h3 { -webkit-user-select: none; user-select: none; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation-duration: .01ms !important; } }
 </style>
+<link rel="stylesheet" href="/menu.css">
 </head>
 <body>
 <aside>
@@ -349,6 +350,7 @@
 </aside>
 <main>
   <header>
+    <button id="hp" type="button" aria-label="呼出菜单（⌘J）"><span class="hp-ava"></span><span class="hp-main"><span class="hp-top"><span class="hp-name"></span><span class="hp-num"></span></span><span class="hp-bar"><span class="hp-fill"></span></span></span></button>
     <span id="title-ava" aria-hidden="true"><img src="/qiqi.png" alt=""></span>
     <span id="title">奇奇</span>
     <span id="upd"></span>
@@ -423,6 +425,7 @@
     <div style="font-size: 12px; color: var(--muted, #6f6e69); margin-top: 12px">更新完会自动重启并刷新页面，前后一般不到一分钟。对话记录不受影响。</div>
   </div>
 </div>
+<script src="/menu.js"></script>
 <script>
 // 总进度：下载最慢，占 80%；后面 5 步（校验、自检、备份、等空闲、切换）各占 4%
 const UPD_WEIGHTS = [80, 4, 4, 4, 4, 4];
@@ -550,6 +553,7 @@ function renderSide() {
       ${threads(a).length ? sessRows(a) : ""}
     </div>`).join("");
   renderPanel();
+  window.kikiMenu?.refresh(); // 沉浸模式左上角的名牌
 }
 
 // 宝的主对话（名字固定，见 src/bao.ts 的 MAIN_SESSION）；其余的对话都是讨论串

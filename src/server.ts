@@ -42,6 +42,8 @@ const STATIC: Record<string, string> = {
   "/qiqi-eyes.js": "text/javascript; charset=utf-8",
   "/theme.css": "text/css; charset=utf-8", // 浅色 / 深色配色，两个页面共用
   "/theme.js": "text/javascript; charset=utf-8", // 外观切换（跟随系统 / 浅色 / 深色 / 外部主题）
+  "/menu.js": "text/javascript; charset=utf-8", // 呼出菜单 + 沉浸模式
+  "/menu.css": "text/css; charset=utf-8",
   "/bots.js": "text/javascript; charset=utf-8", // 宝的默认头像：按名字生成的小机器人
 };
 

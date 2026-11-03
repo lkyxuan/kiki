@@ -246,6 +246,10 @@
     </div>
     <p class="looks-hint">想要别的样子？把主题文件夹放进数据目录的 <code>themes/</code> 里，这里就会出现。</p>
     </div>
+    <div class="card">
+      <div class="toggle-row"><div class="t"><b>沉浸模式</b><span>平时只留中间的对话，左上角显示今天任务的进度。要去别的宝、讨论串，按 ⌘J、在空白处点右键，或点左上角名牌呼出菜单</span></div><label class="switch"><input type="checkbox" id="layout-focus" aria-label="沉浸模式"><i></i></label></div>
+      <div class="toggle-row"><div class="t"><b>菜单音效</b><span>呼出、选中、关掉菜单时轻轻响一下</span></div><label class="switch"><input type="checkbox" id="menu-sound" aria-label="菜单音效"><i></i></label></div>
+    </div>
   </section>
 
   <section class="pane" id="pane-model" data-title="模型">
@@ -456,6 +460,15 @@ function bindLooks() { for (const r of document.querySelectorAll('input[name=the
 bindLooks();
 window.addEventListener("storage", syncLook);
 syncLook();
+// 沉浸模式、菜单音效：记在这台设备上（聊天页的 public/menu.js 读）
+for (const [id, key, on] of [["#layout-focus", "kiki.layout", "focus"], ["#menu-sound", "kiki.menuSound", "on"]]) {
+  const box = $(id);
+  try { box.checked = localStorage.getItem(key) === on; } catch {}
+  box.onchange = () => {
+    try { if (box.checked) localStorage.setItem(key, on); else localStorage.removeItem(key); } catch {}
+    try { parent !== window && parent.kikiMenu?.applyLayout(); } catch {} // 设置弹窗在同一个页面里，storage 事件不会到父页面
+  };
+}
 // 外部主题：~/kiki-data/themes/ 里装好的
 fetch("/api/themes").then((r) => r.json()).then(({ themes }) => {
   const half = (b) => `<div class="half ${b === "dark" ? "dk" : "lt"}"><div class="w"><i></i><i></i></div></div>`;
