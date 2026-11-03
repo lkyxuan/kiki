@@ -101,8 +101,17 @@ test("设成先问：暂停在这一步，等点了同意 / 不同意 / 以后�
   assert.match(denied.reason, /不做/);
 });
 
-test("对话被停掉时，待发的卡片当作撤回", async () => {
+test("默认直接发，不等也不问", async () => {
   const dir = tmp();
+  const ap = new Approvals(dir);
+  assert.equal(await hook(ap)("mcp__wechat__send_message", { to: "张三", text: "hi" }, join(dir, "agents", "dev")), undefined);
+  assert.equal(ap.list().length, 0);
+  assert.match(ap.actions.list()[0].note, /直接发/);
+});
+
+test("设了待发时间：对话被停掉时，待发的卡片当作撤回", async () => {
+  const dir = tmp();
+  setAuto(dir, { sendDelaySec: 60 });
   const ap = new Approvals(dir);
   const call = hook(ap);
   const ctl = new AbortController();

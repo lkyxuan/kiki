@@ -2,7 +2,7 @@
 //
 // Kiki 是全自动的个人 agent。四类危险动作默认都“直接做”，但各有兜底：
 //   - 永久删除、强推覆盖：做之前自动备份（backup.ts），做完记进“Kiki 做了什么”，一键撤回；备份不了的不做，原因交回给模型换做法。
-//   - 对外发送：白名单里的直接发；别的先放进“待发”，过一会儿（默认 2 分钟）没人撤回就照发；
+//   - 对外发送：直接发（设置里可以加一段“待发”时间，期间能撤回，默认 0 = 不等）；
 //     这一轮是外来消息（收发室、邮件）触发的、又不在白名单里，就不发（防钓鱼邮件让 Kiki 替你转账、转发资料）。
 //   - 花钱：在预算内（默认单笔 100、每月 500）直接付并记账；超预算或看不出金额，才是唯一会停下来问你的。
 // 每类在设置页仍可改成“先问”或“不做”；“先问”的卡片 24 小时没人点就当不做，不会一直挂着。
@@ -41,13 +41,13 @@ export interface Budget {
 interface State {
   modes: Partial<Record<Category, Mode>>;
   always: AlwaysRule[];
-  sendAllow: string[]; // 对外发送白名单：人名、邮箱、群名、频道……出现在要发的内容里就直接发
+  sendAllow: string[]; // 对外发送白名单：外来消息触发时，只有白名单里的才发；设了待发时间时，白名单里的不等
   sendDelaySec: number; // 白名单外的，等这么多秒没人撤回就发；0 = 马上发
   budget: Budget;
   spent: { month: string; total: number }; // 这个月自动花了多少
 }
 export const DEFAULT_BUDGET: Budget = { perTx: 100, monthly: 500 };
-export const DEFAULT_SEND_DELAY = 120;
+export const DEFAULT_SEND_DELAY = 0; // 默认马上发：用户要全自动，不留待发时间；想要缓冲可以在设置里改
 /** “先问”和超预算的卡片最多等多久，过了当不做 */
 export const ASK_TIMEOUT_MS = 24 * 3600_000;
 

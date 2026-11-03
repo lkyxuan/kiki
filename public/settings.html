@@ -310,10 +310,10 @@
     <div class="card">
     <div id="approval" class="msg">读取中…</div>
     </div>
-    <h3 class="sub">对外发送 <small>白名单里的直接发；别的先放进“待发”，到点没撤回就发</small></h3>
+    <h3 class="sub">对外发送 <small>Kiki 替你给别人发微信、邮件、帖子时，默认直接发</small></h3>
     <div class="card">
-    <div class="field"><label for="send-allow">白名单（人名、邮箱、群名、频道，一行一个）</label><textarea id="send-allow" style="min-height: 90px" placeholder="比如&#10;我自己&#10;someone@example.com&#10;家庭群"></textarea></div>
-    <div class="row"><label for="send-delay" class="msg">待发多久</label><input type="text" id="send-delay" inputmode="numeric" style="max-width: 90px"><span class="msg">秒（0 = 马上发）</span></div>
+    <div class="field"><label for="send-allow">白名单（人名、邮箱、群名、频道，一行一个；只在下面两种情况用得上）</label><textarea id="send-allow" style="min-height: 90px" placeholder="比如&#10;我自己&#10;someone@example.com&#10;家庭群"></textarea></div>
+    <div class="row"><label for="send-delay" class="msg">待发多久</label><input type="text" id="send-delay" inputmode="numeric" style="max-width: 90px"><span class="msg">秒（默认 0 = 马上发；设了就先等这么久，期间能撤回，白名单里的不等）</span></div>
     <p class="msg">外来的邮件、外部 agent 让 Kiki 发给白名单外的人，一律不发，防钓鱼。</p>
     </div>
     <h3 class="sub">花钱 <small>预算内直接付，超了才问你</small></h3>
@@ -703,7 +703,7 @@ $("#new-pkg-go").onclick = async () => {
 loadExtensions();
 
 const MODES = [["allow", "直接做（带兜底）"], ["ask", "先问"], ["deny", "不做"]];
-const AUTO_DESC = { delete: "先自动备份再删，能撤回", force: "先把远程分支存一份再推，能撤回", send: "白名单直接发，别的待发一会儿可撤回", spend: "预算内直接付，超了才问" };
+const AUTO_DESC = { delete: "先自动备份再删，能撤回", force: "先把远程分支存一份再推，能撤回", send: "直接发", spend: "预算内直接付，超了才问" };
 async function loadApproval() {
   let r;
   try { r = await api("/api/settings/approval"); } catch (e) { $("#approval").textContent = e.message; return; }
