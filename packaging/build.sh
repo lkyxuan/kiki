@@ -69,7 +69,12 @@ if command -v hdiutil >/dev/null; then
   mkdir -p "$STAGE"
   ditto "$APP" "$STAGE/Kiki.app"
   ln -s /Applications "$STAGE/应用程序"
-  hdiutil create -quiet -volname "Kiki ${VERSION}" -srcfolder "$STAGE" -ov -format UDZO "$OUT/$DMG"
+  # GitHub 的 Mac 机器上 hdiutil 偶尔报“资源忙”失败（0.2.78 的 x64 就是这样没发出去），最多试 3 次
+  for try in 1 2 3; do
+    hdiutil create -volname "Kiki ${VERSION}" -srcfolder "$STAGE" -ov -format UDZO "$OUT/$DMG" && break
+    [ "$try" = 3 ] && { echo "做 .dmg 失败了 3 次"; exit 1; }
+    echo "做 .dmg 失败，10 秒后重试（第 $try 次）"; sleep 10
+  done
   rm -rf "$STAGE"
   packaging/sign.sh dmg "$OUT/$DMG" "$APP"   # 签名 + 公证，票据也钉进 App
   (cd "$OUT" && shasum -a 256 "$DMG") > "$OUT/$DMG.sha256"
