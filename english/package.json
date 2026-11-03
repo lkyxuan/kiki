@@ -1,0 +1,9 @@
+{
+  "name": "kiki-english-sync",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.4.0",
+    "minimatch": "10.0.1"
+  }
+}
