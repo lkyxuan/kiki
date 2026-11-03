@@ -69,6 +69,10 @@
   #hello svg { width: 120px; height: 120px; filter: drop-shadow(0 0 30px rgba(120,140,255,.7)); animation: pop .7s cubic-bezier(.3,1.6,.5,1) both; }
   #hello .w { margin-top: 14px; font: 700 34px var(--font); letter-spacing: .06em; animation: fadeUp2 .6s .15s ease-out both; }
   #hello .e { margin-top: 4px; font: 12px var(--mono); letter-spacing: .4em; color: var(--cyan); animation: fadeUp2 .6s .3s ease-out both; }
+  /* slogan：创造下一个奇迹 */
+  .slogan { margin-top: 22px; font: 600 15px var(--font); letter-spacing: .32em; padding-left: .32em; color: #ffd166; text-shadow: 0 0 18px rgba(255,209,102,.45); animation: fadeUp2 .6s .45s ease-out both; }
+  .slogan .en { display: block; margin-top: 6px; font: 11px var(--mono); letter-spacing: .3em; color: var(--muted); text-shadow: none; }
+  #welcome .slogan { margin: 6px 0 4px; }
   @keyframes pop { from { transform: scale(.3); opacity: 0; } }
   @keyframes fadeUp2 { from { opacity: 0; transform: translateY(10px); } }
   .eyes { transition: transform .5s cubic-bezier(.4,1.4,.5,1); transform: translate(64px, -54px); }
@@ -135,10 +139,12 @@
     </svg>
     <div class="w" id="helloText">欢迎回来</div>
     <div class="e">WELCOME TO KIKI</div>
+    <div class="slogan">创造下一个奇迹<span class="en">CREATE THE NEXT MIRACLE</span></div>
   </div>
 
   <div id="welcome" hidden>
     <div class="t">欢迎来到 Kiki</div>
+    <div class="slogan">创造下一个奇迹<span class="en">CREATE THE NEXT MIRACLE</span></div>
     <div class="hi"><img src="qiqi.png" alt="" onerror="this.remove()">嗨，我是奇奇。先选一下 Kiki 在哪儿跑：</div>
     <div class="cards">
       <button class="card" id="local" type="button">

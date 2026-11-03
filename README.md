@@ -4,8 +4,10 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
-  <img src="docs/assets/banner-light.svg" alt="Kiki 奇奇：跑在你自己 Mac 上的开源个人 AI 助理" width="100%">
+  <img src="docs/assets/banner-light.svg" alt="Kiki 奇奇 · 创造下一个奇迹：跑在你自己 Mac 上的开源个人 AI 助理" width="100%">
 </picture>
+
+<p><em>Create the next miracle.</em></p>
 
 <p>
   <a href="https://github.com/lkyxuan/kiki/stargazers"><img src="https://img.shields.io/github/stars/lkyxuan/kiki?style=flat-square&logo=github&color=5b6cf0" alt="GitHub Stars"></a>
