@@ -2,8 +2,11 @@
 # 它的 release 工作流会发一个 kiki-release 信号过来（带上提交号），这里用公开仓库免费的 Mac
 # 把那个提交的代码临时拉下来 → 检查 → 测试 → 打包签名公证 → 发到本仓库的 Releases。代码不进本仓库，机器用完即毁。
 # 装好的 Kiki 会在一小时内发现新版本，空闲时自动装上。.dmg 给第一次安装用，自动更新用 .zip。
-# 需要的 Secrets（都在 lkyxuan/kiki）：KIKI_PRO_TOKEN（能读 kiki-pro 的令牌）+ 签名公证那 5 个。
-# 也可以在 Actions 页面手动运行，填 kiki-pro 的提交号或分支名。
+# 发完再把同一份文件传到 Cloudflare R2（dl.kikibao.com），国内下载不断；已装的 Kiki 先从那里下，不通再回 GitHub。
+# 需要的 Secrets（都在 lkyxuan/kiki）：KIKI_PRO_TOKEN（能读 kiki-pro 的令牌）+ 签名公证那 5 个
+#   + R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY（可选 R2_BUCKET，默认 kiki-releases）。没配 R2 就只发 GitHub。
+# 也可以在 Actions 页面手动运行，填 kiki-pro 的提交号或分支名；
+# 填了「只同步到 R2」就不打包，把 GitHub 上已经发过的那个版本原样传到 R2（第一次配好 R2 时补传用）。
 name: build-from-pro
 on:
   repository_dispatch:
@@ -13,6 +16,9 @@ on:
       ref:
         description: kiki-pro 的提交号或分支名
         default: main
+      mirror_tag:
+        description: 只同步到 R2：填已经发过的版本（比如 v0.3.7），不打包。留空就正常打包发版
+        default: ""
 permissions:
   contents: write
 concurrency:
@@ -40,7 +46,13 @@ jobs:
         id: ver
         env:
           GH_TOKEN: ${{ github.token }}
+          MIRROR_TAG: ${{ inputs.mirror_tag }}
         run: |
+          if [ -n "$MIRROR_TAG" ]; then
+            [[ "$MIRROR_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "版本要写成 v0.3.7 这样"; exit 1; }
+            echo "tag=$MIRROR_TAG" >> "$GITHUB_OUTPUT"
+            echo "只把 $MIRROR_TAG 同步到 R2"; echo "skip=1" >> "$GITHUB_OUTPUT"; echo "mirror_only=1" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           v=$(node -p 'require("./package.json").version')
           echo "tag=v$v" >> "$GITHUB_OUTPUT"
           if gh release view "v$v" >/dev/null 2>&1; then echo "v$v 已经发过，跳过"; echo "skip=1" >> "$GITHUB_OUTPUT"; fi
@@ -105,14 +117,16 @@ jobs:
             cat > notes.md <<'EOF'
           ## 安装
           - **下载 .dmg**：Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`。打开后把 Kiki 拖进「应用程序」，双击就能用（已通过苹果公证）。
-          - 或者在「终端」里运行一行：`curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash`
+            国内下载慢可以用镜像：[Apple 芯片](https://dl.kikibao.com/latest/Kiki-mac-arm64.dmg) · [Intel](https://dl.kikibao.com/latest/Kiki-mac-x64.dmg)
+          - 或者在「终端」里运行一行：`curl -fsSL https://dl.kikibao.com/install.sh | bash`
           - 已经装过的 Kiki 会自己更新（每小时检查一次），不用重新下载。
           EOF
           else
           cat > notes.md <<'EOF'
           ## 安装
           - **推荐**：在「终端」里运行一行（自动下载、核对、装好、启动，不会被系统拦）：
-            `curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash`
+            `curl -fsSL https://dl.kikibao.com/install.sh | bash`
+            （从 GitHub 拿：`curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash`）
           - **或者下载 .dmg**：Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`。打开后把 Kiki 拖进「应用程序」。
             Kiki 还没有苹果开发者签名，第一次打开会提示「无法验证开发者」：到「系统设置 → 隐私与安全性」最下面点「仍要打开」，
             或者在终端运行 `xattr -dr com.apple.quarantine /Applications/Kiki.app`。
@@ -122,6 +136,29 @@ jobs:
           # tag 打在本仓库 main 上（私有仓库的提交这里没有）；不自动生成更新说明，免得列出私有仓库的提交
           gh release create "$TAG" out/Kiki-mac-arm64.dmg out/Kiki-mac-x64.dmg out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS \
             --title "Kiki $TAG" --notes-file notes.md
+      - name: 取已经发过的安装包（只同步到 R2 时）
+        if: steps.ver.outputs.mirror_only == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          mkdir -p out
+          gh release download "$TAG" -D out --clobber -p 'Kiki-mac-*' -p SHA256SUMS
+          ls -l out
+      # 传到 Cloudflare R2（dl.kikibao.com）。没配 R2 的 Secrets 就跳过，只发 GitHub；配了但传失败，这一步标红
+      - name: 同步到 Cloudflare R2
+        if: steps.ver.outputs.skip != '1' || steps.ver.outputs.mirror_only == '1'
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          if [ -z "$R2_ACCOUNT_ID" ] || [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ]; then
+            echo "::warning::没配 R2 的 Secrets，这一版只发在 GitHub（配法见 docs/download-mirror.md）"; exit 0
+          fi
+          packaging/r2-upload.sh out "$TAG"
       - name: 清掉临时钥匙串
         if: always() && steps.sign.outputs.signed == '1'
         run: security delete-keychain "$RUNNER_TEMP/kiki-signing.keychain-db" || true; rm -f "$RUNNER_TEMP/AuthKey.p8"
