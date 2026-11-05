@@ -53,6 +53,10 @@ if (base) {
   }
 }
 changes = changes.filter((c) => !excluded(c.path));
+// 测试文件放最后翻：翻测试时要参考它引用的源文件已经翻好的英文，断言里的字符串才对得上
+const isTest = (p) => /\.test\.[cm]?[jt]s$/.test(p);
+changes.sort((a, b) => Number(isTest(a.path)) - Number(isTest(b.path)));
+
 
 // ---- 模型调用 ----
 const SYSTEM = `You translate the Kiki codebase from Chinese to English. Kiki is a Mac personal-assistant app (Swift shell + TypeScript server + HTML UI). The English edition is a separate product for overseas users and must read as if it had been written in English from day one.
@@ -150,7 +154,18 @@ async function translateFile(p, oldZhPath) {
   const oldEn = enPath && existsSync(join(en, enPath)) ? readFileSync(join(en, enPath), "utf8") : null;
   let oldZh = null;
   if (base && oldEn) { try { oldZh = git("show", `${base}:${oldZhPath ?? p}`); } catch {} }
-  const header = `File: ${p}\nPath map (Chinese path -> English path):\n${pathMapText()}\n\n`;
+  let refs = "";
+  if (isTest(p)) {
+    // 源文件已在本轮先翻好；测试里断言的字符串必须和它们一字不差
+    const srcs = [];
+    for (const m of newZh.matchAll(/from\s+["'](\.{1,2}\/[^"']+)["']/g)) {
+      const rel = join(dirname(p), m[1]).replace(/\.js$/, ".ts");
+      const enRel = paths[rel] ?? rel;
+      if (!isTest(rel) && existsSync(join(en, enRel))) srcs.push(`<english_source file="${enRel}">\n${readFileSync(join(en, enRel), "utf8")}\n</english_source>`);
+    }
+    if (srcs.length) refs = `This is a test file. The source files it tests are already translated (below). Every string, regex or fixture in the test that checks output of this code must match the English source exactly, character for character.\n\n${srcs.join("\n\n").slice(0, 200000)}\n\n`;
+  }
+  const header = `File: ${p}\nPath map (Chinese path -> English path):\n${pathMapText()}\n\n${refs}`;
   if (oldZh != null && oldEn != null) {
     const diff = git("diff", "-U5", base, head, "--", ...(oldZhPath ? [oldZhPath, p] : [p]));
     try {
@@ -180,6 +195,20 @@ const replaceRules = rules.replace.map(([a, b]) => [new RegExp(a, "g"), b]);
 for (const [re, b] of replaceRules) if (b.replace(re, b) !== b) throw new Error(`rules.json: replace rule ${re} is not idempotent`);
 const applyReplace = (s) => replaceRules.reduce((t, [re, b]) => t.replace(re, b), s);
 
+// 翻完还残留中文的行，再让模型补一遍（只回传修改片段）
+async function finishLeftovers(p, text) {
+  const lines = text.split("\n").filter((l) => CJK.test(l)).slice(0, 200);
+  try {
+    const raw = await ask(`File: ${p}\nThese lines of the English file still contain Chinese. Translate them. Keep Chinese only where the code must match Chinese text on purpose (for example a regex that recognises Chinese user input), and in that case add English alongside it when that keeps behaviour the same. Return JSON {"edits": [{"find": "...", "replace": "..."}]} where each "find" is an exact snippet of the file that occurs exactly once.\n\n<lines>\n${lines.join("\n")}\n</lines>\n\n<file>\n${text}\n</file>`, { json: true });
+    for (const { find, replace } of JSON.parse(raw).edits ?? []) {
+      if (find && text.split(find).length === 2) text = text.replace(find, () => replace);
+    }
+  } catch (e) {
+    console.log(`  ${p}: leftover pass failed (${e.message.slice(0, 120)})`);
+  }
+  return text;
+}
+
 // ---- 主流程 ----
 const leftovers = [];
 const done = [];
@@ -199,6 +228,7 @@ for (const c of changes) {
   if (!isText(buf)) { if (!dryRun) { writeFileSync(out, buf); chmodSync(out, mode); } done.push(`copied ${target}`); continue; }
   let text = applyReplace(await translateFile(c.path, c.old));
   if (!text.endsWith("\n") && buf.toString("utf8").endsWith("\n")) text += "\n";
+  if (CJK.test(text) && !dryRun) text = await finishLeftovers(c.path, text);
   if (CJK.test(text) && !dryRun) leftovers.push(target);
   if (!dryRun) { writeFileSync(out, text); chmodSync(out, mode); }
   done.push(`${CJK.test(buf.toString("utf8")) ? "translated" : "copied"} ${target}`);
