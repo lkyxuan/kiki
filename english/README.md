@@ -8,7 +8,7 @@ Kiki 有两个独立产品：这个仓库是中文版，[英文版](https://gith
 
 1. 中文仓库每合并一次到 main，`.github/workflows/english-sync.yml` 就运行。
 2. `english/sync.mjs` 找出上次同步之后改过的文件，对每个文件把“中文旧版、中文新版、英文旧版”交给模型（默认 DeepSeek），让它只改对应的英文部分。新文件按块整份翻译，图片等二进制文件原样复制。
-3. 英文仓库跑 `npm run check && npm test`。通过且没有残留中文，就直接推到英文仓库 main，提交说明是英文写的一条总结；否则推到 `sync/<提交号>` 分支并开 PR 等人看。
+3. 英文仓库先用 `fixtests.mjs` 修测试里和代码对不上的字符串（最多 3 轮），再跑 `npm run check && npm test`。通过就直接推到英文仓库 main（残留中文只报警告），提交说明是英文写的一条总结；否则推到 `sync/<提交号>` 分支并开 PR 等人看。
 
 英文仓库的 `.translation/` 记着同步状态：`source-commit` 是同步到的中文提交，`paths.json` 是中文文件名到英文文件名的对照。
 
