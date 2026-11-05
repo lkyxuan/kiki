@@ -67,13 +67,21 @@ function related(testFile, text) {
 }
 const zhOf = (rel) => (existsSync(join(zh, rel)) ? readFileSync(join(zh, rel), "utf8") : "");
 
+// 每轮改动前的原文；改完失败数没降就退回去，不会越修越坏
 let lastCount = Infinity;
-for (let round = 1; round <= rounds; round++) {
+let undo = new Map();
+for (let round = 1; round <= rounds + 1; round++) {
   const fails = failures(runTests());
   const count = [...fails.values()].reduce((n, s) => n + (s.match(/^not ok/gm) || []).length, 0);
   console.log(`round ${round}: ${count} failing tests in ${fails.size} files`);
-  if (!count || count >= lastCount) break;
+  if (count >= lastCount) {
+    for (const [f, t] of undo) writeFileSync(join(en, f), t);
+    console.log(`  no better than before, reverted ${undo.size} files`);
+    break;
+  }
+  if (!count || round > rounds) break;
   lastCount = count;
+  undo = new Map();
   for (const [file, report] of fails) {
     const text = readFileSync(join(en, file), "utf8");
     const srcs = related(file, text);
@@ -97,7 +105,10 @@ for (let round = 1; round <= rounds; round++) {
         changed.set(f, cur.replace(find, () => replace));
         applied++;
       }
-      for (const [f, t] of changed) writeFileSync(join(en, f), t);
+      for (const [f, t] of changed) {
+        if (!undo.has(f)) undo.set(f, readFileSync(join(en, f), "utf8"));
+        writeFileSync(join(en, f), t);
+      }
       console.log(`  ${file}: ${applied} edits${changed.size > 1 || (changed.size && !changed.has(file)) ? ` (in ${[...changed.keys()].join(", ")})` : ""}`);
     } catch (e) {
       console.log(`  ${file}: skipped (${e.message.slice(0, 120)})`);

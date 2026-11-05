@@ -21,6 +21,7 @@ Kiki 内核 | Kiki Engine | 对外不提 pi
 后台任务 | background task |
 任务账本 | task ledger |
 收发室 | Mailroom | 唯一对外的门
+【收发室】 | 【Mailroom】 | 消息开头的标记，一个文件发、另一个文件去匹配，括号原样保留，各文件必须完全一致
 关注清单 | watchlist |
 分派规则 | routing rules |
 重要规则 | key rules |
