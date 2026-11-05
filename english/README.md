@@ -20,7 +20,7 @@ Kiki 有两个独立产品：这个仓库是中文版，[英文版](https://gith
 ## 第一次启用
 
 1. 在 GitHub 建好英文仓库（空的就行）。
-2. 在中文仓库加 Secrets：`DEEPSEEK_API_KEY`（就是 Kiki 现在用的 DeepSeek 密钥）、`KIKI_EN_TOKEN`；加 Variable：`KIKI_EN_ENABLED=true`。
+2. 建一个 Fine-grained 令牌，只选英文仓库，权限给 Contents、Pull requests、Workflows 读写（英文仓库也有 .github/workflows，没有 Workflows 权限推不上去）。在中文仓库加 Secrets：`DEEPSEEK_API_KEY`（就是 Kiki 现在用的 DeepSeek 密钥）、`KIKI_EN_TOKEN`；加 Variable：`KIKI_EN_ENABLED=true`。
 3. Actions 里手动运行 english-sync，勾上“从头整份重翻”。
 4. 英文仓库要自己发版的话，也要配上签名公证那 5 个 Secrets（见 docs/signing.md）。
 
