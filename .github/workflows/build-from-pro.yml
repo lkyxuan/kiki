@@ -119,6 +119,7 @@ jobs:
           - **下载 .dmg**：Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`。打开后把 Kiki 拖进「应用程序」，双击就能用（已通过苹果公证）。
             国内下载慢可以用镜像：[Apple 芯片](https://dl.kikibao.com/latest/Kiki-mac-arm64.dmg) · [Intel](https://dl.kikibao.com/latest/Kiki-mac-x64.dmg)
           - 或者在「终端」里运行一行：`curl -fsSL https://dl.kikibao.com/install.sh | bash`
+            （从 GitHub 拿：`curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash`）
           - 已经装过的 Kiki 会自己更新（每小时检查一次），不用重新下载。
           EOF
           else
