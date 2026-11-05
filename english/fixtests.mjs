@@ -37,7 +37,7 @@ async function ask(user) {
 }
 
 function runTests() {
-  const r = spawnSync("npm", ["test", "--silent"], { cwd: en, encoding: "utf8", maxBuffer: 1 << 28 });
+  const r = spawnSync("npm", ["test", "--silent", "--", "--test-reporter=tap"], { cwd: en, encoding: "utf8", maxBuffer: 1 << 28 });
   return (r.stdout || "") + (r.stderr || "");
 }
 
