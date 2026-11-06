@@ -1,0 +1,76 @@
+# 临时：用正式开发者证书签名打包 kiki-pro 的钥匙串分支，实测钥匙串小程序“只认 Kiki”。不公证、不发版。合并后删掉。
+name: keychain-check
+on:
+  push:
+    branches: [claude/project-thread-iwi4ym]
+jobs:
+  check:
+    if: github.repository == 'lkyxuan/kiki'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: cyberight-cap/kiki-pro
+          ref: claude/project-thread-iwi4ym
+          token: ${{ secrets.KIKI_PRO_TOKEN }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 导入开发者证书
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/kiki-signing.keychain-db"
+          KCPW=$(openssl rand -hex 16)
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          printf '%s' "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPW" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          ID=$(security find-identity -v -p codesigning "$KC" | sed -n 's/.*"\(Developer ID Application: .*\)"$/\1/p' | head -1)
+          [ -n "$ID" ] || exit 1
+          echo "KIKI_SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
+          echo "默认钥匙串：$(security default-keychain)"
+      - name: 签名打包（不公证）
+        run: packaging/build.sh arm64
+      - name: 实测
+        run: |
+          set -x
+          APP="$PWD/out/build-arm64/Kiki.app"
+          NODE="$APP/Contents/Resources/node/bin/node"
+          DIST="$APP/Contents/Resources/app/dist"
+          H="$APP/Contents/Helpers/kiki-keychain"
+          codesign -dv "$H" 2>&1 | grep -E "Identifier|TeamIdentifier"
+          codesign -d -r- "$H" 2>&1 | tail -1
+          export KIKI_APP="$APP"
+          fail=0
+          # 1. Kiki 自己：自检能存、能读、能删
+          "$NODE" "$DIST/main.js" --keychain-selftest || fail=1
+          # 2. 从终端直接跑小程序：要被拒
+          if "$H" get kiki.selftest kiki; then echo "!! 终端直接跑没被拒"; fail=1; fi
+          # 3. 用 Kiki 后台的 node 跑别的脚本：要被拒
+          if "$NODE" -e 'require("child_process").execFileSync(process.env.KIKI_APP+"/Contents/Helpers/kiki-keychain",["get","kiki.selftest","kiki"],{stdio:"inherit"})'; then echo "!! node -e 没被拒"; fail=1; fi
+          # 4. 带 NODE_OPTIONS：要被拒
+          if NODE_OPTIONS=--no-warnings "$NODE" "$DIST/main.js" --keychain-selftest; then echo "!! NODE_OPTIONS 没被拒"; fail=1; fi
+          # 5. Kiki 存一条留着，再用系统的 security 去读：要读不到（会要授权，没人点就失败）
+          printf '%s\n' \
+            'import { appKeychain } from "./keychain.js";' \
+            'const kc = appKeychain(), op = process.argv[2];' \
+            'if (op === "put") kc.set("kiki.rc-test", "kiki", "secret-1", "Kiki 钥匙串测试");' \
+            'else if (op === "get") console.log("读到：" + kc.get("kiki.rc-test", "kiki"));' \
+            'else if (op === "other") kc.get("login.thing");' \
+            'else kc.del("kiki.rc-test", "kiki");' > "$DIST/kc-test.mjs"
+          "$NODE" "$DIST/kc-test.mjs" put || fail=1
+          "$NODE" "$DIST/kc-test.mjs" get | grep -q "读到：secret-1" || fail=1
+          # 6. 不是 kiki. 开头的条目：要被拒
+          if "$NODE" "$DIST/kc-test.mjs" other; then echo "!! 别的条目没被拒"; fail=1; fi
+          if timeout 20 security find-generic-password -s kiki.rc-test -w; then echo "!! security 直接读到了"; fail=1; else echo "security 读不到（好）"; fi
+          "$NODE" "$DIST/kc-test.mjs" del || fail=1
+          exit $fail
