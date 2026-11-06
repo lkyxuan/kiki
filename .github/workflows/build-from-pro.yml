@@ -101,7 +101,7 @@ jobs:
         if: steps.ver.outputs.skip != '1' && steps.sign.outputs.signed == '1'
         id: gate
         run: |
-          if spctl -a -t open --context context:primary-signature -vv out/Kiki-mac-arm64.dmg; then
+          if spctl -a -t open --context context:primary-signature -vv out/Kiki-*mac-arm64.dmg; then
             echo "notarized=1" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::签了名但没有公证（没配公证密钥？），别人第一次打开仍会被拦"
@@ -116,7 +116,7 @@ jobs:
           if [ "$NOTARIZED" = 1 ]; then
             cat > notes.md <<'EOF'
           ## 安装
-          - **下载 .dmg**：Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`。打开后把 Kiki 拖进「应用程序」，双击就能用（已通过苹果公证）。
+          - **下载 .dmg**：Apple 芯片选名字里带 `arm64` 的（比如 `Kiki-0.3.28-mac-arm64.dmg`），Intel 选带 `x64` 的。打开后把 Kiki 拖进「应用程序」，双击就能用（已通过苹果公证）。
             国内下载慢可以用镜像：[Apple 芯片](https://dl.kikibao.com/latest/Kiki-mac-arm64.dmg) · [Intel](https://dl.kikibao.com/latest/Kiki-mac-x64.dmg)
           - 或者在「终端」里运行一行：`curl -fsSL https://dl.kikibao.com/install.sh | bash`
             （从 GitHub 拿：`curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash`）
@@ -128,14 +128,15 @@ jobs:
           - **推荐**：在「终端」里运行一行（自动下载、核对、装好、启动，不会被系统拦）：
             `curl -fsSL https://dl.kikibao.com/install.sh | bash`
             （从 GitHub 拿：`curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install.sh | bash`）
-          - **或者下载 .dmg**：Apple 芯片选 `Kiki-mac-arm64.dmg`，Intel 选 `Kiki-mac-x64.dmg`。打开后把 Kiki 拖进「应用程序」。
+          - **或者下载 .dmg**：Apple 芯片选名字里带 `arm64` 的（比如 `Kiki-0.3.28-mac-arm64.dmg`），Intel 选带 `x64` 的。打开后把 Kiki 拖进「应用程序」。
             Kiki 还没有苹果开发者签名，第一次打开会提示「无法验证开发者」：到「系统设置 → 隐私与安全性」最下面点「仍要打开」，
             或者在终端运行 `xattr -dr com.apple.quarantine /Applications/Kiki.app`。
           - 已经装过的 Kiki 会自己更新（每小时检查一次），不用重新下载。
           EOF
           fi
           # tag 打在本仓库 main 上（私有仓库的提交这里没有）；不自动生成更新说明，免得列出私有仓库的提交
-          gh release create "$TAG" out/Kiki-mac-arm64.dmg out/Kiki-mac-x64.dmg out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS \
+          # .dmg 名字带版本号（Kiki-0.3.28-mac-arm64.dmg）；通配符也认更早的旧名字 Kiki-mac-arm64.dmg
+          gh release create "$TAG" out/Kiki-*mac-arm64.dmg out/Kiki-*mac-x64.dmg out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS \
             --title "Kiki $TAG" --notes-file notes.md
       - name: 取已经发过的安装包（只同步到 R2 时）
         if: steps.ver.outputs.mirror_only == '1'
@@ -144,7 +145,7 @@ jobs:
           TAG: ${{ steps.ver.outputs.tag }}
         run: |
           mkdir -p out
-          gh release download "$TAG" -D out --clobber -p 'Kiki-mac-*' -p SHA256SUMS
+          gh release download "$TAG" -D out --clobber -p 'Kiki-*' -p SHA256SUMS
           ls -l out
       # 传到 Cloudflare R2（dl.kikibao.com）。没配 R2 的 Secrets 就跳过，只发 GitHub；配了但传失败，这一步标红
       - name: 同步到 Cloudflare R2
