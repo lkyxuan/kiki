@@ -13,6 +13,7 @@ import { handoffTool } from "./handoff.js";
 import { loadRules } from "./rules.js";
 import { kikiTools } from "./tools.js";
 import { lookTool } from "./look.js";
+import kikiTweetTools, { AGENT as TWEET_AGENT, statusText as tweetStatus } from "./tweet.js";
 import { type FeatureId, isOn } from "./features.js";
 import { Summaries } from "./summary.js";
 import { WorkBook, WorkSorter } from "./work.js";
@@ -200,10 +201,12 @@ router.tasks.on("update", (t) => {
   if (t.status === "cancelled" && t.watching) void Promise.resolve(watchList?.remove(t.id, t.agent)).catch(() => {});
 });
 // 设置页关掉的能力不挂给 agent（新开的对话生效）
-agents.toolsFor = () =>
+agents.toolsFor = (agent) =>
   [
     handoffTool({ listBaos: () => agents.listAgents(), describe: (b) => agents.describe(b), rules: router.rules, onHandoff: (r) => router.handoff(r) }),
     ...kikiTools({ host: router, dataDir, listBaos: () => agents.listAgents() }),
+    // 发推（X 品牌号）：只给宣传总管，别的宝连工具都看不到（见 tweet.ts）
+    ...(agent === TWEET_AGENT ? kikiTweetTools(dataDir) : []),
     lookTool((name, q) => agents.look(name, q)), // 看不了图的模型再看一眼图
     postroomTool(postroom, (p) => {
       const r = p ? registry.byPath(p) : undefined;
