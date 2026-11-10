@@ -8,6 +8,8 @@
 # 也可以在 Actions 页面手动运行，填 kiki-pro 的提交号或分支名；
 # 填了「只同步到 R2」就不打包，把 GitHub 上已经发过的那个版本原样传到 R2（第一次配好 R2 时补传用）。
 name: build-from-pro
+# 运行标题带上版本号，发版看门狗（docs/release-watch.md）靠它对上是哪个版本
+run-name: 打包 ${{ github.event.client_payload.version && format('v{0}', github.event.client_payload.version) || inputs.mirror_tag || inputs.ref }}
 on:
   repository_dispatch:
     types: [kiki-release]
@@ -40,7 +42,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
       - name: 这个版本发过没有
         id: ver
