@@ -146,3 +146,12 @@ test("路径和记录目录跟着数据目录走", () => {
   if (saved !== undefined) process.env.KIKI_TWEET_CONFIG = saved;
   assert.equal(defaultRecordDir("/tmp/x"), `/tmp/x/agents/${AGENT}/notes/发帖记录`);
 });
+
+test("op:// 引用：Kiki 没带 token 时自己去 service-account.env 拿，能读到密钥", async () => {
+  const { serviceAccountToken } = await import("./tweet.js");
+  const dir = mkdtempSync(join(tmpdir(), "kiki-sa-"));
+  const f = join(dir, "service-account.env");
+  writeFileSync(f, "export OP_SERVICE_ACCOUNT_TOKEN=ops_abc123\n");
+  assert.equal(serviceAccountToken(f), "ops_abc123");
+  assert.equal(serviceAccountToken(join(dir, "没有.env")), undefined);
+});

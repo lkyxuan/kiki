@@ -52,9 +52,25 @@ const MAX_WEIGHT = 280;
 const expand = (v: string | undefined) => (v ?? "").replace(/^~/, homedir());
 let DATA = expandAll(process.env.DATA_DIR || "~/kiki-data"); // 每个工具执行时按 opts.dataDir 设一遍
 
+/** 1Password service account 的 token 文件（op read 要用它；没有就交给 op 自己找） */
+export const SA_FILE = join(homedir(), ".config", "op", "service-account.env");
+
+/** 读 service-account.env 里的 OP_SERVICE_ACCOUNT_TOKEN（只读这一行；Kiki 里没设就去这个文件找） */
+export function serviceAccountToken(file = SA_FILE): string | undefined {
+  if (process.env.OP_SERVICE_ACCOUNT_TOKEN) return process.env.OP_SERVICE_ACCOUNT_TOKEN;
+  try {
+    const line = readFileSync(file, "utf8").split("\n").find((l) => /^\s*(export\s+)?OP_SERVICE_ACCOUNT_TOKEN=/.test(l));
+    return line ? line.replace(/^\s*(export\s+)?OP_SERVICE_ACCOUNT_TOKEN=/, "").trim().replace(/^["']|["']$/g, "") : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function run(cmd: string, args: string[], timeout = 15000): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { timeout }, (err, out) => (err ? reject(err) : resolve(String(out))));
+    // op 要 token：Kiki 没带 OP_SERVICE_ACCOUNT_TOKEN 时从 service-account.env 补上，不然 op read 会说没登录
+    const env = cmd === "op" ? { ...process.env, ...(serviceAccountToken() ? { OP_SERVICE_ACCOUNT_TOKEN: serviceAccountToken() } : {}) } : process.env;
+    execFile(cmd, args, { timeout, env }, (err, out) => (err ? reject(err) : resolve(String(out))));
   });
 }
 
