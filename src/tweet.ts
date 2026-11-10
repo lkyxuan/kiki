@@ -60,7 +60,7 @@ export function serviceAccountToken(file = SA_FILE): string | undefined {
   if (process.env.OP_SERVICE_ACCOUNT_TOKEN) return process.env.OP_SERVICE_ACCOUNT_TOKEN;
   try {
     const line = readFileSync(file, "utf8").split("\n").find((l) => /^\s*(export\s+)?OP_SERVICE_ACCOUNT_TOKEN=/.test(l));
-    return line ? line.replace(/^\s*(export\s+)?OP_SERVICE_ACCOUNT_TOKEN=/, "").trim().replace(/^["']|["']$/g, "") : undefined;
+    return line ? line.replace(/^\s*(export\s+)?OP_SERVICE_ACCOUNT_TOKEN=/, "").trim().replace(/^["']|["']$/g, "").replace(/^export\s+/, "") : undefined;
   } catch {
     return undefined;
   }
