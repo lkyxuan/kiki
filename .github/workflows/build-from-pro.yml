@@ -140,6 +140,22 @@ jobs:
           # .dmg 名字带版本号（Kiki-0.3.28-mac-arm64.dmg）；通配符也认更早的旧名字 Kiki-mac-arm64.dmg
           gh release create "$TAG" out/Kiki-*mac-arm64.dmg out/Kiki-*mac-x64.dmg out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/SHA256SUMS \
             --title "Kiki $TAG" --notes-file notes.md
+      # AI 搬家小 App（packaging/banjia/）：跟着签名、公证，挂到这一版的 Release，下一步一起传 R2。失败不影响 Kiki 发版
+      - name: 打包 AI 搬家小 App
+        if: steps.ver.outputs.skip != '1'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          NOTARY_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ ! -f packaging/banjia/build.sh ]; then echo "这个提交里还没有 AI 搬家小 App，跳过"; exit 0; fi
+          bash packaging/banjia/build.sh "$TAG"
+          gh release upload "$TAG" out/AI-banjia-mac.zip --clobber
       - name: 取已经发过的安装包（只同步到 R2 时）
         if: steps.ver.outputs.mirror_only == '1'
         env:
