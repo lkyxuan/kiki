@@ -199,4 +199,4 @@ curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install
 
 ---
 
-<sub>“Kiki”“奇奇”名称和 Kiki 图标是商标，经过签名的 Kiki 安装包只由官方发布。文中产品名称归各自所有者，仅用于说明 Kiki 可接入的产品。</sub>
+<sub>“Kiki”“琪琪”名称和 Kiki 图标是商标，经过签名的 Kiki 安装包只由官方发布。文中产品名称归各自所有者，仅用于说明 Kiki 可接入的产品。</sub>

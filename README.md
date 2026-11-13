@@ -220,4 +220,4 @@ Bugs and ideas: [open an issue](https://github.com/lkyxuan/kiki/issues). Changel
 <sub>Make your next miracle.</sub>
 </div>
 
-<sub>"Kiki", "奇奇" and the Kiki icon are trademarks. Signed Kiki installers are published only by us. Product names belong to their owners and indicate compatibility only.</sub>
+<sub>"Kiki", "琪琪" and the Kiki icon are trademarks. Signed Kiki installers are published only by us. Product names belong to their owners and indicate compatibility only.</sub>
