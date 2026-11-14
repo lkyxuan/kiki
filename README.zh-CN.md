@@ -166,7 +166,7 @@ curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install
 <details>
 <summary><b>以前的“宝”去哪了？（v0.4.88 起改名）</b></summary> <!-- rename-check: 保留 讲改名 -->
 <br>
-都还在，只是改了叫法：“宝”改叫“团队成员”，名字后面随机带一个“干员 / 专家 / 特工”；“奇奇”改叫琪琪，是你的首席秘书，以前的“顾问”并进了她；“创建助手”改叫人事，“系统助手”改叫运维专家；“讨论串”改叫任务，“宝库”改叫人才库；导出文件改成 .kiki。升级时自动改好，对话、任务、定时任务都在，旧名字说出来也认得。 <!-- rename-check: 保留 讲改名 -->
+都还在，只是改了叫法：“宝”改叫“团队成员”，名字后面随机带一个“干员 / 专家 / 特工”；“奇奇”改叫 Kiki，是你的首席秘书，以前的“顾问”并进了她；“创建助手”改叫人事，“系统助手”改叫运维专家；“讨论串”改叫任务，“宝库”改叫人才库；导出文件改成 .kiki。升级时自动改好，对话、任务、定时任务都在，旧名字说出来也认得。 <!-- rename-check: 保留 讲改名 -->
 </details>
 
 <details>
@@ -205,4 +205,4 @@ curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install
 
 ---
 
-<sub>“Kiki”“琪琪”名称和 Kiki 图标是商标，经过签名的 Kiki 安装包只由官方发布。文中产品名称归各自所有者，仅用于说明 Kiki 可接入的产品。</sub>
+<sub>“Kiki”“Kiki”名称和 Kiki 图标是商标，经过签名的 Kiki 安装包只由官方发布。文中产品名称归各自所有者，仅用于说明 Kiki 可接入的产品。</sub>
