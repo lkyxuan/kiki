@@ -180,6 +180,12 @@ Or grab the installer: [**Apple silicon .dmg**](https://dl.kikibao.com/latest/Ki
 ## ❓ FAQ
 
 <details>
+<summary><b>What happened to my "bao"? (renamed in v0.4.88+)</b></summary> <!-- rename-check: 保留 讲改名 -->
+<br>
+Nothing is lost, the names changed: a "bao" is now an <b>agent</b> (a team member); Qiqi is now <b>Kiki</b>, your Chief of Staff, and the old Advisor was merged into her; exported files are now <code>.kiki</code>. The upgrade renames everything in place, keeps your chats, tasks and schedules, and still understands the old names. <!-- rename-check: 保留 讲改名 -->
+</details>
+
+<details>
 <summary><b>How is this different from a chat assistant?</b></summary>
 <br>
 A chat assistant answers one question at a time. Kiki takes whole tasks: it breaks them down, runs them in parallel and in the background, and only interrupts you when a decision is needed.
