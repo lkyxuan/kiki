@@ -1,35 +1,35 @@
 <div align="center">
 
-**English** · [简体中文](README.zh-CN.md)
+<a href="https://getkiki.ai"><img src="docs/assets/readme/kiki-logo.svg" alt="Kiki" width="88"></a>
 
-<br>
+<h1>Kiki</h1>
 
-<a href="https://getkiki.ai"><img src="docs/assets/readme/kiki-sticker.svg" alt="Kiki" width="96"></a>
-
-<h1>Stick eyes on it. It gets to work.</h1>
-
-<p><b>Kiki is your personal AI team on Mac.</b><br>
-Hand it a goal. It breaks the work down, assigns the right agents and follows up.</p>
+<p><b>Your personal AI team on Mac, run by your Chief of Staff, Ms. Kiki.</b><br>
+Hand her a goal. She breaks it down, assigns the right agents and follows up.<br>
+You only hear about it when something needs you.</p>
 
 <p>
-  <a href="https://dl.kikibao.com/latest/Kiki-mac-arm64.dmg"><img src="https://img.shields.io/badge/Download_for_Mac-ffd166?style=for-the-badge&logo=apple&logoColor=111111&labelColor=ffd166" alt="Download for Mac" height="34"></a>
-  <a href="https://dl.kikibao.com/latest/Kiki-mac-x64.dmg"><img src="https://img.shields.io/badge/Intel_version-ffffff?style=for-the-badge&logo=apple&logoColor=111111&labelColor=ffffff" alt="Intel version" height="34"></a>
+  <a href="https://dl.kikibao.com/latest/Kiki-mac-arm64.dmg"><img src="https://img.shields.io/badge/Download_for_Mac-fd890c?style=for-the-badge&logo=apple&logoColor=131419&labelColor=fd890c" alt="Download for Mac" height="34"></a>
+  <a href="https://dl.kikibao.com/latest/Kiki-mac-x64.dmg"><img src="https://img.shields.io/badge/Intel_version-131419?style=for-the-badge&logo=apple&logoColor=ffffff&labelColor=131419" alt="Intel version" height="34"></a>
 </p>
 
 <p>
-  <a href="https://github.com/lkyxuan/kiki/releases/latest"><img src="https://img.shields.io/github/v/release/lkyxuan/kiki?style=flat-square&color=111111&label=release" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/macOS-13.5%2B-111111?style=flat-square&logo=apple&logoColor=white" alt="macOS 13.5+">
-  <img src="https://img.shields.io/badge/arch-arm64%20%7C%20x64-8fd3ff?style=flat-square" alt="arm64 | x64">
-  <img src="https://img.shields.io/badge/data-local%20files-9be59b?style=flat-square" alt="Local files">
-  <img src="https://img.shields.io/badge/BYO-key%20or%20subscription-ffb27a?style=flat-square" alt="Bring your own key or subscription">
-  <img src="https://img.shields.io/badge/status-private%20beta-ff9ec7?style=flat-square" alt="Private beta">
+  <a href="https://github.com/lkyxuan/kiki/releases/latest"><img src="https://img.shields.io/github/v/release/lkyxuan/kiki?style=flat-square&color=fd890c&labelColor=131419&label=release" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-13.5%2B-131419?style=flat-square&logo=apple&logoColor=white" alt="macOS 13.5+">
+  <img src="https://img.shields.io/badge/arch-arm64%20%7C%20x64-131419?style=flat-square" alt="arm64 | x64">
+  <img src="https://img.shields.io/badge/data-local%20files-131419?style=flat-square" alt="Local files">
+  <img src="https://img.shields.io/badge/BYO-key%20or%20subscription-131419?style=flat-square" alt="Bring your own key or subscription">
+  <img src="https://img.shields.io/badge/status-private%20beta-fd890c?style=flat-square&labelColor=131419" alt="Private beta">
 </p>
 
-[Install](#-install) · [How it works](#-how-it-works) · [Engines](#-engines) · [Guardrails](#-guardrails) · [FAQ](#-faq) · [getkiki.ai](https://getkiki.ai) · [@getkiki_ai](https://x.com/getkiki_ai)
+[Install](#-install) · [Meet Ms. Kiki](#-meet-ms-kiki) · [How it works](#-how-it-works) · [Engines](#-engines) · [Guardrails](#-guardrails) · [FAQ](#-faq) · [getkiki.ai](https://getkiki.ai) · [@getkiki_ai](https://x.com/getkiki_ai)
 
 <br>
 
-<a href="https://getkiki.ai"><img src="docs/assets/readme/en-hero.png" alt="getkiki.ai: Stick eyes on it. It gets to work. Kiki's overview with agents, external sessions and what needs you." width="100%"></a>
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/app-light.png">
+  <img src="docs/assets/readme/app-dark.png" alt="Kiki on Mac: Ms. Kiki's card on the left, your conversation with Kiki in the middle, and what every agent is working on to the right" width="100%">
+</picture>
 
 </div>
 
@@ -42,7 +42,9 @@ curl -fsSL https://raw.githubusercontent.com/lkyxuan/kiki/main/packaging/install
 ```yaml
 kiki:
   what:        a personal AI team, not a chat box
-  runs_on:     your own Mac (always-on Mac mini recommended)
+  you_are:     the CEO
+  she_is:      Ms. Kiki, your Chief of Staff. you talk to her, she runs the team
+  runs_on:     your own Mac (an always-on Mac mini is ideal)
   you_give:    goals, in plain language
   it_does:     [break down, assign agents, run in parallel, follow up]
   pings_you:   [done, needs_a_decision, failed]   # silence otherwise
@@ -53,54 +55,65 @@ kiki:
   lock_in:     none. take the folder and leave.
 ```
 
+## 👩‍💼 Meet Ms. Kiki
+
+You are the CEO. Kiki is your Chief of Staff. There is one person to talk to; she decides which agent takes the job, splits a message that mixes several things, and comes back only when she needs a decision from you.
+
+She lives in the top-left corner of the app and changes outfits every two hours, from a morning workout to the office to a late-night leather jacket. Her status on the card tells you at a glance whether she's standing by, working, or waiting on you.
+
+<p align="center"><img src="docs/assets/readme/outfits.png" alt="Ms. Kiki's outfits through the day: workout, coffee, office, tennis, racing, evening gown, leather jacket" width="100%"></p>
+
 ## ⚡ What it looks like
 
 ```text
 you  › Prepare next Wednesday's product launch
 
 kiki › Split into 3 tracks, running in parallel
-       ├─ (")  Design   12-slide keynote deck     ▸ running
-       ├─ (")  Writer   invite + press release     ▸ needs you: "You're invited" or "Join us"?
-       └─ (")  Video    livestream run-of-show     ▸ done ✓
+       ├─ Designer   12-slide keynote deck      ▸ running
+       ├─ Writer     invite + press release     ▸ needs you: "You're invited" or "Join us"?
+       └─ Video      livestream run-of-show     ▸ done ✓
 
 you  › Join us
 
 kiki › Writer resumed. I'll ping you when the deck is ready.
 ```
 
-Stick eyes on anything else:
+Anything else you'd hand to a capable team:
 
 ```text
 › Send me an AI news brief every day at 8
 › Fix the login bug and open a PR
 › Book the best flights and hotel for Tokyo next week
-› Have Finance check October bills for double charges
+› Check October bills for double charges
 ```
 
 ## 🧠 How it works
 
 ```mermaid
 flowchart LR
-    you((You)) -->|a goal| kiki[Kiki]
-    kiki -->|assigns| a1[Agent · Design]
+    you((You)) -->|a goal| kiki[Ms. Kiki<br/>Chief of Staff]
+    kiki -->|assigns| a1[Agent · Designer]
     kiki -->|assigns| a2[Agent · Writer]
-    kiki -->|assigns| a3[Agent · Research]
+    kiki -->|assigns| a3[Agent · Researcher]
     cc[Claude Code / Codex / Gemini<br/>sessions on your Mac] -.->|progress| ov
     a1 & a2 & a3 -->|results as cards| ov[Overview + daily brief]
     ov -->|only what needs you| you
 ```
 
-- **One entry point.** You talk to Kiki. It picks the agent and the conversation, and splits a message that mixes several things.
-- **Agents own areas.** Each agent has its own skills, memory and ground rules. Create one with a name and one sentence on what it handles.
+- **One entry point.** You talk to Kiki. She picks the agent and the conversation, and splits a message that mixes several things.
+- **Agents own areas.** Each team member has its own skills, memory and ground rules. Hire one with a name and one sentence on what it handles.
 - **Background by default.** Long jobs keep running, schedules fire on their own, tasks queue, retry and survive restarts.
 - **One overview.** Kiki's agents and your terminal coding sessions side by side: what needs you, what's moving, what just happened.
 - **Learns from corrections.** Every edit you make is reviewed nightly. A mistake seen three times becomes a rule every agent follows, with a note on where it came from.
 
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/readme/overview-light.png">
+  <img src="docs/assets/readme/overview-dark.png" alt="Overview: what needs you, what every agent is working on, what happened while you were away" width="100%">
+</picture>
+
 ## 🔩 Engines
 
 Every agent picks its own engine. Kiki always does the routing.
-
-<p align="center"><img src="docs/assets/readme/en-engines.png" alt="Every agent picks its own engine: Kiki engine (default), Claude Code, DeepSeek Harness" width="100%"></p>
 
 | Engine | Status | Use it for |
 |---|---|---|
@@ -137,8 +150,6 @@ Fully automatic by default. Irreversible actions have a net under them.
 | spend money | pays within a monthly budget, pauses and asks once it's hit |
 | force push | creates a backup tag before pushing |
 
-<p align="center"><img src="docs/assets/readme/en-control.png" alt="You always have the final say: activity log with undo, budget limits, ask-first per category" width="100%"></p>
-
 ## 🔒 Your data
 
 - Conversations, memory and settings are Markdown and JSONL files under `~/kiki-data` on your Mac.
@@ -166,6 +177,7 @@ Or grab the installer: [**Apple silicon .dmg**](https://dl.kikibao.com/latest/Ki
 
 - **Self-updating.** Checks hourly, installs when idle, rolls back automatically if the new version fails to start.
 - **Always on.** Best on a Mac mini. Use it from your MacBook (Kiki.app in remote mode) or iPhone (add to Home Screen).
+- **Light and dark.** Follows your system, in Kiki's orange and black.
 - macOS says it can't verify the developer? System Settings → Privacy & Security → Open Anyway.
 
 ## ⌨️ Shortcuts
@@ -180,15 +192,15 @@ Or grab the installer: [**Apple silicon .dmg**](https://dl.kikibao.com/latest/Ki
 ## ❓ FAQ
 
 <details>
-<summary><b>What happened to my "bao"? (renamed in v0.4.88+)</b></summary> <!-- rename-check: 保留 讲改名 -->
-<br>
-Nothing is lost, the names changed: a "bao" is now an <b>agent</b> (a team member); Qiqi is now <b>Kiki</b>, your Chief of Staff, and the old Advisor was merged into her; exported files are now <code>.kiki</code>. The upgrade renames everything in place, keeps your chats, tasks and schedules, and still understands the old names. <!-- rename-check: 保留 讲改名 -->
-</details>
-
-<details>
 <summary><b>How is this different from a chat assistant?</b></summary>
 <br>
 A chat assistant answers one question at a time. Kiki takes whole tasks: it breaks them down, runs them in parallel and in the background, and only interrupts you when a decision is needed.
+</details>
+
+<details>
+<summary><b>Who is Ms. Kiki?</b></summary>
+<br>
+Kiki's face. In the app she is simply Kiki, your Chief of Staff: the one you talk to, who routes every job to the right team member. Her card in the sidebar shows her status and changes outfits through the day.
 </details>
 
 <details>
@@ -204,6 +216,12 @@ Yes. Local sessions show up in the overview automatically, and Kiki alerts you w
 </details>
 
 <details>
+<summary><b>What happened to my "bao"?</b></summary> <!-- rename-check: 保留 讲改名 -->
+<br>
+Nothing is lost, the names changed: a "bao" is now an <b>agent</b> (a team member), the default router is now <b>Kiki</b>, your Chief of Staff, and exported files are now <code>.kiki</code>. The upgrade renames everything in place, keeps your chats, tasks and schedules, and still understands the old names. <!-- rename-check: 保留 讲改名 -->
+</details>
+
+<details>
 <summary><b>Is it open source?</b></summary>
 <br>
 No. Kiki is closed source. This repository hosts releases and feedback. Code published here earlier remains under the license it was released with and is still in the commit history.
@@ -212,18 +230,18 @@ No. Kiki is closed source. This repository hosts releases and feedback. Code pub
 <details>
 <summary><b>How do I get an invite code?</b></summary>
 <br>
-The beta opens in batches. Enter your code the first time you open Kiki.
+The beta opens in batches. Apply at <a href="https://getkiki.ai">getkiki.ai</a> and enter your code the first time you open Kiki.
 </details>
 
 ## 💬 Feedback
 
-Bugs and ideas: [open an issue](https://github.com/lkyxuan/kiki/issues). Changelog: [Releases](https://github.com/lkyxuan/kiki/releases). News: [@getkiki_ai](https://x.com/getkiki_ai).
+Bugs and ideas: [open an issue](https://github.com/lkyxuan/kiki/issues). Changelog: [Releases](https://github.com/lkyxuan/kiki/releases). News: [@getkiki_ai](https://x.com/getkiki_ai). Website: [getkiki.ai](https://getkiki.ai).
 
 ---
 
 <div align="center">
-<img src="docs/assets/readme/kiki-sticker.svg" alt="" width="40"><br>
+<img src="docs/assets/readme/kiki-logo.svg" alt="" width="36"><br>
 <sub>Make your next miracle.</sub>
 </div>
 
-<sub>"Kiki", "Kiki" and the Kiki icon are trademarks. Signed Kiki installers are published only by us. Product names belong to their owners and indicate compatibility only.</sub>
+<sub>"Kiki", "Ms. Kiki", the Kiki character and the Kiki icon are trademarks. Signed Kiki installers are published only by us. Product names belong to their owners and indicate compatibility only.</sub>
