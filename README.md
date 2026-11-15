@@ -22,7 +22,7 @@ You only hear about it when something needs you.</p>
   <img src="https://img.shields.io/badge/status-private%20beta-fd890c?style=flat-square&labelColor=131419" alt="Private beta">
 </p>
 
-[Install](#-install) · [Meet Ms. Kiki](#-meet-ms-kiki) · [How it works](#-how-it-works) · [Engines](#-engines) · [Guardrails](#-guardrails) · [FAQ](#-faq) · [getkiki.ai](https://getkiki.ai) · [@getkiki_ai](https://x.com/getkiki_ai)
+[Install](#-install) · [Meet Ms. Kiki](#-meet-ms-kiki) · [How it works](#-how-it-works) · [Engines](#-engines) · [Guardrails](#-guardrails) · [FAQ](#-faq) · [kiki-core](https://github.com/lkyxuan/kiki-core) · [getkiki.ai](https://getkiki.ai) · [@getkiki_ai](https://x.com/getkiki_ai)
 
 <br>
 
@@ -128,6 +128,7 @@ Every agent picks its own engine. Kiki always does the routing.
 | **Coding agents** | Claude Code · Codex · Gemini · Cursor · Grok Bot. Done / needs approval / failed alerts, one click back to the session. More coming. |
 | **Model providers** | Anthropic · OpenAI · Gemini · DeepSeek · OpenRouter · xAI · Mistral · Kimi · Qwen, or sign in with ChatGPT / Claude / GitHub Copilot. |
 | **Extensions** | Add MCP servers in Settings, same config format as Claude and Cursor. |
+| **Open source** | The multi-agent framework underneath is open: [lkyxuan/kiki-core](https://github.com/lkyxuan/kiki-core) (Apache-2.0). |
 
 Pick a model per job, so the cheap work runs on cheap models:
 
@@ -224,7 +225,7 @@ Nothing is lost, the names changed: a "bao" is now an <b>agent</b> (a team membe
 <details>
 <summary><b>Is it open source?</b></summary>
 <br>
-No. Kiki is closed source. This repository hosts releases and feedback. Code published here earlier remains under the license it was released with and is still in the commit history.
+The multi-agent framework is. <a href="https://github.com/lkyxuan/kiki-core">kiki-core</a> (Apache-2.0) is the runtime that runs the team: agents, engines, the coding-agent watcher, approvals with undo, background tasks and plugins. Kiki's orchestration (who takes which job, dispatch, the task ledger, self-improvement, prompts) and the Mac app stay closed. This repository hosts releases and feedback.
 </details>
 
 <details>
