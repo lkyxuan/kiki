@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.94 — 2026-11-18
+- Added full conversation history for Claude Code and Codex: Kiki now keeps the whole conversation, not just the last reply. That includes what you said, what the agent said, every step it took and the start and end of each tool result. This covers sessions on Kiki's computer and claude.ai cloud project threads. Your agents can read it when you ask what happened in a conversation.
+- Fixed Chinese text from external agents sometimes arriving garbled when a report was large.
+
 ## 0.5.93 — 2026-11-18
 - Added English versions of the built-in member descriptions, routing rules, About Me, vision and roadmap. New installs get them in English, and switching the language swaps any of these files you haven't edited.
 - Improved member descriptions: section headings can be written in English or Chinese, and Kiki reads both.
