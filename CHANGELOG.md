@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.93 — 2026-11-18
+- Added English versions of the built-in member descriptions, routing rules, About Me, vision and roadmap. New installs get them in English, and switching the language swaps any of these files you haven't edited.
+- Improved member descriptions: section headings can be written in English or Chinese, and Kiki reads both.
+- Fixed the update screen sometimes showing English when the interface is set to Chinese.
+
 ## 0.5.92 — 2026-11-18
 - Added Delete and Delete all to the archive shelf, so members you won't bring back can be cleared out. Their paused schedules are cancelled too.
 - Fixed the new Kiki sometimes saying a job was handed off when it wasn't. It now says so plainly when a handoff fails.
