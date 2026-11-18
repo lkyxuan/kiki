@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.1 — 2026-11-19
+- Improved the Office, now called Space: everything is on one page of panels. On a big screen the timeline fills the left column and the other panels sit on the right, and on a laptop they stack. Panels include what needs you, who's working, while you were away, Kiki's suggestions, each agent's status, recent events, plugins, the toolbox and a timeline of what happened before.
+- Improved agent details in Space: click an agent to filter what needs you and what's running, and see its handoffs right below.
+- Improved settings: the Toolbox now has its own page in Settings › Toolbox, and plugin pages like Usage are also listed under Settings › Extensions.
+
 ## 0.6.0 — 2026-11-18
 - Added a full-page Kiki home. Clicking Kiki now shows her standing in front of you with her words as subtitles and one box to talk to her. A small map shows where she is (HQ, work, life), and she walks to work while your team works, standing next to whoever is handling your request. Your full conversation opens from "Log", and the sidebar, team and boards are in "Space" for when you want the details. Only in the default light and dark looks with the character on.
 
