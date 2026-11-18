@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.0 — 2026-11-18
+- Added a full-page Kiki home. Clicking Kiki now shows her standing in front of you with her words as subtitles and one box to talk to her. A small map shows where she is (HQ, work, life), and she walks to work while your team works, standing next to whoever is handling your request. Your full conversation opens from "Log", and the sidebar, team and boards are in "Space" for when you want the details. Only in the default light and dark looks with the character on.
+
 ## 0.5.101 — 2026-11-18
 - Fixed team members mixing up jobs when they handle several at once. Every message in a member's main conversation is now tagged with its job, and the member only sees that job's messages while working on it, so answers and results no longer end up in the wrong job. When you follow up on a job through Kiki, or type to the member directly, Kiki files the message under that same job.
 
