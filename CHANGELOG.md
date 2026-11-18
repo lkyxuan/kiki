@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.88 — 2026-11-18
+- Improved: confirmations and error messages (deleting a task, clearing a chat, uninstalling an extension, removing a browser or MCP server, and more) now use Kiki's own dialog instead of the system pop-up. Destructive actions get a red button that says what it does, and it looks right in both light and dark mode.
+
 ## 0.5.87 — 2026-11-18
 - Added release history: Settings › Software Update shows what's new in every version since yours, plus the full history. Release notes on GitHub now list the changes too.
 - The update screen and Settings › Software Update now say clearly that updates are incremental: only the changed parts are downloaded, usually a few MB.
