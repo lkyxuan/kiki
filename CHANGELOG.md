@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.95 — 2026-11-18
+- Added: a Claude Code agent can now work on another computer. Add the computer to herdr once (`herdr machine add <ssh host>` in Terminal), then in the agent's settings pick it under "Which computer" and give a folder on that computer. The agent uses the Claude Code installed and signed in there, and Kiki shows its answers and approval requests as usual.
+- Fixed: when Claude Code can't reach its API (for example it isn't signed in), Kiki now shows the error instead of waiting.
+
 ## 0.5.94 — 2026-11-18
 - Added full conversation history for Claude Code and Codex: Kiki now keeps the whole conversation, not just the last reply. That includes what you said, what the agent said, every step it took and the start and end of each tool result. This covers sessions on Kiki's computer and claude.ai cloud project threads. Your agents can read it when you ask what happened in a conversation.
 - Fixed Chinese text from external agents sometimes arriving garbled when a report was large.
