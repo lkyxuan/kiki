@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.2 — 2026-11-19
+- Added: Codex members can now work on another computer you added to herdr, just like Claude Code members. Pick the computer in the member's settings and Kiki starts Codex there with that computer's own install and sign-in, copies the conversation back over ssh, and picks the same conversation up again after Kiki restarts.
+
 ## 0.6.1 — 2026-11-19
 - Improved the Office, now called Space: everything is on one page of panels. On a big screen the timeline fills the left column and the other panels sit on the right, and on a laptop they stack. Panels include what needs you, who's working, while you were away, Kiki's suggestions, each agent's status, recent events, plugins, the toolbox and a timeline of what happened before.
 - Improved agent details in Space: click an agent to filter what needs you and what's running, and see its handoffs right below.
