@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.101 — 2026-11-18
+- Fixed team members mixing up jobs when they handle several at once. Every message in a member's main conversation is now tagged with its job, and the member only sees that job's messages while working on it, so answers and results no longer end up in the wrong job. When you follow up on a job through Kiki, or type to the member directly, Kiki files the message under that same job.
+
 ## 0.5.100 — 2026-11-18
 - Fixed getting stuck on the invite code page after choosing "Run on this Mac" by mistake. A new link at the bottom takes you back to pick where Kiki runs, so you can connect to Kiki on another computer instead.
 
