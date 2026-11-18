@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.90 — 2026-11-18
+- Improved: more of Kiki is in English: the office floor plan, timeline, toolbox, scheduled runs, usage and the update screen. Built-in agents now show English names (Ops, Usage).
+
 ## 0.5.89 — 2026-11-18
 - Added: Kiki now comes in English. New installs start in English; if you're upgrading, Kiki stays in Chinese.
 - Added: switch the language with the language toggle on the welcome screen, in Settings › About me › Language, or just ask Kiki in chat ("switch to Chinese"). The one setting changes both the interface and the language Kiki and your agents reply in, and the window and menu bar switch right away.
