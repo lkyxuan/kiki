@@ -5,6 +5,14 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.99 — 2026-11-18
+- Fixed Kiki saying a job was handed off when it wasn't. If Kiki says it handed something off but no task was opened, Kiki is told to hand it off for real or say plainly that it didn't, and you see a note if it still didn't.
+- Approvals now only count when you press Approve or Reject on the question card. A typed reply is passed back to the team member as feedback, not as a yes.
+- Added "Write outside" to Autonomy: by default a team member asks you before saving files outside its own folder or a folder you named in your message.
+- Kiki can now only hand work to a team member, an existing conversation or HR. A name that isn't on your team is sent back for Kiki to fix instead of being guessed.
+- Added routing rules: write lines like "- Xiaohongshu, post → Marketing" in routes.md in your Kiki folder, and messages with those words go to that member. Hiring requests go to HR by default.
+- Team members now get only your words, what counts as done and the last few turns when Kiki hands them a job, not the unrelated history Kiki used to decide who gets it.
+
 ## 0.5.98 — 2026-11-18
 - Improved connecting Claude Code on claude.ai (cloud): Kiki now shows a step-by-step card with copy buttons for the allowed domains, the token line and the setup script, so you don't have to pick them out of a chat message.
 - Improved Ops: steps you need to do now go in its final reply instead of its collapsed working notes.
