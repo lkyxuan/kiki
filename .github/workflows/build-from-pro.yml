@@ -138,6 +138,12 @@ jobs:
           - Existing installs update themselves (checked hourly). No need to download again.
           EOF
           fi
+          # What's new goes on top: this version's section of CHANGELOG.md (English, written for users), install notes below.
+          # Older source commits have no scripts/changelog.mjs, or no section for this version: keep the install notes only
+          if [ -f scripts/changelog.mjs ] && node scripts/changelog.mjs section "$TAG" > whatsnew.md; then
+            { echo "## What's new"; cat whatsnew.md; echo; echo "Full history: [CHANGELOG.md](https://github.com/$GH_REPO/blob/main/CHANGELOG.md)"; echo; cat notes.md; } > notes.full.md
+            mv notes.full.md notes.md
+          fi
           # The tag goes on this repo's main (source commits don't exist here); no auto-generated notes, so private commits are never listed
           # The .dmg name carries the version (Kiki-0.3.28-mac-arm64.dmg); the glob also matches the older Kiki-mac-arm64.dmg
           gh release create "$TAG" out/Kiki-*mac-arm64.dmg out/Kiki-*mac-x64.dmg out/Kiki-mac-arm64.zip out/Kiki-mac-x64.zip out/Kiki-mac-*.zip.blockmap out/SHA256SUMS \
