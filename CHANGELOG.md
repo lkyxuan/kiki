@@ -5,6 +5,14 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.98 — 2026-11-18
+- Improved connecting Claude Code on claude.ai (cloud): Kiki now shows a step-by-step card with copy buttons for the allowed domains, the token line and the setup script, so you don't have to pick them out of a chat message.
+- Improved Ops: steps you need to do now go in its final reply instead of its collapsed working notes.
+- Fixed Kiki turning down jobs like signing in, booking or filling in a code because it can't do them itself. It now hands them to a team member, who asks you for what's missing.
+- When you ask to see a plan first, the team member now asks for your OK with a question card instead of a line in its reply.
+- Kiki now replies in the language you write in.
+- Fixed "needs you" cards for coding agents popping up while the agent was still working. Kiki now waits 10 seconds after the agent stops, skips the card if it's just waiting on a background job, tests or CI, and takes back a "done" card when the agent picks up work again. Approval requests still pop up right away.
+
 ## 0.5.97 — 2026-11-18
 - Removed the Desk and Incoming Call ways of talking with Kiki. Kiki's chat is now always the regular conversation view, and the switcher button in the top bar is gone.
 
