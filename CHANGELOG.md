@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.92 — 2026-11-18
+- Added Delete and Delete all to the archive shelf, so members you won't bring back can be cleared out. Their paused schedules are cancelled too.
+- Fixed the new Kiki sometimes saying a job was handed off when it wasn't. It now says so plainly when a handoff fails.
+- Improved HR: when it needs something only you have, like an account or a photo, it asks you with a question card instead of just waiting.
+
 ## 0.5.91 — 2026-11-18
 - Added Codex as an engine for your agents: in an agent's settings, under "Who does the work", choose "Codex on your computer" to have that agent work with your own Codex and ChatGPT subscription. Like Claude Code, it runs inside Kiki's built-in herdr, keeps going when Kiki restarts, and asks you before steps that need approval.
 
