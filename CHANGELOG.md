@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.5.97 — 2026-11-18
+- Removed the Desk and Incoming Call ways of talking with Kiki. Kiki's chat is now always the regular conversation view, and the switcher button in the top bar is gone.
+
 ## 0.5.96 — 2026-11-18
 - Added: in English, Kiki's spoken lines on the front screen and the splash screen are now in English, and so are the desk pet's bubbles and right-click menu, including outfit names. Changing the language while the desk pet is open updates it right away.
 - Improved: the installer window now speaks English.
