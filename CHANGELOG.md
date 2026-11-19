@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.14 — 2026-11-19
+- Improved: team members now think at a medium level instead of high, so everyday work comes back faster and uses fewer tokens.
+
 ## 0.6.13 — 2026-11-19
 - Improved: team members' own skills now live in one skill library. In Settings › Toolbox you can open any library skill and tick which members can use it, just like browsers. Skills your members already had are moved in automatically (a backup of each member's old folder is kept).
 - Improved: when a member edits a skill that other members also use, Kiki saves a separate copy for that member first, so the others keep the original.
