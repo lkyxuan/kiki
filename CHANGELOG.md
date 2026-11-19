@@ -5,6 +5,12 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.3 — 2026-11-19
+- Fixed a team member's conversation getting stuck forever when a file search ran over a huge folder. Searches now stop after 60 seconds and the member is told to narrow the folder or ask you where the file is.
+- Fixed follow-ups not reaching the job they belong to: each job a team member is handling now shows your own words as its name, so Kiki can tell them apart.
+- Fixed tasks on the board sometimes showing under the wrong job when a team member had several jobs lined up.
+- If Kiki is asked to actually hand off a job it said it handed off, and still doesn't, you now see a note that it wasn't handed off.
+
 ## 0.6.2 — 2026-11-19
 - Added: Codex members can now work on another computer you added to herdr, just like Claude Code members. Pick the computer in the member's settings and Kiki starts Codex there with that computer's own install and sign-in, copies the conversation back over ssh, and picks the same conversation up again after Kiki restarts.
 
