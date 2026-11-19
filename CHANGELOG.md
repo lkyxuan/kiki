@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.5 — 2026-11-19
+- Added Qwen Code as a client: if Qwen Code is installed and signed in on this computer, you can pick it for Kiki, as the default for team members, or for a single member. It runs in herdr with its own sign-in, just like Claude Code and Codex.
+
 ## 0.6.4 — 2026-11-19
 - Added "Who does the work" at the top of Settings › Models: pick which client Kiki uses (built-in, Claude Code or Codex) and which client team members use by default (also DeepSeek Harness). Each member can still pick their own in their settings.
 - Added a list of the command-line agents found on this computer and whether each is signed in, so you can see what's ready to use.
