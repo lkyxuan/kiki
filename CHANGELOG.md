@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.11 — 2026-11-19
+- Added OpenCode (OpenCode 2) as a client for team members: if OpenCode is installed and signed in to a model on this computer, you can pick it as the default for team members or for a single member. Kiki runs it in the background through OpenCode's own server, with no terminal window, and the conversations also show up in your own OpenCode. Kiki itself can't use OpenCode yet.
+
 ## 0.6.10 — 2026-11-19
 - Added the DeepSeek Harness edition: install the Kiki plugin in DeepSeek Harness and it can install Kiki for you. Kiki installed this way gives new team members DeepSeek Harness by default and uses the DeepSeek Harness already on your computer, so there's no 1 GB download.
 
