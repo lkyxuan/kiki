@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.8 — 2026-11-19
+- Added Copilot (GitHub Copilot CLI) as a client: if Copilot is installed and signed in on this computer, you can pick it for Kiki, as the default for team members, or for a single member. It runs in herdr with your GitHub Copilot subscription. Copilot has no way to branch a conversation from the command line, so a branched conversation starts fresh.
+
 ## 0.6.7 — 2026-11-19
 - Added Kimi Code (Moonshot AI's Kimi Code CLI) as a client: if Kimi Code is installed and signed in on this computer, you can pick it for Kiki, as the default for team members, or for a single member. It runs in herdr with its own sign-in. Kimi Code has no way to branch a conversation from the command line, so a branched conversation starts fresh.
 
