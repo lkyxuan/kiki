@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.4 — 2026-11-19
+- Added "Who does the work" at the top of Settings › Models: pick which client Kiki uses (built-in, Claude Code or Codex) and which client team members use by default (also DeepSeek Harness). Each member can still pick their own in their settings.
+- Added a list of the command-line agents found on this computer and whether each is signed in, so you can see what's ready to use.
+- Added Codex as Kiki's brain: if Codex is signed in on this computer, you can pick it on the first-run screen or in Settings, no API key needed.
+
 ## 0.6.3 — 2026-11-19
 - Fixed a team member's conversation getting stuck forever when a file search ran over a huge folder. Searches now stop after 60 seconds and the member is told to narrow the folder or ask you where the file is.
 - Fixed follow-ups not reaching the job they belong to: each job a team member is handling now shows your own words as its name, so Kiki can tell them apart.
