@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.13 — 2026-11-19
+- Improved: team members' own skills now live in one skill library. In Settings › Toolbox you can open any library skill and tick which members can use it, just like browsers. Skills your members already had are moved in automatically (a backup of each member's old folder is kept).
+- Improved: when a member edits a skill that other members also use, Kiki saves a separate copy for that member first, so the others keep the original.
+- Improved: sharing a member still packs the skills assigned to it, and importing one puts its skills into your library for the new member.
+
 ## 0.6.12 — 2026-11-19
 - Added Gemini CLI as a client for team members: if Gemini CLI is installed and signed in on this computer, you can pick it as the default for team members or for a single member. It runs in a terminal like Claude Code, can use Kiki's tools such as the browser, and Kiki adds its own instructions and tools without writing any files into your project. Branched conversations start fresh, and Kiki itself can't use Gemini CLI yet.
 
