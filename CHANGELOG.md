@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.40 — 2026-11-21
+- Fixed: on the full-page Kiki view, double-clicking Approve no longer sends the decision right away. It waits the same 5 seconds, so Undo still works.
+- Fixed: if you close or reload the window during those 5 seconds, your decision is still delivered instead of getting lost.
+
 ## 0.6.39 — 2026-11-21
 - Fixed: in Space › Members, a member's page shows again what they handed to other members and what was handed to them, with how long each has been waiting, plus their paused schedules, which you can resume right there.
 
