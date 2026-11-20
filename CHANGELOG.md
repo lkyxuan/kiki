@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.20 — 2026-11-20
+- Added Qoder CLI as a client for team members: if Qoder CLI is installed and signed in on this computer, you can pick "Qoder on your computer" for a single member or as the default for team members. It runs in its own terminal with your Qoder account, follows Kiki's rules, and can use Kiki's tools such as the browser, without writing anything into your project. All four permission levels work. Kiki itself can't use Qoder yet.
+
 ## 0.6.19 — 2026-11-20
 - Improved: on Mac, commands that team members run now go through the system sandbox. They can't read Kiki's own program files or your keys, and can't write into other members' folders, however the command is written. Your API keys are no longer passed to members' commands; to give a member a key, list its name in KIKI_MEMBER_ENV in Kiki's .env file.
 - Improved: Kiki's new way of handing out work is now the only one and is always on. Every step of a job is written down before it happens, so after a restart Kiki picks up where it left off without opening a conversation twice or sending the same message again.
