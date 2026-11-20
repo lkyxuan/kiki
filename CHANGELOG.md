@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.36 — 2026-11-21
+- Improved: your team now lives in Space. Space has a new Team tab next to Now and History: "Me" sits at the top, where you write About me, then every team member with their status. Hire and the Talent Store are at the top of the list.
+- Added: each team member shows a "Skills & tools" block, both in Space › Team and in the member's side panel. Tick which library skills and MCP servers that member can use, right where you use them. The machine-wide Toolbox stays in Settings.
+- Improved: Settings no longer has the Team members and About me pages. Old links to them now open Space › Team.
+
 ## 0.6.35 — 2026-11-21
 - Improved: Settings is tidier. The sidebar is now grouped into General (language, what to call you, Mac permissions, optional downloads, appearance, remote access), AI setup (models, providers, browsers, capabilities, auto-approve, usage) and Inside Kiki (team members, toolbox, about me). Pages that overlapped were merged: MCP servers and pi extensions now live in Toolbox, Kiki's built-in switches have their own Capabilities page, and the Talent Store link sits at the top of Team members. Old links still open the right spot.
 - Improved: "Full auto" is now called "Auto-approve", which says better what it does.
