@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.41 — 2026-11-21
+- Added: members can now work with Antigravity CLI (Google's `agy`) on your computer, using your Google account. Pick it under "Who does the work" in Settings › Models or in a member's settings. Kiki runs it in the background with no terminal window, the member can use Kiki's tools, and when it wants to do something your Antigravity permission rules don't allow, it stops and asks you first.
+
 ## 0.6.40 — 2026-11-21
 - Fixed: on the full-page Kiki view, double-clicking Approve no longer sends the decision right away. It waits the same 5 seconds, so Undo still works.
 - Fixed: if you close or reload the window during those 5 seconds, your decision is still delivered instead of getting lost.
