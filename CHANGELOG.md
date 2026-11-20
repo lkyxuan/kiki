@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.35 — 2026-11-21
+- Improved: Settings is tidier. The sidebar is now grouped into General (language, what to call you, Mac permissions, optional downloads, appearance, remote access), AI setup (models, providers, browsers, capabilities, auto-approve, usage) and Inside Kiki (team members, toolbox, about me). Pages that overlapped were merged: MCP servers and pi extensions now live in Toolbox, Kiki's built-in switches have their own Capabilities page, and the Talent Store link sits at the top of Team members. Old links still open the right spot.
+- Improved: "Full auto" is now called "Auto-approve", which says better what it does.
+- Removed: the "When unsure, send to" setting, which no longer did anything. The Kiki Portal page is hidden from the sidebar until membership opens.
+
 ## 0.6.34 — 2026-11-20
 - Improved: the full-page Kiki view now has a review desk. Everything that needs your decision sits in a pile on the right, and you approve, decline or put off the top card right there with a stamp. Cards are sorted into Kiki's three places (Work, HQ and Life). When you clear one place, Kiki says so and walks you to the next. What she says now appears in a speech bubble next to her.
 - Added: the first time you open Kiki, she asks whether you want her on screen. Pick "Yes" for the character look, with full-page Kiki and the review desk in a warm, cinema-style night palette. Pick "No" for a simple look: just the logo, warm grey surfaces and small status lights. You can switch anytime in Settings › Appearance ("Kiki on stage").
