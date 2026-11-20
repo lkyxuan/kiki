@@ -5,6 +5,12 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.25 — 2026-11-20
+- Fixed: when a team member whose engine has no read-only mode (such as Codex or Cursor) continues an earlier conversation on a job that needs a plan first, the plan now reaches you on a plan card instead of the job getting stuck.
+- Fixed: if you ask to see a plan first and Kiki hands the request to a conversation that is busy with something else, it no longer gets folded into that other job. It waits its turn and starts with a plan for you to approve.
+- Fixed: the weekly routing review has something to learn from again. Each time Kiki hands your request to a team member it is noted, and when a member says a job isn't theirs and it goes to someone else, that counts as a correction. With fewer than three corrections the review is skipped instead of starting a job for nothing.
+- Fixed: question cards and plan cards no longer show up as extra jobs, with their own cost, in job counts.
+
 ## 0.6.24 — 2026-11-20
 - Improved: when several updates from your team arrive together, Kiki now opens with one or two sentences saying what needs you and what got done, with the full updates folded underneath.
 - Added: Kiki notices when you've been away from it for 10 minutes. While you're away, routine updates wait and arrive as one "While you were away" message when you come back; urgent ones still show up right away and are also sent to your connected chat channels (such as WeChat).
