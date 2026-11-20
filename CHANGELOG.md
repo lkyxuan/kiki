@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.42 — 2026-11-21
+- Improved: the Space "Now" view has been redesigned as a three-column dashboard. At the top, Kiki's brief summarizes what finished, what needs you, and what is running, paired with four clickable counters (Need you, Working, Done today, Spent today) that filter the view to that category.
+- Added: live blocks across Space for Needs you (with quick approve/reply actions), Your to-dos, Working now (with live steps and Stop), Up next (routines and cloud schedules with Run now and Pause), Done today (including outputs and Review Desk items), Team status and pending handoffs (click any member to jump straight to their profile), Health alerts, Spending breakdown, Learned today, and External inputs. Quiet blocks automatically collapse to a single line so nothing clutters the screen.
+
 ## 0.6.41 — 2026-11-21
 - Added: members can now work with Antigravity CLI (Google's `agy`) on your computer, using your Google account. Pick it under "Who does the work" in Settings › Models or in a member's settings. Kiki runs it in the background with no terminal window, the member can use Kiki's tools, and when it wants to do something your Antigravity permission rules don't allow, it stops and asks you first.
 
