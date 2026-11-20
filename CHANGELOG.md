@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.31 — 2026-11-20
+- Added Amp as a client for team members: if Amp is installed and signed in on this computer, you can pick "Amp on your computer" for a single member or as the default for team members. Kiki runs one Amp turn at a time in the background with no terminal window, keeps each conversation going in the same Amp thread, and gives it Kiki's tools without changing your Amp settings. Amp has no official way to add extra instructions or to ask before each step, so Kiki puts its instructions at the start of each new conversation, and Amp works without stopping for permission whatever permission level you pick.
+
 ## 0.6.30 — 2026-11-20
 - Added Crush as a client for team members: if Crush is installed and has a model set up on this computer, you can pick "Crush on your computer" for a single member or as the default for team members. Kiki runs it in the background with no terminal window, uses the models you set up in Crush, gives it Kiki's tools without changing your own Crush settings, and asks you whenever Crush wants permission for a step. Crush has no official way to add extra instructions, so Kiki puts its instructions at the start of each new conversation.
 
