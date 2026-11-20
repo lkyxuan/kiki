@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.38 — 2026-11-21
+- Added: on the full-page Kiki view, clicked the wrong button on a card? After you approve, decline or finish a card, a bar at the bottom lets you undo it for 5 seconds. Nothing is sent until those 5 seconds are up.
+- Added: a "Today" button at the top of the Kiki view lists everything you handled on the desk today. Open any item to see the original, or jump to Space to see everything done today.
+
 ## 0.6.37 — 2026-11-21
 - Improved: the chat page, sidebar, right panel, Settings, and dialogs now share the same refined look as the full-page Kiki and Space views—warm cinema-style lighting when Kiki is on screen, and crisp ceramic-and-ink surfaces when she is off—with pure black dark mode and consistent light mode contrast across every panel.
 - Improved: cards, task boards, document previews, and confirmation dialogs have clearer depth and spacing, recessed input fields, and unified button styling.
