@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.26 — 2026-11-20
+- Improved: Kiki's three built-in members, HR, the Archivist (keeps what you ask Kiki to remember) and Ops, now sit together in a small "Kiki's crew" box under Kiki's card, each with a one-line hint and a dot when something needs you. They no longer mix with your own team list.
+
 ## 0.6.25 — 2026-11-20
 - Fixed: when a team member whose engine has no read-only mode (such as Codex or Cursor) continues an earlier conversation on a job that needs a plan first, the plan now reaches you on a plan card instead of the job getting stuck.
 - Fixed: if you ask to see a plan first and Kiki hands the request to a conversation that is busy with something else, it no longer gets folded into that other job. It waits its turn and starts with a plan for you to approve.
