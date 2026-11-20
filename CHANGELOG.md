@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.27 — 2026-11-20
+- Added Devin for Terminal as a client for team members: if Devin is installed and signed in on this computer, you can pick "Devin on your computer" for a single member or as the default for team members. Kiki runs it in the background through Devin's official editor interface, with no terminal window, gives it Kiki's tools without changing your Devin settings, and asks you whenever Devin wants permission for a step. Devin has no official way to add extra instructions, so Kiki puts its instructions at the start of each new conversation.
+
 ## 0.6.26 — 2026-11-20
 - Improved: Kiki's three built-in members, HR, the Archivist (keeps what you ask Kiki to remember) and Ops, now sit together in a small "Kiki's crew" box under Kiki's card, each with a one-line hint and a dot when something needs you. They no longer mix with your own team list.
 
