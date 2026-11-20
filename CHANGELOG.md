@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.21 — 2026-11-20
+- Improved: a new look for conversations in the Light and Dark appearances. Your messages sit on a light strip instead of a bubble, tables only keep row lines, every card shares one clean style, and times and numbers use a monospace font. Kiki now ships its own Inter and JetBrains Mono fonts for this (Chinese text still uses the system font).
+- Improved: the four columns now split the screen by the golden ratio. Click the main conversation or the task opened next to it, and that one gets the wider space while the other narrows a little.
+- You can switch back to the classic look in Settings › Appearance by turning off "New look".
+
 ## 0.6.20 — 2026-11-20
 - Added Qoder CLI as a client for team members: if Qoder CLI is installed and signed in on this computer, you can pick "Qoder on your computer" for a single member or as the default for team members. It runs in its own terminal with your Qoder account, follows Kiki's rules, and can use Kiki's tools such as the browser, without writing anything into your project. All four permission levels work. Kiki itself can't use Qoder yet.
 
