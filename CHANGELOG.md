@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.16 — 2026-11-20
+- Added Settings › Report a Problem: write one line about what went wrong and press Submit. Kiki attaches your version, system and recent logs, with keys, your username, computer name, emails and chat content removed first, and sends it to the developer. No account needed. You can open "See what's included" to read every line, untick parts, or copy or save the report instead.
+
 ## 0.6.15 — 2026-11-20
 - Added Cursor as a client for team members, through Cursor's official SDK: pick it as the default for team members or for a single member, then use "Sign in to Cursor" in Settings › Models to sign in with your Cursor account. The SDK downloads on first use (about 45MB, listed in Settings › Extensions where you can remove it). Kiki runs it in the background with no terminal window and writes nothing into your project. With "Everything automatic" it works as usual; every other permission level runs inside Cursor's sandbox. Branched conversations start fresh, and Kiki itself can't use Cursor yet.
 
