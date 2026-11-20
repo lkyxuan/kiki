@@ -5,6 +5,12 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.37 — 2026-11-21
+- Improved: the chat page, sidebar, right panel, Settings, and dialogs now share the same refined look as the full-page Kiki and Space views—warm cinema-style lighting when Kiki is on screen, and crisp ceramic-and-ink surfaces when she is off—with pure black dark mode and consistent light mode contrast across every panel.
+- Improved: cards, task boards, document previews, and confirmation dialogs have clearer depth and spacing, recessed input fields, and unified button styling.
+- Improved: Kiki's full-page view and Space page have cleaner light-mode shadows, sharper selection indicators, and more readable status tags.
+- Fixed: team member avatars now consistently use the official tilted-square icon across all built-in themes, and the Appearance preview thumbnails in Settings now show the current orange and neutral palettes instead of legacy colors.
+
 ## 0.6.36 — 2026-11-21
 - Improved: your team now lives in Space. Space has a new Team tab next to Now and History: "Me" sits at the top, where you write About me, then every team member with their status. Hire and the Talent Store are at the top of the list.
 - Added: each team member shows a "Skills & tools" block, both in Space › Team and in the member's side panel. Tick which library skills and MCP servers that member can use, right where you use them. The machine-wide Toolbox stays in Settings.
