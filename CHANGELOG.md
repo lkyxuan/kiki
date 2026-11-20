@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.24 — 2026-11-20
+- Improved: when several updates from your team arrive together, Kiki now opens with one or two sentences saying what needs you and what got done, with the full updates folded underneath.
+- Added: Kiki notices when you've been away from it for 10 minutes. While you're away, routine updates wait and arrive as one "While you were away" message when you come back; urgent ones still show up right away and are also sent to your connected chat channels (such as WeChat).
+
 ## 0.6.23 — 2026-11-20
 - Added: a CI monitor for pull requests your team members open. A small badge next to the chat title shows whether the checks are running, passed or failed; click it to see how many checks are in each state, what happened last, and to stop watching the PR. The side panel lists every pull request Kiki is watching.
 - Added: an "Auto-fix CI and handle comments" switch for each pull request. On (the default), the member fixes failing checks and review comments itself. Off, you just get a note in your inbox and the member leaves the pull request alone.
