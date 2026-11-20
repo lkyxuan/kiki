@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.18 — 2026-11-20
+- Added Factory Droid as a client for team members: if Droid is installed and signed in on this computer, you can pick it as the default for team members or for a single member. It runs in a terminal like Claude Code, supports all four permission levels, can use Kiki's tools such as the browser, and Kiki adds its own instructions and tools without writing any files into your project. Kiki itself can't use Droid yet.
+
 ## 0.6.17 — 2026-11-20
 - Added Settings › Report a Problem: write one line about what went wrong and press Submit. Kiki attaches your version, system and recent logs, with keys, your username, computer name, emails and chat content removed first, and sends it to the developer. No account needed. You can open "See what's included" to read every line, untick parts, or copy or save the report instead.
 
