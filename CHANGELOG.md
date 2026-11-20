@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.22 — 2026-11-20
+- Added Kilo Code CLI as a client for team members: if Kilo is installed and signed in on this computer, you can pick "Kilo on your computer" for a single member or as the default for team members. Kiki runs it in the background with no terminal window, gives it Kiki's tools and rules without writing anything into your project, and asks you whenever Kilo wants permission for a step.
+
 ## 0.6.21 — 2026-11-20
 - Improved: a new look for conversations in the Light and Dark appearances. Your messages sit on a light strip instead of a bubble, tables only keep row lines, every card shares one clean style, and times and numbers use a monospace font. Kiki now ships its own Inter and JetBrains Mono fonts for this (Chinese text still uses the system font).
 - Improved: the four columns now split the screen by the golden ratio. Click the main conversation or the task opened next to it, and that one gets the wider space while the other narrows a little.
