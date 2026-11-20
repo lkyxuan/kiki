@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.32 — 2026-11-20
+- Added "Auto-merge when ready" to the CI monitor popover. It is off by default. Turn it on for a pull request and Kiki merges it for you (squash) once every check has passed, GitHub says it can merge, and nobody has asked for changes. Nothing needs to be set up in your repository. If the pull request falls behind and has conflicts, the team member who opened it brings in the latest changes and Kiki tries again. Repositories without any checks are never auto-merged.
+- Added a "Merge now" button to the CI monitor popover when a pull request is ready to merge. If it can't be merged, the popover tells you why.
+
 ## 0.6.31 — 2026-11-20
 - Added Amp as a client for team members: if Amp is installed and signed in on this computer, you can pick "Amp on your computer" for a single member or as the default for team members. Kiki runs one Amp turn at a time in the background with no terminal window, keeps each conversation going in the same Amp thread, and gives it Kiki's tools without changing your Amp settings. Amp has no official way to add extra instructions or to ask before each step, so Kiki puts its instructions at the start of each new conversation, and Amp works without stopping for permission whatever permission level you pick.
 
