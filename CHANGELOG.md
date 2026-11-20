@@ -1,9 +1,12 @@
 # Changelog
 
-Every Kiki release, newest first. Kiki updates itself; you can also read this in the app under Settings › Software Update.
+Every Kiki release, newest first. Kiki updates itself; you can also read this in the app under Settings › Software Update, or online at [getkiki.ai/changelog](https://getkiki.ai/changelog/).
 
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
+
+## 0.6.29 — 2026-11-20
+- Added: a "View on the web" link next to "Show full history" in Settings › Software Update. It opens the full changelog on getkiki.ai/changelog, right at the version you are running.
 
 ## 0.6.28 — 2026-11-20
 - Changed: Kiki now ships with just two looks, light and dark, each with the Kiki character on or off. The Miracle look is gone; if you were using it, Kiki switches you to light.
