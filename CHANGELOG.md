@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.33 — 2026-11-20
+- Added: after a pull request a team member opened is merged or closed, and the member has nothing more to add, Kiki now hands in the job for them so it moves to Done without any nudging. It only does this when that conversation isn't watching any other pull request. You can turn it off in Settings › Capabilities ("Hand in after a PR merges").
+
 ## 0.6.32 — 2026-11-20
 - Added "Auto-merge when ready" to the CI monitor popover. It is off by default. Turn it on for a pull request and Kiki merges it for you (squash) once every check has passed, GitHub says it can merge, and nobody has asked for changes. Nothing needs to be set up in your repository. If the pull request falls behind and has conflicts, the team member who opened it brings in the latest changes and Kiki tries again. Repositories without any checks are never auto-merged.
 - Added a "Merge now" button to the CI monitor popover when a pull request is ready to merge. If it can't be merged, the popover tells you why.
