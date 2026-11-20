@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.28 — 2026-11-20
+- Changed: Kiki now ships with just two looks, light and dark, each with the Kiki character on or off. The Miracle look is gone; if you were using it, Kiki switches you to light.
+- Changed: the Tower, Eyes and Sticker looks moved to Talent (Settings › Talent) as installable themes. If you used one and install it from Talent, it keeps working; otherwise Kiki switches you to its light or dark base. As installable themes they no longer change the Dock icon, and Sticker no longer turns team members into objects.
+
 ## 0.6.27 — 2026-11-20
 - Added Devin for Terminal as a client for team members: if Devin is installed and signed in on this computer, you can pick "Devin on your computer" for a single member or as the default for team members. Kiki runs it in the background through Devin's official editor interface, with no terminal window, gives it Kiki's tools without changing your Devin settings, and asks you whenever Devin wants permission for a step. Devin has no official way to add extra instructions, so Kiki puts its instructions at the start of each new conversation.
 
