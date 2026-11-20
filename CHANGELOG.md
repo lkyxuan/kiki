@@ -5,6 +5,12 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.34 — 2026-11-20
+- Improved: the full-page Kiki view now has a review desk. Everything that needs your decision sits in a pile on the right, and you approve, decline or put off the top card right there with a stamp. Cards are sorted into Kiki's three places (Work, HQ and Life). When you clear one place, Kiki says so and walks you to the next. What she says now appears in a speech bubble next to her.
+- Added: the first time you open Kiki, she asks whether you want her on screen. Pick "Yes" for the character look, with full-page Kiki and the review desk in a warm, cinema-style night palette. Pick "No" for a simple look: just the logo, warm grey surfaces and small status lights. You can switch anytime in Settings › Appearance ("Kiki on stage").
+- Added: eight new built-in themes, each in light and dark: Monocle Press, Swiss Grid, Kyoto Study, Arch Studio, Frosted Air, Flight Deck, Executive Desk and Pure Monolith. Pick one in Settings › Appearance; they keep the new layout and full-page Kiki.
+- Improved: the Space page is simpler. A row of counts at the top (All, Waiting, Errors, In progress, Done today) filters the list when you click one. On the left, everything in progress is listed one per row, most urgent first. Click one and the right side shows its summary and the buttons you can press. A Now / History switch at the top right shows the timeline of what happened. "While you were away", "Suggested for you", "Just happened", plugin cards and the toolbox summary are gone from this page.
+
 ## 0.6.33 — 2026-11-20
 - Added: after a pull request a team member opened is merged or closed, and the member has nothing more to add, Kiki now hands in the job for them so it moves to Done without any nudging. It only does this when that conversation isn't watching any other pull request. You can turn it off in Settings › Capabilities ("Hand in after a PR merges").
 
