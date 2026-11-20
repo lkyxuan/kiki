@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.23 — 2026-11-20
+- Added: a CI monitor for pull requests your team members open. A small badge next to the chat title shows whether the checks are running, passed or failed; click it to see how many checks are in each state, what happened last, and to stop watching the PR. The side panel lists every pull request Kiki is watching.
+- Added: an "Auto-fix CI and handle comments" switch for each pull request. On (the default), the member fixes failing checks and review comments itself. Off, you just get a note in your inbox and the member leaves the pull request alone.
+
 ## 0.6.22 — 2026-11-20
 - Added Kilo Code CLI as a client for team members: if Kilo is installed and signed in on this computer, you can pick "Kilo on your computer" for a single member or as the default for team members. Kiki runs it in the background with no terminal window, gives it Kiki's tools and rules without writing anything into your project, and asks you whenever Kilo wants permission for a step.
 
