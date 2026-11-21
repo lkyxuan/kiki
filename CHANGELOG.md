@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.57 — 2026-11-22
+- Improved: "Merge when ready" in CI Monitor now also waits for the Codex code review to cover your latest push, with no open review comments left. If Codex only reviewed an earlier commit, Kiki asks it to review again and merges once it's done. The "Merge now" button follows the same rule and tells you what is still missing.
+
 ## 0.6.56 — 2026-11-22
 - Changed: when you open Kiki, the intro now stops on Ms. Kiki's portrait instead of jumping straight into the app. Click anywhere or press any key to go in. Reconnecting, or turning the intro off, still goes straight in.
 - Added: a portrait collection wall on that page. Like a daily contribution grid, it has 144 squares (24 hours × every 10 minutes); every portrait you have seen lights up its square with her face, and today's one is highlighted. See them all to fill the wall.
