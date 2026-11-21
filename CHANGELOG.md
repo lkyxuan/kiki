@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.54 — 2026-11-22
+- Fixed: on the Kiki page, the top of Kiki's head was cut off. All 13 time-of-day outfits now show her whole head with a little space above it, at every window size from narrow windows to 4K and ultrawide screens.
+
 ## 0.6.53 — 2026-11-21
 - Added: the Space overview is now a wall of modules built around your tasks. Every project gets a block with a one-line summary, and each task you handed over shows a step chain: what is done, what is running, where it is waiting on you, and what failed. Click any step to open that conversation.
 - Added: new modules on the wall, including Main things, Suggested next steps, What to handle first, Risks, Goal progress, Still today, Due tomorrow, Done today, While you were away, Just happened, Project timeline, My timeline, All schedules, Tools overview and a Launcher for your other AI apps. A few (Review advice, Tracked numbers) are placeholders that say what they still need.
