@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.45 — 2026-11-21
+- Improved: the Space "Now" view now aligns all three columns evenly with no empty gaps between blocks, expands cleanly on wide screens, moves External inputs into the left column with Show more/less, and arranges Learned today in a compact horizontal strip along the bottom.
+- Improved: every block in Space "Now" now shares uniform header heights, plain monospace counts, consistent row layout with right-aligned timestamps, three-tone status labels (orange for waiting on you, red for errors, neutral gray for everything else), and cleaner neutral cards under Needs you.
+
 ## 0.6.44 — 2026-11-21
 - Fixed: on ultrawide screens, the full-page Kiki view now keeps Kiki, the review desk and the top bar together in the middle of the screen instead of pushing them to the far corners. The scene background still fills the whole screen.
 
