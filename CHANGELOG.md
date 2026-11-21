@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.43 — 2026-11-21
+- Added: Antigravity now reports to Kiki like Claude Code does. Turn it on under external agents, and conversations from the Antigravity app, Antigravity IDE and the `agy` command line each show up as a card when they start and finish. Clicking a card for an `agy` conversation reopens it in Terminal. For a conversation from the app or IDE, it brings Antigravity to the front so you can pick the conversation from its list.
+
 ## 0.6.42 — 2026-11-21
 - Improved: the Space "Now" view has been redesigned as a three-column dashboard. At the top, Kiki's brief summarizes what finished, what needs you, and what is running, paired with four clickable counters (Need you, Working, Done today, Spent today) that filter the view to that category.
 - Added: live blocks across Space for Needs you (with quick approve/reply actions), Your to-dos, Working now (with live steps and Stop), Up next (routines and cloud schedules with Run now and Pause), Done today (including outputs and Review Desk items), Team status and pending handoffs (click any member to jump straight to their profile), Health alerts, Spending breakdown, Learned today, and External inputs. Quiet blocks automatically collapse to a single line so nothing clutters the screen.
