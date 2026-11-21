@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.51 — 2026-11-21
+- Fixed: Settings › Toolbox used to show one big "tokens every turn" number that added up every always-on tool and skill on the computer, so it looked like every chat carried all of it. It now shows what each kind of chat really sends to the model every turn (Kiki's main chat, members' work chats, members' main chats), measured from the latest real request, split into tool descriptions and system prompt.
+
 ## 0.6.50 — 2026-11-21
 - Fixed: Kiki's main conversation no longer shows the internal notes meant for the AI (for example "This came from…", "…said this is not theirs", or "Everything for the user's message has ended…"). Scheduled jobs now show as a single small line saying where they came from.
 - Fixed: when no team member fits a request, Kiki now hands it to HR, who asks whether you'd like to hire someone, instead of failing with "nobody can do it". HR and a member's own scheduled jobs can no longer be turned down as "not mine".
