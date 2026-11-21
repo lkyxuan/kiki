@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.55 — 2026-11-22
+- Fixed: the AI Data Export Mac helper no longer calls its zip "OK to share". Images, large files and Codex attachments are copied as-is without hiding secrets, so the zip is now named "tidied export", the done screen and the read-me-first guide say to check attachments and chats before sharing, and a list of every file that wasn't scrubbed is included.
+
 ## 0.6.54 — 2026-11-22
 - Fixed: on the Kiki page, the top of Kiki's head was cut off. All 13 time-of-day outfits now show her whole head with a little space above it, at every window size from narrow windows to 4K and ultrawide screens.
 
