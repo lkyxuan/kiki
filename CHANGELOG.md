@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.47 — 2026-11-21
+- Fixed: the 0.6.46 build didn't finish, so its Antigravity cloud projects support ships in this version instead.
+
 ## 0.6.46 — 2026-11-21
 - Added: Antigravity cloud projects (Remote Agents) can report to Kiki too. The "Connect cloud" card now gives you one line to paste at the top of your Antigravity project's Setup script. After that, remote conversations show up as cards when you give them a task and when they finish, and clicking a card opens that conversation in Antigravity. Antigravity doesn't offer hooks for remote conversations, so Kiki asks the agent to report in; it may occasionally miss one.
 
