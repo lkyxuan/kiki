@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.50 — 2026-11-21
+- Fixed: Kiki's main conversation no longer shows the internal notes meant for the AI (for example "This came from…", "…said this is not theirs", or "Everything for the user's message has ended…"). Scheduled jobs now show as a single small line saying where they came from.
+- Fixed: when no team member fits a request, Kiki now hands it to HR, who asks whether you'd like to hire someone, instead of failing with "nobody can do it". HR and a member's own scheduled jobs can no longer be turned down as "not mine".
+- Improved: when you say something new and Kiki asks a new question, the older unanswered question card in Kiki's conversation is closed, so only the latest one stays.
+
 ## 0.6.49 — 2026-11-21
 - Fixed: while Kiki updated itself in the background, the "Update available" line in Space could still be clicked and pulled you into Settings. Background updates now never take you away from what you're doing: that line just says the update is installing, and progress stays in the sidebar.
 
