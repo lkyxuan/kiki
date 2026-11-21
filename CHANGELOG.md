@@ -5,6 +5,12 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.53 — 2026-11-21
+- Added: the Space overview is now a wall of modules built around your tasks. Every project gets a block with a one-line summary, and each task you handed over shows a step chain: what is done, what is running, where it is waiting on you, and what failed. Click any step to open that conversation.
+- Added: new modules on the wall, including Main things, Suggested next steps, What to handle first, Risks, Goal progress, Still today, Due tomorrow, Done today, While you were away, Just happened, Project timeline, My timeline, All schedules, Tools overview and a Launcher for your other AI apps. A few (Review advice, Tracked numbers) are placeholders that say what they still need.
+- Improved: the overview now fills 4K and ultrawide screens instead of sitting in a narrow strip. Laptops show the core modules, 2K adds more, and 4K and ultrawide show everything.
+- Added: a Modules button at the top right of Space lets you turn each module on or off for the screen you are on, or switch back to the old three-column overview.
+
 ## 0.6.52 — 2026-11-21
 - Improved: the AI Data Export Mac helper (kikibao.com/banjia) now opens a proper window in the new Kiki look, following your Mac's light or dark mode. It shows what it found from Claude Code and Codex before you start, live progress while it works, and clear next steps when it's done.
 - Improved: everything now lands in one folder in your Downloads folder: a "read me first" guide on top, the tidied-up Markdown, a ready-to-share zip, and the untouched original backup (marked not to share).
