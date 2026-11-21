@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.52 — 2026-11-21
+- Improved: the AI Data Export Mac helper (kikibao.com/banjia) now opens a proper window in the new Kiki look, following your Mac's light or dark mode. It shows what it found from Claude Code and Codex before you start, live progress while it works, and clear next steps when it's done.
+- Improved: everything now lands in one folder in your Downloads folder: a "read me first" guide on top, the tidied-up Markdown, a ready-to-share zip, and the untouched original backup (marked not to share).
+
 ## 0.6.51 — 2026-11-21
 - Fixed: Settings › Toolbox used to show one big "tokens every turn" number that added up every always-on tool and skill on the computer, so it looked like every chat carried all of it. It now shows what each kind of chat really sends to the model every turn (Kiki's main chat, members' work chats, members' main chats), measured from the latest real request, split into tool descriptions and system prompt.
 
