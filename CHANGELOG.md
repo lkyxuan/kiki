@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.48 — 2026-11-21
+- Added: team members now carry tags, such as which product they work on and what kind of work they do (for example "Project: Kiki" and "Role: Promotion"). HR picks the tags when hiring, Kiki sees them when deciding who gets a job, so several members working on the same product no longer get mixed up.
+- Added: tags come from one shared list. Every member needs at least a project tag and a role tag ("General" is fine), and new tags are checked against existing ones so near-duplicates don't pile up. Existing members count as "General" until HR suggests better tags.
+
 ## 0.6.47 — 2026-11-21
 - Fixed: the 0.6.46 build didn't finish, so its Antigravity cloud projects support ships in this version instead.
 
