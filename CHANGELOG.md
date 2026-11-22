@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.58 — 2026-11-22
+- Fixed: Ms. Kiki's page no longer opens a team member's conversation on top of her. After Kiki updated itself overnight it could reopen the last conversation you had open as a see-through half panel covering the top tabs. Now that conversation stays closed on her page; opening one (for example "View original") takes you to Space and slides it in there, and going back to Ms. Kiki closes it.
+- Fixed: handoff cards no longer show an internal ticket number as their summary; they show what the job is.
+
 ## 0.6.57 — 2026-11-22
 - Improved: "Merge when ready" in CI Monitor now also waits for the Codex code review to cover your latest push, with no open review comments left. If Codex only reviewed an earlier commit, Kiki asks it to review again and merges once it's done. The "Merge now" button follows the same rule and tells you what is still missing.
 
