@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.62 — 2026-11-22
+- Added: on Ms. Kiki's page, opening a team member's task now plays out face to face. The member steps in on the right across from Ms. Kiki, the review desk steps aside, and the conversation runs between them: what was asked sits on her side, the member's replies on theirs. A tag under the member shows whether they're working, waiting for you, or done. Press Esc or × and they step out. After Kiki updates itself, the task you had open comes back quietly the same way.
+
 ## 0.6.61 — 2026-11-22
 - Added: you can now pick a separate model for compacting long conversations (Settings › Models › By task › Compact context). When a working conversation gets long, that model writes the summary; if you leave it empty, or it fails, the conversation's own model does it as before.
 - Added: every task in Settings › Models › By task now has a thinking level (off / low / medium / high) and a backup model. If the main model fails (rate limit, out of credit, provider down), Kiki tries the backup once. Rows you leave alone follow the row above them, like the model does.
