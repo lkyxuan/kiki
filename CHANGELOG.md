@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.66 — 2026-11-22
+- Fixed: when a team member gets stuck on something you can't fix by answering (a broken connection, a missing way back to another agent), Kiki no longer dresses it up as a question for you. It reports the job as not done, or shows a "Stuck" card with the member's own words instead of "Waiting for your answer".
+- Added: every "waiting for your answer" card now has a Close button, so you can drop a question you don't want to answer; the job behind it stops too. Failed and interrupted cards get a "Got it" button to dismiss them.
+
 ## 0.6.65 — 2026-11-22
 - Improved: the archivist's nightly review is much easier to read. Each problem now gets its own card: a plain-language title saying what happened, one line for the cause, one line for the suggestion, and the task number in small print at the bottom of the card.
 - Improved: results that come back to you now start with who did what ("Archivist's result for …"), with the task number folded away at the bottom.
