@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.59 — 2026-11-22
+- Improved: Settings › Models › By task now lists every background job that uses AI, grouped into "background chores", "needs good judgment" and "special abilities". New choices: checking results, naming chats, sorting incoming mail, writing plans, reports and polish, and daily reviews. Checking results is the most frequent background call, so you can now give it a cheap model of its own. Anything you leave unset follows the same model as before.
+- Fixed: when Kiki's brain is a local Claude Code or Codex with no API model connected, filling in and rescuing dispatched jobs now goes through it again instead of being skipped.
+- Removed: the unused "Write task brief" model choice.
+
 ## 0.6.58 — 2026-11-22
 - Fixed: Ms. Kiki's page no longer opens a team member's conversation on top of her. After Kiki updated itself overnight it could reopen the last conversation you had open as a see-through half panel covering the top tabs. Now that conversation stays closed on her page; opening one (for example "View original") takes you to Space and slides it in there, and going back to Ms. Kiki closes it.
 - Fixed: handoff cards no longer show an internal ticket number as their summary; they show what the job is.
