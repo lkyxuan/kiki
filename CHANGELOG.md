@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.60 — 2026-11-22
+- Added: two master switches at the top of Settings › Models › By task. "Fast" covers quick background chores and, if you leave it empty, automatically picks the cheapest model you have connected. "Accurate" covers jobs that need good judgment and follows your default model. Per-task choices now sit under "Fine-tune each task" and still override the switches.
+- Added: each task now shows how many times it ran, how many tokens it used and what it cost over the last 7 days, and the model list shows each model's price (or "subscription").
+
 ## 0.6.59 — 2026-11-22
 - Improved: Settings › Models › By task now lists every background job that uses AI, grouped into "background chores", "needs good judgment" and "special abilities". New choices: checking results, naming chats, sorting incoming mail, writing plans, reports and polish, and daily reviews. Checking results is the most frequent background call, so you can now give it a cheap model of its own. Anything you leave unset follows the same model as before.
 - Fixed: when Kiki's brain is a local Claude Code or Codex with no API model connected, filling in and rescuing dispatched jobs now goes through it again instead of being skipped.
