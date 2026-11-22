@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.65 — 2026-11-22
+- Improved: the archivist's nightly review is much easier to read. Each problem now gets its own card: a plain-language title saying what happened, one line for the cause, one line for the suggestion, and the task number in small print at the bottom of the card.
+- Improved: results that come back to you now start with who did what ("Archivist's result for …"), with the task number folded away at the bottom.
+- Improved: the daily direction check now lists the suggestions themselves instead of "board updated, 3 suggestions". Routine jobs like this no longer leave a "Waiting for you to check" card when they finish; you still get a card if they need an answer or something went wrong.
+
 ## 0.6.64 — 2026-11-22
 - Added: a daily background budget at the top of Settings › Models › By task. Once background chores have spent it, the rest of the day uses the cheapest model you have; at twice the budget they pause, except urgent jobs like handing out work. Kiki tells you when either happens, and the row shows today's spend. Leave it empty for no limit.
 - Added: each team member can have their own model. In Space › Members › settings, pick which model they work with and which model compacts their long conversations; leave them empty to follow your main settings.
