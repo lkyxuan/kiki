@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.71 — 2026-11-22
+- Fixed: a team member's card no longer pops back up when nothing new happened in that conversation (for example when its engine reconnects or retries quietly). Cards now come back only when there's a new reply to look at, and a card you marked Done stays done until then.
+
 ## 0.6.70 — 2026-11-22
 - Improved: in light mode, Kiki's page now shows the scene behind her (office, city view and so on) instead of a nearly blank white page. The background stays softer behind the review desk so text there is still easy to read.
 
