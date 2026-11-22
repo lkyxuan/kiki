@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.63 — 2026-11-22
+- Fixed: when an outside agent (for example Claude Code in your terminal) hands Kiki a task, the result now goes back to that agent instead of being passed around to other members. Before, a member could try to "hand it back", Kiki would give it to another member who couldn't take it, and the card ended in an error.
+- Fixed: the same leftover step can no longer bounce between members over and over; Kiki stops after the first time and shows the result.
+
 ## 0.6.62 — 2026-11-22
 - Added: on Ms. Kiki's page, opening a team member's task now plays out face to face. The member steps in on the right across from Ms. Kiki, the review desk steps aside, and the conversation runs between them: what was asked sits on her side, the member's replies on theirs. A tag under the member shows whether they're working, waiting for you, or done. Press Esc or × and they step out. After Kiki updates itself, the task you had open comes back quietly the same way.
 
