@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.67 — 2026-11-22
+- Fixed: on ultrawide, 2K and 4K screens, Kiki's speech bubble no longer sits on top of her head. It now follows her portrait, stays just to the right of her head on every screen size, and grows a little on big screens so it's easier to read.
+
 ## 0.6.66 — 2026-11-22
 - Fixed: when a team member gets stuck on something you can't fix by answering (a broken connection, a missing way back to another agent), Kiki no longer dresses it up as a question for you. It reports the job as not done, or shows a "Stuck" card with the member's own words instead of "Waiting for your answer".
 - Added: every "waiting for your answer" card now has a Close button, so you can drop a question you don't want to answer; the job behind it stops too. Failed and interrupted cards get a "Got it" button to dismiss them.
