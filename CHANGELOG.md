@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.61 — 2026-11-22
+- Added: you can now pick a separate model for compacting long conversations (Settings › Models › By task › Compact context). When a working conversation gets long, that model writes the summary; if you leave it empty, or it fails, the conversation's own model does it as before.
+- Added: every task in Settings › Models › By task now has a thinking level (off / low / medium / high) and a backup model. If the main model fails (rate limit, out of credit, provider down), Kiki tries the backup once. Rows you leave alone follow the row above them, like the model does.
+
 ## 0.6.60 — 2026-11-22
 - Added: two master switches at the top of Settings › Models › By task. "Fast" covers quick background chores and, if you leave it empty, automatically picks the cheapest model you have connected. "Accurate" covers jobs that need good judgment and follows your default model. Per-task choices now sit under "Fine-tune each task" and still override the switches.
 - Added: each task now shows how many times it ran, how many tokens it used and what it cost over the last 7 days, and the model list shows each model's price (or "subscription").
