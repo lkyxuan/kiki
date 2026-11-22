@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.70 — 2026-11-22
+- Improved: in light mode, Kiki's page now shows the scene behind her (office, city view and so on) instead of a nearly blank white page. The background stays softer behind the review desk so text there is still easy to read.
+
 ## 0.6.69 — 2026-11-22
 - Fixed: when you open a "Waiting for your answer", "Stuck" or failed card from the review desk, the conversation now shows a Close (or Got it) button at the top, so you can clear the card right there instead of going back to find it. On the full Kiki page, the team member then steps away and you're back at the desk.
 
