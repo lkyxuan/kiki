@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.80 — 2026-11-23
+- Added: on Kiki's page, the scene behind her now follows your to-dos. The more decisions waiting on the review desk, the darker and softer the background, so you can focus. As you clear them it slowly comes back, and when the desk is empty it opens up like daybreak. A round with only one or two decisions is only slightly dimmed. You can turn this off in Settings › Appearance.
+
 ## 0.6.79 — 2026-11-23
 - Improved: when Kiki hands a task to a team member, a small card showing who got it and what the task is now flies into that member's spot in the "Working" row, which stays highlighted and marked "New" for a moment. This replaces the thin orange line that sometimes shot off into an empty corner. On narrow windows, Kiki just says who she handed it to.
 - Fixed: the hand-off effect no longer plays for scheduled jobs or work you started yourself, only for work Kiki actually handed out.
