@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.78 — 2026-11-23
+- Added: the coding CLIs you open yourself in Terminal (Gemini CLI, Qwen Code, Kimi Code, Copilot CLI, Grok, Qoder, Factory Droid, OpenCode, Crush and Amp) now get Kiki's tools too, so they can ask Kiki, use Kiki's browser and hand work to Kiki. Kiki backs up each settings file first, leaves anything already named "kiki" alone, and removes only its own entry if you turn this off in Settings › Capabilities.
+- Added: team members running on Grok can now use Kiki's tools when they work in their own folder.
+- Fixed: team members running on Gemini CLI keep using their own connection to Kiki even when your personal Gemini settings also include Kiki.
+
 ## 0.6.77 — 2026-11-23
 - Added: team members whose Claude Code or Codex runs on another computer can now use Kiki's tools there too: they hand in their work, pass jobs on and use Kiki's browser just like members on this Mac. Kiki connects back over the same SSH it already uses for that computer, so there is nothing to install or set up on the other side.
 
