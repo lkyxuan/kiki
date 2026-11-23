@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.86 — 2026-11-23
+- Added: Ops can now look at your Mac for you. Ask "why is my computer so slow?" or "what's filling my disk?" and it checks CPU, memory, disk space, battery, temperature and the apps using the most, then tells you the cause and what to do.
+- Added: Kiki keeps an eye on your Mac in the background and tells you once a day per issue when the disk is nearly full, memory is tight, the CPU stays hot or one app keeps maxing out the CPU. Tell Ops to change when it warns you (for example "warn me when disk is below 5%"), or turn it off under Settings › Capabilities. It doesn't use any AI credits.
+
 ## 0.6.85 — 2026-11-23
 - Improved: Settings open much faster when Kiki is running on another computer. Kiki keeps the page's scripts and fonts cached and only loads each section's data when you open that section. Opening Settings again now shows text in under a second instead of about two.
 - Improved: while Settings are loading you now see "Loading settings…" instead of a blank box. If the other computer is slow or unreachable, Kiki says which computer it is waiting for.
