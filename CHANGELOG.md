@@ -5,6 +5,15 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.75 — 2026-11-23
+- Fixed: on Settings › Providers › DeepSeek, a key entered with “Change key” now clearly replaces the old one. Kiki keeps only one DeepSeek key: the key under “Advanced” is updated to the same new key, the label shows the key now in use (masked), and “Test connection” tests that key. Saving a key under “Advanced” likewise replaces the one entered with “Change key”.
+- Fixed: the “OK” button in the key box no longer occasionally ignores a click while the page refreshes.
+
+## 0.6.74 — 2026-11-23
+- Added: Kiki now protects its task ledger with a hash chain. Every entry is linked to the one before it, and Kiki checks the whole ledger at startup and during the nightly review. If an entry was changed or removed, Kiki tells you which file and line.
+- Improved: Kiki saves a snapshot of every task's status once a day and when it quits, so it starts up faster when the ledger gets long. If the snapshot doesn't match the ledger, Kiki ignores it and rebuilds from the ledger itself.
+- Fixed: if the Mac lost power while Kiki was writing a ledger entry, the next entry could get stuck onto the half-written one. Kiki now seals off the broken line on startup.
+
 ## 0.6.73 — 2026-11-23
 - Fixed (security): team members can no longer use Kiki's local interface to read your conversations, change approval settings, edit other members' instructions or approve things on your behalf. Kiki's own window now carries a private key that members can't read, and local requests without it are refused.
 - Changed: to open Kiki in a regular browser on the same computer, or on your phone through Tailscale Serve, use the link in Settings › Remote (it includes the key) the first time. If the Mac app on another computer connects through an https://….ts.net address, paste that same link into “Connect to…” once. The Mac app on the same computer, and connecting by Tailscale IP, work as before.
