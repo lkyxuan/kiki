@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.87 — 2026-11-23
+- Changed: when there's a lot waiting for you on Kiki's page, the scene behind her now only gets darker and duller. It no longer gets blurry.
+
 ## 0.6.86 — 2026-11-23
 - Added: Ops can now look at your Mac for you. Ask "why is my computer so slow?" or "what's filling my disk?" and it checks CPU, memory, disk space, battery, temperature and the apps using the most, then tells you the cause and what to do.
 - Added: Kiki keeps an eye on your Mac in the background and tells you once a day per issue when the disk is nearly full, memory is tight, the CPU stays hot or one app keeps maxing out the CPU. Tell Ops to change when it warns you (for example "warn me when disk is below 5%"), or turn it off under Settings › Capabilities. It doesn't use any AI credits.
