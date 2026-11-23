@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.73 — 2026-11-23
+- Fixed (security): team members can no longer use Kiki's local interface to read your conversations, change approval settings, edit other members' instructions or approve things on your behalf. Kiki's own window now carries a private key that members can't read, and local requests without it are refused.
+- Changed: to open Kiki in a regular browser on the same computer, or on your phone through Tailscale Serve, use the link in Settings › Remote (it includes the key) the first time. If the Mac app on another computer connects through an https://….ts.net address, paste that same link into “Connect to…” once. The Mac app on the same computer, and connecting by Tailscale IP, work as before.
+
 ## 0.6.72 — 2026-11-23
 - Improved: Kiki now works out most "done / waiting for you / stuck" cards from what actually happened (a team member handed in, asked you, or just answered; an outside agent changed files, pushed code, or only chatted), and only asks a small model when it can't tell. Cards show up faster and use far fewer background tokens.
 
