@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.97 — 2026-11-24
+- Improved: on Kiki's page, opening a conversation from a card keeps you on the page. The card that needs you pops up on the right, just like on the desk, so you can approve, mark it done, pick an option or type a reply right there instead of using the bar at the top.
+- Fixed: a desk card from an outside agent (like a Claude Code conversation) now says which app it is, with the tagged team member shown next to it, instead of looking like it came from that member.
+
 ## 0.6.96 — 2026-11-24
 - Added: before every update, Kiki now keeps a full copy of your data. If a new version fails to start, Kiki goes back to the previous version together with the data exactly as it was before the update. Whatever the failed version changed is kept in a separate folder next to your data, not deleted.
 - Improved: if that copy cannot be made (for example the disk is full), Kiki skips the update and tells you why instead of updating without a safety net.
