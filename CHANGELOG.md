@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.92 — 2026-11-23
+- Added: a Trace view in Space that works like a block explorer for your tasks. Click any task to see where it came from, which tasks it sent out, and whose results it used; go back step by step along the path you clicked; and read just the part of the conversation where that task was done. Each task shows its line and fingerprint in the tamper-proof task ledger, with a badge saying whether the ledger checks out.
+
 ## 0.6.91 — 2026-11-23
 - Fixed: on Kiki's page, her lower body is no longer hidden behind a blurry fade. She now stands all the way down to the bottom edge of the window on every screen size.
 
