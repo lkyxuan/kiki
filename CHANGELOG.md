@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.96 — 2026-11-24
+- Added: before every update, Kiki now keeps a full copy of your data. If a new version fails to start, Kiki goes back to the previous version together with the data exactly as it was before the update. Whatever the failed version changed is kept in a separate folder next to your data, not deleted.
+- Improved: if that copy cannot be made (for example the disk is full), Kiki skips the update and tells you why instead of updating without a safety net.
+
 ## 0.6.95 — 2026-11-24
 - Changed: background chores now have a daily budget of $1 by default. When it is reached, the rest of the day uses the cheapest model; at twice the budget they pause, and urgent jobs keep going. Kiki tells you when either happens. Work done through a subscription login does not count. Change the amount in Settings › Models, or enter 0 for no limit.
 
