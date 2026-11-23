@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.93 — 2026-11-24
+- Improved: everything waiting on you now comes from one list with only three kinds of items: things to approve, things to answer, and finished work to check. The sidebar, the overview, Kiki's desk and the desk pet all show that same list.
+- Fixed: one conversation no longer shows two differently worded cards for the same thing. An approval that is waiting on you is not covered by a "ready to check" card any more.
+- Fixed: when Kiki or a teammate has only passed a task on and is still waiting for someone else, you no longer get a "ready to check" card. You get it once, when the whole thing is done.
+
 ## 0.6.92 — 2026-11-23
 - Added: a Trace view in Space that works like a block explorer for your tasks. Click any task to see where it came from, which tasks it sent out, and whose results it used; go back step by step along the path you clicked; and read just the part of the conversation where that task was done. Each task shows its line and fingerprint in the tamper-proof task ledger, with a badge saying whether the ledger checks out.
 
