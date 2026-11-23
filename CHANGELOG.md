@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.82 — 2026-11-23
+- Fixed: team members set to work on another computer couldn't start at all. Kiki sent the start command before that computer's terminal was ready, and the terminal refused it. Kiki now waits for the terminal and then sends it.
+
 ## 0.6.81 — 2026-11-23
 - Improved: when the review desk on Kiki's page is empty, the scene behind her now shows in full, bright and sharp, with no dimming or blur. The usual soft overlay comes back as soon as there's something for you to decide.
 
