@@ -8,6 +8,7 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 ## 0.6.75 — 2026-11-23
 - Fixed: on Settings › Providers › DeepSeek, a key entered with “Change key” now clearly replaces the old one. Kiki keeps only one DeepSeek key: the key under “Advanced” is updated to the same new key, the label shows the key now in use (masked), and “Test connection” tests that key. Saving a key under “Advanced” likewise replaces the one entered with “Change key”.
 - Fixed: the “OK” button in the key box no longer occasionally ignores a click while the page refreshes.
+- Fixed: the 0.6.74 build didn't start, so its task ledger hash chain and startup snapshot ship in this version instead.
 
 ## 0.6.74 — 2026-11-23
 - Added: Kiki now protects its task ledger with a hash chain. Every entry is linked to the one before it, and Kiki checks the whole ledger at startup and during the nightly review. If an entry was changed or removed, Kiki tells you which file and line.
