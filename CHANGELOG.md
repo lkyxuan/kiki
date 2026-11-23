@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.76 — 2026-11-23
+- Fixed: on Kiki's page, the Work and Life places on the map were always empty because Kiki put every card from outside agents (Claude Code, Codex and others) into HQ. Now HQ only holds cards from Kiki and its built-in crew. A member's cards go to Life when the member's project tag is life, home or personal, and to Work otherwise.
+- Added: when an outside agent starts a new conversation, Kiki decides whether it is work or life in the same quick check that matches it to a member. It remembers the answer for that folder or project, so later conversations from the same place are sorted without asking the model again. Conversations started from a general folder like your home folder, Desktop or Downloads are judged one by one. Anything Kiki can't place goes to Work.
+
 ## 0.6.75 — 2026-11-23
 - Fixed: on Settings › Providers › DeepSeek, a key entered with “Change key” now clearly replaces the old one. Kiki keeps only one DeepSeek key: the key under “Advanced” is updated to the same new key, the label shows the key now in use (masked), and “Test connection” tests that key. Saving a key under “Advanced” likewise replaces the one entered with “Change key”.
 - Fixed: the “OK” button in the key box no longer occasionally ignores a click while the page refreshes.
