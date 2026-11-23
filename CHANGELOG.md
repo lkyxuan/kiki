@@ -5,6 +5,15 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.83 — 2026-11-23
+- Improved: when a member asks you to choose, each option now comes with one line on what happens if you pick it, and Kiki marks the option it recommends and says why.
+- Improved: choice cards now sit in the conversation under the latest message instead of floating over the input box, and each card ends with its own reply box. Type there to answer that card, and the card goes away once it's sent.
+- Improved: hand-off and suggestion cards are written for you: no internal tool or field names, the "what's missing" line appears once instead of three times, and anything you need to do is called out on its own line.
+- Improved: scheduled jobs show their name ("Scheduled job: …") instead of the raw instructions sent to the member.
+- Fixed: the weekly check of members' job descriptions no longer gets stuck trying to read other members' conversations; it now works from each member's recent jobs.
+- Fixed: when a member is stuck on something another member has, Kiki asks that member directly instead of asking you.
+- Fixed: cards for cloud agent threads keep the thread's own name instead of a one-word reply like "OK".
+
 ## 0.6.82 — 2026-11-23
 - Fixed: team members set to work on another computer couldn't start at all. Kiki sent the start command before that computer's terminal was ready, and the terminal refused it. Kiki now waits for the terminal and then sends it.
 
