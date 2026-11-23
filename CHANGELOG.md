@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.81 — 2026-11-23
+- Improved: when the review desk on Kiki's page is empty, the scene behind her now shows in full, bright and sharp, with no dimming or blur. The usual soft overlay comes back as soon as there's something for you to decide.
+
 ## 0.6.80 — 2026-11-23
 - Added: on Kiki's page, the scene behind her now follows your to-dos. The more decisions waiting on the review desk, the darker and softer the background, so you can focus. As you clear them it slowly comes back, and when the desk is empty it opens up like daybreak. A round with only one or two decisions is only slightly dimmed. You can turn this off in Settings › Appearance.
 
