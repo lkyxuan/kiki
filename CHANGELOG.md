@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.94 — 2026-11-24
+- Improved: safer local controls. Every action in Kiki that changes something (approving, updating, restarting, changing settings) can no longer be triggered just by opening a link or loading an image address.
+
 ## 0.6.93 — 2026-11-24
 - Improved: everything waiting on you now comes from one list with only three kinds of items: things to approve, things to answer, and finished work to check. The sidebar, the overview, Kiki's desk and the desk pet all show that same list.
 - Fixed: one conversation no longer shows two differently worded cards for the same thing. An approval that is waiting on you is not covered by a "ready to check" card any more.
