@@ -5,6 +5,12 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.85 — 2026-11-23
+- Improved: Settings open much faster when Kiki is running on another computer. Kiki keeps the page's scripts and fonts cached and only loads each section's data when you open that section. Opening Settings again now shows text in under a second instead of about two.
+- Improved: while Settings are loading you now see "Loading settings…" instead of a blank box. If the other computer is slow or unreachable, Kiki says which computer it is waiting for.
+- Improved: when you tap Approve or an option on a card, the button changes to "Sending…" right away and then to "Received ✓". If the tap doesn't go through, the button comes back and Kiki tells you why, so you can tap again.
+- Improved: on Kiki's page, the undo bar now counts down "sending in 5s" and then says "Sent", so it's clear the decision is waiting for the undo window and not stuck.
+
 ## 0.6.84 — 2026-11-23
 - Fixed: when a Codex team member wanted to use one of Kiki's tools (like the browser) and Codex asked for permission first, Kiki didn't recognize the question, so no card appeared and the job just sat there. It now shows up as an approval card like any other.
 
