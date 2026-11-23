@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.79 — 2026-11-23
+- Improved: when Kiki hands a task to a team member, a small card showing who got it and what the task is now flies into that member's spot in the "Working" row, which stays highlighted and marked "New" for a moment. This replaces the thin orange line that sometimes shot off into an empty corner. On narrow windows, Kiki just says who she handed it to.
+- Fixed: the hand-off effect no longer plays for scheduled jobs or work you started yourself, only for work Kiki actually handed out.
+
 ## 0.6.78 — 2026-11-23
 - Added: the coding CLIs you open yourself in Terminal (Gemini CLI, Qwen Code, Kimi Code, Copilot CLI, Grok, Qoder, Factory Droid, OpenCode, Crush and Amp) now get Kiki's tools too, so they can ask Kiki, use Kiki's browser and hand work to Kiki. Kiki backs up each settings file first, leaves anything already named "kiki" alone, and removes only its own entry if you turn this off in Settings › Capabilities.
 - Added: team members running on Grok can now use Kiki's tools when they work in their own folder.
