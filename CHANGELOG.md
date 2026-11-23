@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.84 — 2026-11-23
+- Fixed: when a Codex team member wanted to use one of Kiki's tools (like the browser) and Codex asked for permission first, Kiki didn't recognize the question, so no card appeared and the job just sat there. It now shows up as an approval card like any other.
+
 ## 0.6.83 — 2026-11-23
 - Improved: when a member asks you to choose, each option now comes with one line on what happens if you pick it, and Kiki marks the option it recommends and says why.
 - Improved: choice cards now sit in the conversation under the latest message instead of floating over the input box, and each card ends with its own reply box. Type there to answer that card, and the card goes away once it's sent.
