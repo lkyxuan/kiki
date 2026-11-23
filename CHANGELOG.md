@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.95 — 2026-11-24
+- Changed: background chores now have a daily budget of $1 by default. When it is reached, the rest of the day uses the cheapest model; at twice the budget they pause, and urgent jobs keep going. Kiki tells you when either happens. Work done through a subscription login does not count. Change the amount in Settings › Models, or enter 0 for no limit.
+
 ## 0.6.94 — 2026-11-24
 - Improved: safer local controls. Every action in Kiki that changes something (approving, updating, restarting, changing settings) can no longer be triggered just by opening a link or loading an image address.
 
