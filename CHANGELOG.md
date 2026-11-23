@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.91 — 2026-11-23
+- Fixed: on Kiki's page, her lower body is no longer hidden behind a blurry fade. She now stands all the way down to the bottom edge of the window on every screen size.
+
 ## 0.6.90 — 2026-11-23
 - Improved: Codex team members no longer stop to ask your permission every time they use one of Kiki's own tools (like the browser). Kiki still asks you itself before anything risky, such as posting or spending money.
 
