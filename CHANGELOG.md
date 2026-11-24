@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.6.99 — 2026-11-24
+- Fixed: with a translucent theme like SAO, the first-launch “Want Kiki with you?” screen and the “Give Kiki a brain” screen no longer let the app behind show through and overlap the text — the background is now frosted.
+
 ## 0.6.98 — 2026-11-24
 - Fixed: a question Kiki is waiting on you to answer no longer disappears just because you said something about a different matter. Each matter keeps its own card until you answer it or close it.
 
