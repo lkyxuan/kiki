@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.5 — 2026-11-24
+- Improved: the list of things that need you (approve, answer, review) is now put together in one place behind the scenes, so every screen and every device shows the same list. Tapping “Got it” on a failed or interrupted task now clears it everywhere, not just in the browser you tapped it in.
+
 ## 0.7.4 — 2026-11-24
 - Improved: what team members hand back to you, the questions they ask you, the choices they put in front of you, and Kiki's own replies now follow the same short-and-clear rules as suggestion cards. Overlong answers, repeats of what you already said, and internal tool names are sent back to be rewritten before you see them.
 
