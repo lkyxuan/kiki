@@ -3,7 +3,8 @@
 Every Kiki release, newest first. Kiki updates itself; you can also read this in the app under Settings › Software Update, or online at [getkiki.ai/changelog](https://getkiki.ai/changelog/).
 
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
-     (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
+     (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
+     and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
 ## 0.7.21 — 2026-11-24
 - Improved: opening a team member's main conversation now shows all of that member's conversations next to it, listed the way a chat app lists threads, instead of opening one of them for you. A conversation opens only when you click it, and the arrow at its top left takes you back to the list. They are grouped into waiting for you, working, recent and done, and each one shows a status icon, the latest line of progress, how long ago it moved, its job number (click it to trace the job) and any pull request it is watching. Files the member handed in sit in a row at the top of the right side, ready to open.
