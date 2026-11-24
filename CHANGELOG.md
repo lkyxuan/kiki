@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.6 — 2026-11-24
+- Improved: a team member's settings now show, under who does the work, whose rules that engine follows and which of the five things it can tell Kiki: taking a job, handing it in, getting stuck, asking for approval, asking you a question. Only engines that can take and hand in jobs can be picked for a team member.
+
 ## 0.7.5 — 2026-11-24
 - Improved: the list of things that need you (approve, answer, review) is now put together in one place behind the scenes, so every screen and every device shows the same list. Tapping “Got it” on a failed or interrupted task now clears it everywhere, not just in the browser you tapped it in.
 
