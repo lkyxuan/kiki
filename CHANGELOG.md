@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.10 — 2026-11-24
+- Added: the Kiki page now shows which version of Kiki you're running, in small type right after “Ms. Kiki” in the top-left corner.
+
 ## 0.7.9 — 2026-11-24
 - Fixed: a team member that hands work to Antigravity no longer gets stuck after reading a brief or web page. Sending to the remote conversation written in its own description just works, and sending anywhere unfamiliar now shows a card with an Approve button instead of stopping with no way to say yes. Tap "always" on that card to trust that conversation from then on.
 
