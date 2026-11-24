@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.2 — 2026-11-24
+- Improved: suggestion cards (like "add a new team member?") are now short and easy to scan: one question, one sentence on what happens, and a one-line reason. They no longer repeat what you already said or show the internal rules meant for the team member; those go into the member's own profile when you tap OK.
+
 ## 0.7.1 — 2026-11-24
 - Added: when background work quietly stops because a model key has expired, an account has run out of credit, or a chosen model no longer exists, Kiki now tells you once with a card that says what broke, which background jobs are paused, and where to fix it. The card goes away by itself once the problem is fixed, and you are not reminded again in the meantime.
 
