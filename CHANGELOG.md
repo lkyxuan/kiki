@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.7 — 2026-11-24
+- Added: team members can hand work to your Antigravity remote conversations (start a new one, send a message, check whether it finished and read the answer, or stop it) through a Chrome profile with the Kiki extension that is signed in to Antigravity.
+
 ## 0.7.6 — 2026-11-24
 - Improved: a team member's settings now show, under who does the work, whose rules that engine follows and which of the five things it can tell Kiki: taking a job, handing it in, getting stuck, asking for approval, asking you a question. Only engines that can take and hand in jobs can be picked for a team member.
 
