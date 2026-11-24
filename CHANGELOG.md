@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.15 — 2026-11-24
+- Improved: a team member that hands work to Antigravity now starts a new conversation in your Antigravity project for each new job, instead of piling every job into one conversation. It only keeps talking in an existing conversation when following up on that same job.
+
 ## 0.7.14 — 2026-11-24
 - Changed: team members no longer show placeholder portrait photos anywhere. Every member uses its logo tile again, and in a face-to-face talk on Kiki's page the member now appears as a small glowing robot floating in the scene, in its own color, instead of a big portrait card. New character art will come later.
 
