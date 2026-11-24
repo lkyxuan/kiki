@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.16 — 2026-11-24
+- Improved: opening a team member's main conversation now also opens one of its task conversations on the right, like a chat app with a thread pane: the one waiting for you first, then one that is working, then the one you looked at last, then the most recent. When you say something and the member starts a new task for it, the right side switches to that task so you can watch it work. On narrow laptop windows nothing opens by itself, so your chat is never covered.
+
 ## 0.7.15 — 2026-11-24
 - Improved: a team member that hands work to Antigravity now starts a new conversation in your Antigravity project for each new job, instead of piling every job into one conversation. It only keeps talking in an existing conversation when following up on that same job.
 
