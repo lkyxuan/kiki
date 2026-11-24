@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.1 — 2026-11-24
+- Added: when background work quietly stops because a model key has expired, an account has run out of credit, or a chosen model no longer exists, Kiki now tells you once with a card that says what broke, which background jobs are paused, and where to fix it. The card goes away by itself once the problem is fixed, and you are not reminded again in the meantime.
+
 ## 0.7.0 — 2026-11-24
 - Fixed: when typing with a Chinese (or other) input method, pressing Enter right after picking a word now sends your message straight away, instead of sometimes adding a new line. The Enter you press to confirm a word still never sends.
 
