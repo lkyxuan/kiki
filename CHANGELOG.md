@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.12 — 2026-11-24
+- Improved: in a team member's conversation, the card that asks you to check or answer something no longer sits in a strip across the top. It now pops up from the bottom right, just above the input box, looking and sitting like the cards on Kiki's review desk, so "Done" is in the same place everywhere. Tap "Later" to put the card away until something new comes in.
+
 ## 0.7.11 — 2026-11-24
 - Fixed: when a team member checks on work it handed to Antigravity, it no longer sees the answer to an earlier message as if it were new. Until Antigravity answers the latest message, the member sees what Antigravity is doing right now: files it opened, commands it ran, and what it is thinking.
 
