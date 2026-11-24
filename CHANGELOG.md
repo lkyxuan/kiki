@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.18 — 2026-11-24
+- Improved: talking with a team member on Kiki's page now looks like one game screen instead of business panels. The conversation sits in a single angled "comms deck" that runs from just under the top tabs to the bottom of the window, with the task's steps as a row of step tiles, each line of talk on its own row, and the "for you" card and input built in. Kiki stays full size, and the member's glowing robot floats at her head height across from her.
+
 ## 0.7.17 — 2026-11-24
 - Fixed: images you attach when asking Kiki for something now travel with the job to every member it is handed to, including a member HR just hired for it, so they no longer ask you to send the picture again.
 - Fixed: when you answer a team member's question inside its conversation, your bubble now shows only what you typed, without the internal wrapper text around it.
