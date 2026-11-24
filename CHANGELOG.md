@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.4 — 2026-11-24
+- Improved: what team members hand back to you, the questions they ask you, the choices they put in front of you, and Kiki's own replies now follow the same short-and-clear rules as suggestion cards. Overlong answers, repeats of what you already said, and internal tool names are sent back to be rewritten before you see them.
+
 ## 0.7.3 — 2026-11-24
 - Improved: when you tap a card on Kiki's page to see what's waiting for you, the conversation now shows just this part — your last message and the replies since — instead of the whole history. Tap "earlier messages" at the top to see everything.
 - Fixed: opening Kiki's own conversation from a card now shows your messages on the right and Kiki's on the left, without a second Kiki standing opposite her.
