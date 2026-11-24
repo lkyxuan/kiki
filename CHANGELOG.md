@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.19 — 2026-11-24
+- Added: Kiki now has a small icon in the Mac menu bar. It turns orange with a count when something is waiting for you. Click it to see those items and open any of them, see who is working, open Kiki, turn the desk pet on or off, or pause alerts for an hour. You can turn the icon off under View › Menu Bar Icon.
+- Added: global shortcuts that work from any app: Option-Command-K opens Kiki, and Option-Command-J opens a small box where you can type a message to Kiki and press Return. You can turn them off in the Kiki menu.
+
 ## 0.7.18 — 2026-11-24
 - Improved: talking with a team member on Kiki's page now looks like one game screen instead of business panels. The conversation sits in a single angled "comms deck" that runs from just under the top tabs to the bottom of the window, with the task's steps as a row of step tiles, each line of talk on its own row, and the "for you" card and input built in. Kiki stays full size, and the member's glowing robot floats at her head height across from her.
 
