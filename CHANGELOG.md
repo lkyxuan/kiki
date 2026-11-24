@@ -5,7 +5,14 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.13 — 2026-11-24
+
+- Improved: when a team member gets stuck and asks you, the card now offers 2 to 3 ready-made choices Kiki thought up for that situation, each with a line on what happens if you pick it and one marked as recommended. "Not now" is always there, and you can still type your own answer below.
+- Fixed: when HR has already put a suggestion card in front of you (for example "Hire a network manager?"), it no longer also says it is stuck and adds a second card with only "Not now". It just says it is waiting for you to decide on that card.
+- Added: Settings › Models has a new line, "Options when stuck", so you can pick which model drafts those choices.
+
 ## 0.7.12 — 2026-11-24
+
 - Improved: in a team member's conversation, the card that asks you to check or answer something no longer sits in a strip across the top. It now pops up from the bottom right, just above the input box, looking and sitting like the cards on Kiki's review desk, so "Done" is in the same place everywhere. Tap "Later" to put the card away until something new comes in.
 
 ## 0.7.11 — 2026-11-24
