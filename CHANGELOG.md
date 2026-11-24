@@ -5,6 +5,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.20 — 2026-11-24
+- Improved: HR's suggestion cards are shorter. The card now shows just the question and one short line on what happens if you say yes. The reason (who on your team comes closest) no longer takes up space on the card; hover over the card to see it.
+- Fixed: when a team member has put a suggestion card in front of you, the message under it no longer repeats the card or shows the hand-off notes meant for Kiki. It just says it is waiting for you on the card above.
+- Fixed: hand-off notes about which member picks up the rest of a job are no longer shown to you anywhere; Kiki still gets them and passes the work on.
+
 ## 0.7.19 — 2026-11-24
 - Added: Kiki now has a small icon in the Mac menu bar. It turns orange with a count when something is waiting for you. Click it to see those items and open any of them, see who is working, open Kiki, turn the desk pet on or off, or pause alerts for an hour. You can turn the icon off under View › Menu Bar Icon.
 - Added: global shortcuts that work from any app: Option-Command-K opens Kiki, and Option-Command-J opens a small box where you can type a message to Kiki and press Return. You can turn them off in the Kiki menu.
