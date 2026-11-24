@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.9 — 2026-11-24
+- Fixed: a team member that hands work to Antigravity no longer gets stuck after reading a brief or web page. Sending to the remote conversation written in its own description just works, and sending anywhere unfamiliar now shows a card with an Approve button instead of stopping with no way to say yes. Tap "always" on that card to trust that conversation from then on.
+
 ## 0.7.8 — 2026-11-24
 - Improved: on Kiki's page, tapping a card about something Kiki herself is waiting on no longer opens a chat window. Kiki tells you right in her speech bubble: a short quote of what you last said, then what she needs from you, with her question in bold. The bubble is larger and closer to the middle of the screen, with a tail pointing at Kiki. You can answer right inside it: tap one of her choices, or type a reply. Tap "Read all" to see the full history.
 
