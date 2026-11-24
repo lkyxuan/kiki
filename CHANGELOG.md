@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.8 — 2026-11-24
+- Improved: on Kiki's page, tapping a card about something Kiki herself is waiting on no longer opens a chat window. Kiki tells you right in her speech bubble: a short quote of what you last said, then what she needs from you, with her question in bold. The bubble is larger and closer to the middle of the screen, with a tail pointing at Kiki. You can answer right inside it: tap one of her choices, or type a reply. Tap "Read all" to see the full history.
+
 ## 0.7.7 — 2026-11-24
 - Added: team members can hand work to your Antigravity remote conversations (start a new one, send a message, check whether it finished and read the answer, or stop it) through a Chrome profile with the Kiki extension that is signed in to Antigravity.
 
