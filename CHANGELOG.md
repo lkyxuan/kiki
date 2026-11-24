@@ -5,6 +5,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.17 — 2026-11-24
+- Fixed: images you attach when asking Kiki for something now travel with the job to every member it is handed to, including a member HR just hired for it, so they no longer ask you to send the picture again.
+- Fixed: when you answer a team member's question inside its conversation, your bubble now shows only what you typed, without the internal wrapper text around it.
+
 ## 0.7.16 — 2026-11-24
 - Improved: opening a team member's main conversation now also opens one of its task conversations on the right, like a chat app with a thread pane: the one waiting for you first, then one that is working, then the one you looked at last, then the most recent. When you say something and the member starts a new task for it, the right side switches to that task so you can watch it work. On narrow laptop windows nothing opens by itself, so your chat is never covered.
 
