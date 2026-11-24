@@ -5,6 +5,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
 <!-- One section per release: "## <version> — <YYYY-MM-DD>", then one bullet per change in plain English that a user understands
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. Each PR that bumps package.json adds its section on top. -->
 
+## 0.7.11 — 2026-11-24
+- Fixed: when a team member checks on work it handed to Antigravity, it no longer sees the answer to an earlier message as if it were new. Until Antigravity answers the latest message, the member sees what Antigravity is doing right now: files it opened, commands it ran, and what it is thinking.
+
 ## 0.7.10 — 2026-11-24
 - Added: the Kiki page now shows which version of Kiki you're running, in small type right after “Ms. Kiki” in the top-left corner.
 
