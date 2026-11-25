@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.69 — 2026-11-26
+- Fixed: Notification cards in the chat log now show three full lines when collapsed (click to read the rest), instead of a cut-off half line.
+- Fixed: Notices under Kiki's reply are now a plain, light list instead of a row of framed boxes that looked like answer buttons, including while the log is open.
+- Improved: Space and Trace now follow the style picked in Settings › Appearance: Trace uses that style's colors and corners, and cards show status with a small dot instead of a full-width colored band.
+
 ## 0.7.68 — 2026-11-26
 - Improved: Settings › Providers is now split into AI models and tool services, so every key lives on one page.
 - Added: a Custom entry under AI models connects any OpenAI- or Anthropic-compatible endpoint (relays, in-house servers, local Ollama or LM Studio), and you can add several.
