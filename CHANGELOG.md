@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.31 — 2026-11-25
+- Improved: On a new install, Kiki no longer picks a pay-per-use model for background chores on its own. The first time one is needed, Kiki asks once, showing the cheapest model and its price, and only uses it after you say yes. Existing installs keep working as before.
+
 ## 0.7.30 — 2026-11-25
 - Fixed: When a member's browser is paused and waiting for you, it now shows up under "Needs you" with a Continue button, instead of a floating bar covering the Space overview.
 - Changed: The "member is using your browser" bar now appears only in that member's own chat, not on every page.
