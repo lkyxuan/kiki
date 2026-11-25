@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.62 — 2026-11-26
+- Added: Every approval card now has "Always allow", including cards on the Kiki page and Space. For Claude Code permission requests it passes back Claude Code's own "don't ask again" rule.
+
 ## 0.7.61 — 2026-11-26
 - Added: Settings › Auto-approve now has "Trusted sources": tasks handed to Kiki by agents you connected yourself (such as Claude Code or Codex) are treated as your own request, so Kiki asks you instead of refusing outright.
 
