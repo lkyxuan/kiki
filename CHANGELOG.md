@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.65 — 2026-11-26
+- Fixed: The "stuck" cards from team members now open with a short plain sentence instead of the member's raw note with ticket numbers and jargon.
+- Fixed: When two team members keep sending the same missing-material request back and forth, Kiki now asks you after the second time instead of opening more tickets.
+
 ## 0.7.64 — 2026-11-26
 - Improved: The send allowlist is now a list you tick instead of a text box, and anything you approved once on a card shows up under "Always allow" so you can make it automatic with one switch.
 
