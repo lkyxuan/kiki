@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.55 — 2026-11-25
+- Improved: short texts Kiki writes for you in the background (quick replies, button choices, card summaries, conversation names, overview recaps, suggestions and plans) now follow the same plain-language rules and leave out commit hashes and ticket numbers.
+
 ## 0.7.54 — 2026-11-25
 - Fixed: When Kiki reports back, anything not done yet or only checked comes first instead of in the last line.
 
