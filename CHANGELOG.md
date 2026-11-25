@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.23 — 2026-11-25
+- Improved: Kiki no longer suggests adding a new team member unless she can name the existing member who comes closest and say why that member can't take the work. How often she asks is now counted, so repeated asks point at a member whose description needs fixing instead of at yet another hire.
+
 ## 0.7.22 — 2026-11-25
 - Improved: in a team member's list of conversations, a job that was split up and handed to other members now shows how many pieces it became and how many are finished, for example "split into 3 · 2 done".
 - Improved: when a team member fetches something from the internet with a command (a web page, a GitHub thread), Kiki now treats what came back as outside content, the same as mail or web search results. For the rest of that turn, sending, paying or deleting still needs a target you named or allowed.
