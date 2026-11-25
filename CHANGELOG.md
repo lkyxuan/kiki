@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.66 — 2026-11-26
+- Fixed: Claude Code members no longer get stuck on the "add this directory" prompt or on approving Kiki's own tools when nobody is watching.
+
 ## 0.7.65 — 2026-11-26
 - Fixed: The "stuck" cards from team members now open with a short plain sentence instead of the member's raw note with ticket numbers and jargon.
 - Fixed: When two team members keep sending the same missing-material request back and forth, Kiki now asks you after the second time instead of opening more tickets.
