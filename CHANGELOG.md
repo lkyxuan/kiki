@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.35 — 2026-11-25
+- Fixed: When a member loses its connection to the model mid-job, Kiki now waits and lets it carry on by itself (after 1, 2, 3, 5, 8… minutes) instead of nagging it to hand in and marking the job stuck; repeated identical errors show as one line with a count.
+
 ## 0.7.34 — 2026-11-25
 - Added: you can attach any file (PDF, spreadsheet, zip…, up to 50MB) in a chat, not just images, and the member gets it.
 - Improved: each attachment shows a card that spins while uploading, shows the size when done, and turns red with a Retry button if it fails.
