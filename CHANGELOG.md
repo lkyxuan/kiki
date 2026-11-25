@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.43 — 2026-11-25
+- Added: The Usage card and page now show how much of your Codex, Claude Code and Antigravity subscription quota is left (5-hour and 7-day windows) and when it resets; Kiki tells you when one drops below 10% or runs out.
+
 ## 0.7.42 — 2026-11-25
 - Fixed: Asking how much was spent today no longer bounces between members; the usage member now reports Kiki's own spend by member, model and purpose, with input, output and cache tokens.
 
