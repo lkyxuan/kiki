@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.58 — 2026-11-25
+- Added: Kiki can run its Claude Code sessions on a separate Claude account (set KIKI_CLAUDE_OAUTH_TOKEN from `claude setup-token`), leaving your own Claude Code login untouched.
+
 ## 0.7.57 — 2026-11-25
 - Improved: the Kiki page now follows your chosen style: corners match it, and the game styles get their own look (classic RPG windows, pixel frames, comic ink lines, a visual-novel dialogue box at the bottom, and cut-corner HUD cards).
 
