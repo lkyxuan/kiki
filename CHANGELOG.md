@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.67 — 2026-11-26
+- Improved: A team member's page no longer shows walls of internal notes. Hand-ins and results passed between members now show as one short plain sentence, with the full text folded underneath.
+
 ## 0.7.66 — 2026-11-26
 - Fixed: Claude Code members no longer get stuck on the "add this directory" prompt or on approving Kiki's own tools when nobody is watching.
 
