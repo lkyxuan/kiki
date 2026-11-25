@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.40 — 2026-11-25
+- Added: Settings › Remote access now shows QR codes, so you can open Kiki on your phone by scanning with the camera instead of copying a long link.
+
 ## 0.7.39 — 2026-11-25
 - Added: members can now find and use skills you installed for Claude Code, Codex, pi and OpenCode, not just the ones in ~/.agents. They stay out of every prompt by default and are looked up only when needed; skills with the same name are counted once.
 
