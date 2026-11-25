@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.57 — 2026-11-25
+- Improved: the Kiki page now follows your chosen style: corners match it, and the game styles get their own look (classic RPG windows, pixel frames, comic ink lines, a visual-novel dialogue box at the bottom, and cut-corner HUD cards).
+
 ## 0.7.56 — 2026-11-25
 - Added: Settings › Appearance › Style lets you switch the whole app between 15 looks, each with its own colors and corner shape (square, small rounded, rounded, or game-style cut corners). The default looks stay the same.
 - Changed: buttons in the default look are no longer pill-shaped; corners now follow the chosen style.
