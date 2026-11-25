@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.30 — 2026-11-25
+- Fixed: When a member's browser is paused and waiting for you, it now shows up under "Needs you" with a Continue button, instead of a floating bar covering the Space overview.
+- Changed: The "member is using your browser" bar now appears only in that member's own chat, not on every page.
+- Fixed: The browser status bar no longer shows internal action names or raw English errors; it says what is happening in plain words.
+
 ## 0.7.29 — 2026-11-25
 - Improved: when a task is finished, Kiki now closes it in the task ledger by itself, so nothing keeps running after that. You only review: marking the card done needs nothing more, and if the result isn't right, just say so in that conversation and Kiki reopens it as a new task linked to the old one. The trace page shows where each task ended and which task it was reopened from.
 
