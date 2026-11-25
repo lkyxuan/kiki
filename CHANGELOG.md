@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.32 — 2026-11-25
+- Added: Settings › Capabilities now lists the small chores Kiki runs after every turn (summaries, result checks, naming and so on). Each row says what you lose if you turn it off and what it cost over the last 7 days, and each has its own switch.
+
 ## 0.7.31 — 2026-11-25
 - Improved: On a new install, Kiki no longer picks a pay-per-use model for background chores on its own. The first time one is needed, Kiki asks once, showing the cheapest model and its price, and only uses it after you say yes. Existing installs keep working as before.
 
