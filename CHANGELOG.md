@@ -6,6 +6,16 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.68 — 2026-11-26
+- Improved: Settings › Providers is now split into AI models and tool services, so every key lives on one page.
+- Added: a Custom entry under AI models connects any OpenAI- or Anthropic-compatible endpoint (relays, in-house servers, local Ollama or LM Studio), and you can add several.
+- Added: built-in providers have an Advanced option to change their API address, for proxies or company networks.
+- Added: Tavily, Brave and Exa search keys can be entered under tool services and work right away.
+- Added: drag to choose which keyed search service is tried first (free search always goes first), under Settings › Providers › tool services.
+- Added: Settings › Capabilities shows which abilities need a service key and jumps straight to the right spot on the Providers page.
+- Added: each tool service now has a monthly budget next to its key ($1 by default; leave it empty for no limit). At the limit Kiki asks first or pauses the service until the 1st, and reminds you once at 80%.
+- Added: a Budgets card at the top of Settings › Providers opens a table of this month's estimated spend per service.
+
 ## 0.7.67 — 2026-11-26
 - Improved: A team member's page no longer shows walls of internal notes. Hand-ins and results passed between members now show as one short plain sentence, with the full text folded underneath.
 
