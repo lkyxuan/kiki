@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.63 — 2026-11-26
+- Improved: the Kiki home page uses less graphics work, so it stays smoother on computers without strong graphics.
+- Added: Smooth mode. When your computer is struggling, Kiki stands still instead of gently breathing so everything runs smoother. It turns on by itself, and you can switch it in Settings › Appearance.
+- Fixed: Kiki's idle breathing animation moves gently up and down again instead of slightly zooming.
+
 ## 0.7.62 — 2026-11-26
 - Added: Every approval card now has "Always allow", including cards on the Kiki page and Space. For Claude Code permission requests it passes back Claude Code's own "don't ask again" rule.
 
