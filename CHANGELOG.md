@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.27 — 2026-11-25
+- Fixed: a team member can start a new Antigravity conversation again after the remote machine has been idle for a while. Kiki now wakes it up and waits until it is ready, instead of failing with "Precondition check failed".
+- Fixed: messages a team member sends into an existing Antigravity conversation are delivered right away, like the ones you type on the web page.
+
 ## 0.7.26 — 2026-11-25
 - Changed: skills installed for other coding tools in your home folder's shared skills directory are no longer sent to every member each turn. Members now look them up only when needed, which keeps each turn smaller; you can set any of them back to always loaded in the toolbox.
 
