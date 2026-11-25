@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.24 — 2026-11-25
+- Fixed: right after the Usage member first sets itself up, it no longer re-reads the whole last 30 days a minute later; it now checks just today until the next full read half an hour on.
+
 ## 0.7.23 — 2026-11-25
 - Improved: Kiki no longer suggests adding a new team member unless she can name the existing member who comes closest and say why that member can't take the work. How often she asks is now counted, so repeated asks point at a member whose description needs fixing instead of at yet another hire.
 
