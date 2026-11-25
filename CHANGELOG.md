@@ -6,6 +6,15 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.50 — 2026-11-25
+- Improved: members and Kiki now write in full, natural sentences (numbered lists when there are several items) instead of clipped fragments, and Kiki adds a line of her own when she passes work on.
+- Improved: when members finish, Kiki now tells you how it went in her own words with a separate writing step, instead of showing members' raw reports; the original is still folded underneath.
+- Improved: messages Kiki composes itself (stuck work, failed work, errors, rule changes) now read as plain sentences instead of internal status codes and ticket numbers.
+- Improved: every message Kiki shows you that isn't a verbatim original (members' results, cards members want you to see, and the opening line when several updates arrive together) is now written by one shared step, so it reads the same way everywhere.
+- Improved: the built-in routing rules and Kiki's own notes no longer say Kiki answers one-line questions herself, and the default "About me" answer style now asks for full plain sentences instead of "brief and direct". Lines you changed yourself are left alone.
+- Improved: Kiki's summaries are now written in her own words instead of pasting members' reports, and messages no longer fill up with commit hashes or long IDs; links go in a folded section.
+- Improved: checklist steps stay short and don't get results tacked on, so the progress card is easier to read.
+
 ## 0.7.49 — 2026-11-25
 - Fixed: when a team member checks a private page (like a commit in a private GitHub repo) and the plain page reader gets "not found", it now opens the page in your signed-in browser instead of reporting that the page doesn't exist.
 
