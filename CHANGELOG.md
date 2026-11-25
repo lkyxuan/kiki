@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.37 — 2026-11-25
+- Added: Trace now has its own spot in the sidebar and opens on a timeline. Every ticket is a same-size card placed at the time it was opened, with lines showing who handed work to whom and which tickets reached `end`. Click a card to see its details on the right. The old card-by-card browser is still one click away.
+
 ## 0.7.36 — 2026-11-25
 - Added: Kiki now quietly keeps a local record of who it would have picked for each task next to who actually got it, so routing can be measured before it changes. Nothing about how tasks are handed out changes yet.
 
