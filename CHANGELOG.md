@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.38 — 2026-11-25
+- Improved: when Kiki isn't sure who should get a task, the "who should do this" card now shows the three most likely team members instead of everyone.
+- Improved: Kiki now double-checks before handing a task about one project to a team member who only works on another project.
+
 ## 0.7.37 — 2026-11-25
 - Added: Trace now has its own spot in the sidebar and opens on a timeline. Every ticket is a same-size card placed at the time it was opened, with lines showing who handed work to whom and which tickets reached `end`. Click a card to see its details on the right. The old card-by-card browser is still one click away.
 
