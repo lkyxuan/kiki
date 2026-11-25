@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.54 — 2026-11-25
+- Fixed: When Kiki reports back, anything not done yet or only checked comes first instead of in the last line.
+
 ## 0.7.53 — 2026-11-25
 - Improved: flowcharts, sequence diagrams and class diagrams in chat are now drawn in the hand-drawn Excalidraw whiteboard style, with sketchy lines and handwritten text (a one-time download of about 19MB the first time you see a diagram). Other diagram types follow your current look. Under each diagram you can zoom in full screen (scroll to zoom, drag to move), copy the source, or save it as an image.
 
