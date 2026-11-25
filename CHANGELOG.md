@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.52 — 2026-11-25
+- Improved: Long hashes and conversation IDs in replies now fold into a small tag you can click to see the full text and copy it, and GitHub links show the GitHub icon with a short name.
+
 ## 0.7.51 — 2026-11-25
 - Fixed: when you ask Kiki from WeChat or Feishu, the finished result is sent back there again (only Kiki's summary; the full report stays in the Kiki window).
 - Fixed: results from scheduled tasks and webhooks, and bundled updates, are now part of Kiki's conversation, so she can answer follow-up questions about them using the full report.
