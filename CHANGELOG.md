@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.60 — 2026-11-26
+- Fixed: When a model API key stops working, background jobs now pause and retry every few minutes instead of failing over and over and filling the log.
+
 ## 0.7.59 — 2026-11-26
 - Improved: In the three-column chat and a member's conversation, each pending item now shows as one card instead of being repeated in several places, ticket numbers are replaced by a "Trace" link, and corners follow the style you picked in Settings › Appearance.
 
