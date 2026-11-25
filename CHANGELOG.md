@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.49 — 2026-11-25
+- Fixed: when a team member checks a private page (like a commit in a private GitHub repo) and the plain page reader gets "not found", it now opens the page in your signed-in browser instead of reporting that the page doesn't exist.
+
 ## 0.7.48 — 2026-11-25
 - Improved: "Later" on a Kiki page card now sets it aside until a time you pick (in 1 hour, tomorrow morning or next Monday) instead of just moving it to the back. Set-aside items are listed under "For you" in Space, where you can bring them back early.
 
