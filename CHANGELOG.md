@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.25 — 2026-11-25
+- Added: each member's “Skills & tools” panel now shows how many tokens that member carries into every turn, with a suggested limit. Click it to see every loaded skill and tool as a small card; click a card to read what it does, whether it is always loaded or looked up when needed, and how many tokens it takes (plus the size of a skill's full text, which is read only when used).
+
 ## 0.7.24 — 2026-11-25
 - Fixed: right after the Usage member first sets itself up, it no longer re-reads the whole last 30 days a minute later; it now checks just today until the next full read half an hour on.
 
