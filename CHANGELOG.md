@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.46 — 2026-11-25
+- Fixed: when the browser tab used for Antigravity has wandered off to another page or lost its connection, a team member now reopens Antigravity in that tab (or a new one) and tries again, instead of stopping and asking you.
+
 ## 0.7.45 — 2026-11-25
 - Added: when Kiki can't start, it now checks why by itself and shows the cause, what to do, the last log lines, and buttons to retry, roll back to the previous version, or report the problem.
 
