@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.34 — 2026-11-25
+- Added: you can attach any file (PDF, spreadsheet, zip…, up to 50MB) in a chat, not just images, and the member gets it.
+- Improved: each attachment shows a card that spins while uploading, shows the size when done, and turns red with a Retry button if it fails.
+
 ## 0.7.33 — 2026-11-25
 - Security: Messages that come from outside (letters from other agents, replies on things you are watching, activity on pull requests) are now recognised by where they came from, not by their wording, so they are never treated as your own instruction.
 
