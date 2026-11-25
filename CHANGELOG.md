@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.56 — 2026-11-25
+- Added: Settings › Appearance › Style lets you switch the whole app between 15 looks, each with its own colors and corner shape (square, small rounded, rounded, or game-style cut corners). The default looks stay the same.
+- Changed: buttons in the default look are no longer pill-shaped; corners now follow the chosen style.
+
 ## 0.7.55 — 2026-11-25
 - Improved: short texts Kiki writes for you in the background (quick replies, button choices, card summaries, conversation names, overview recaps, suggestions and plans) now follow the same plain-language rules and leave out commit hashes and ticket numbers.
 
