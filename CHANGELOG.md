@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.71 — 2026-11-26
+- Added: members can now ask Google Gemini to make images, speech and video, read large files and run deep research, using the Google key you entered under Settings › Providers. Video and deep research ask you first, and spending stops at a monthly limit ($1 by default, you can raise it).
+
 ## 0.7.70 — 2026-11-26
 - Changed: the review desk on the Kiki page is now a list. Pick any item to open it; the one you are working on stays open and marked when you come back, new items queue below instead of replacing it, and an item finished elsewhere shows a check mark for a few seconds before it leaves.
 
