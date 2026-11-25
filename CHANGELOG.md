@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.48 — 2026-11-25
+- Improved: "Later" on a Kiki page card now sets it aside until a time you pick (in 1 hour, tomorrow morning or next Monday) instead of just moving it to the back. Set-aside items are listed under "For you" in Space, where you can bring them back early.
+
 ## 0.7.47 — 2026-11-25
 - Fixed: clicking "Done" on a Claude Code / Codex card now only clears that card. If the conversation later asks you something, hits an error or needs approval, a new card shows up again.
 - Fixed: replying "go ahead"-style words you have said before in a conversation now brings its card back instead of being mistaken for an automatic message.
