@@ -6,6 +6,19 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.22 — 2026-11-25
+- Improved: in a team member's list of conversations, a job that was split up and handed to other members now shows how many pieces it became and how many are finished, for example "split into 3 · 2 done".
+- Improved: when a team member fetches something from the internet with a command (a web page, a GitHub thread), Kiki now treats what came back as outside content, the same as mail or web search results. For the rest of that turn, sending, paying or deleting still needs a target you named or allowed.
+- Fixed: personal things like "remember I have a dinner on Thursday" no longer go to the Archivist and sit in About me forever. Kiki now hands dinners, doctor visits, trips and family plans to your life assistant, and if you don't have one yet, HR asks whether to create it.
+- Fixed: when a life assistant joins your team, personal items saved earlier in About me or with the Archivist are moved over to it, so nothing is left behind or kept twice.
+- Improved: a member whose role is about personal life now shows up under Life on the Kiki page.
+- Fixed: when a member mentions a file that someone else is still going to write, Kiki no longer shows it as a document card marked "not written".
+- Fixed: when a team member sends work to Antigravity, Kiki now checks the message really shows up in the conversation before saying it was sent, and reports it plainly when it didn't.
+- Fixed: Antigravity's progress no longer shows as "still working" forever when it has actually stopped and only a background command is left running.
+- Added: Settings › Capabilities now lists the routines Kiki runs on her own in the background, with an estimate of what each costs per day and a switch for each. The ones that spend model money are off on a fresh install until you turn them on; ones already running before the update keep running.
+- Improved: Kiki's speech bubble now answers only your latest message in one or two sentences, without ticket numbers or links.
+- Improved: Updates about other work show up as small one-line notices instead of being mixed into her reply; click one to read it in full.
+
 ## 0.7.21 — 2026-11-24
 - Improved: opening a team member's main conversation now shows all of that member's conversations next to it, listed the way a chat app lists threads, instead of opening one of them for you. A conversation opens only when you click it, and the arrow at its top left takes you back to the list. They are grouped into waiting for you, working, recent and done, and each one shows a status icon, the latest line of progress, how long ago it moved, its job number (click it to trace the job) and any pull request it is watching. Files the member handed in sit in a row at the top of the right side, ready to open.
 
