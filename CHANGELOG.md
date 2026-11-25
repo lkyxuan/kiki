@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.28 — 2026-11-25
+- Improved: team members using the browser get through pages faster. Clicking, typing or opening a page now comes back with the updated page, so they no longer need an extra step to look at it each time.
+
 ## 0.7.27 — 2026-11-25
 - Fixed: a team member can start a new Antigravity conversation again after the remote machine has been idle for a while. Kiki now wakes it up and waits until it is ready, instead of failing with "Precondition check failed".
 - Fixed: messages a team member sends into an existing Antigravity conversation are delivered right away, like the ones you type on the web page.
