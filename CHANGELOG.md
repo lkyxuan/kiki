@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.39 — 2026-11-25
+- Added: members can now find and use skills you installed for Claude Code, Codex, pi and OpenCode, not just the ones in ~/.agents. They stay out of every prompt by default and are looked up only when needed; skills with the same name are counted once.
+
 ## 0.7.38 — 2026-11-25
 - Improved: when Kiki isn't sure who should get a task, the "who should do this" card now shows the three most likely team members instead of everyone.
 - Improved: Kiki now double-checks before handing a task about one project to a team member who only works on another project.
