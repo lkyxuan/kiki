@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.29 — 2026-11-25
+- Improved: when a task is finished, Kiki now closes it in the task ledger by itself, so nothing keeps running after that. You only review: marking the card done needs nothing more, and if the result isn't right, just say so in that conversation and Kiki reopens it as a new task linked to the old one. The trace page shows where each task ended and which task it was reopened from.
+
 ## 0.7.28 — 2026-11-25
 - Improved: team members using the browser get through pages faster. Clicking, typing or opening a page now comes back with the updated page, so they no longer need an extra step to look at it each time.
 
