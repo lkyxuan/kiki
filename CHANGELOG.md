@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.76 — 2026-11-26
+- Fixed: members switched to Claude Code can run commands again; Kiki's command tool used to fail for them with "getSessionId is not a function".
+
 ## 0.7.75 — 2026-11-26
 - Fixed: On the Kiki page, her "something needs your decision" line now goes away as soon as the last card is handled elsewhere, instead of lingering for a few seconds.
 
