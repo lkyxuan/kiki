@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.78 — 2026-11-26
+- Changed: when the team reports back, Kiki now tells you in two lines at most (the outcome, and whether you need to do anything); the full account sits folded underneath under "In detail".
+- Changed: on a member's page, finished work is now explained in detail (what was done, what was found, files, what is left) instead of one short line.
+- Changed: plan cards now show a short paragraph in the member's own words (why, what it will do, the cost, then asks if that's OK); the full plan is folded under "In detail".
+
 ## 0.7.77 — 2026-11-26
 - Added: team members now remember what they figured out. After each job, the member quietly looks back over its own work and keeps the useful facts (like which key logs into your router) in its notes, and turns a procedure it worked out into a skill of its own, so a new conversation starts already knowing. You can turn this off in Settings › Capabilities.
 
