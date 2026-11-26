@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.5 — 2026-11-27
+- Fixed: the nightly self-review no longer turns its suggestions into jobs for HR or other members, and work meant for Kiki herself is no longer handed to a member who can only write a note about it.
+- Fixed: when a member says someone else still has to finish part of a job, that part is now handed to that member, together with the files written so far, instead of being marked done.
+- Fixed: the "job from Kiki" line in a member's conversation no longer shows the internal English instructions as the job name.
+
 ## 0.8.4 — 2026-11-27
 - Fixed: members can now click buttons they can see on a page but that weren't in the element list (like Xiaohongshu's red Publish button), by the words on the button. Needs the Kiki Chrome extension 0.1.7.
 - Fixed: when a member's job is waiting on something and you tell it to carry on in that conversation, it can use the browser again instead of saying it isn't allowed.
