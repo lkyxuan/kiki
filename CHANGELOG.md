@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.8 — 2026-11-27
+- Fixed: when one message needs several members (for example "post this on all three platforms"), Kiki now hands a part to each of them instead of only the first.
+- Fixed: a member waiting for the browser while another member uses it now shows as "Queued" in the working strip, with who it is waiting for, instead of looking like it never got the job; only members actually working have a moving icon.
+- Fixed: questions and feedback aimed at Kiki herself ("why did you ask me?") are answered by Kiki instead of being sent to a member, and a lasting rule in them is saved for Kiki and every member.
+
 ## 0.8.7 — 2026-11-27
 - Improved: On the Kiki page, clicking a member's name where Kiki says she handed something over, in the "working on it" strip, or on the member standing on the right now opens the conversation where that member is doing the work.
 
