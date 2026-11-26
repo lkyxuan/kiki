@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.99 — 2026-11-26
+- Improved: When Kiki mentions a card that's waiting for you, the card now shows up right under her reply so you can answer it there.
+
 ## 0.7.98 — 2026-11-26
 - Fixed: When you talk to a team member directly in one of its conversations, its reply now counts as finished. It no longer gets told "you didn't hand in", answers a second time and posts an extra hand-in.
 
