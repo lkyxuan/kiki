@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.96 — 2026-11-26
+- Fixed: cards in Space no longer get a red or orange border when something is waiting or failed; the small status dot shows it instead.
+
 ## 0.7.95 — 2026-11-26
 - Fixed: on the Kiki page, the Log drawer and the "Today" list no longer open on top of each other. Opening one closes the other, clicking the same button again closes it, and Esc closes whichever is open.
 
