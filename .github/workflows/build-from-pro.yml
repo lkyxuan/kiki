@@ -36,13 +36,13 @@ jobs:
       GH_REPO: ${{ github.repository }}   # the checkout is the source repo, so pin gh to this repo
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: cyberight-cap/kiki-pro
           ref: ${{ github.event.client_payload.sha || inputs.ref || 'main' }}
           token: ${{ secrets.KIKI_PRO_TOKEN }}
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 26
           cache: npm
