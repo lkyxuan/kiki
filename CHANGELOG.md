@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.7 — 2026-11-27
+- Improved: On the Kiki page, clicking a member's name where Kiki says she handed something over, in the "working on it" strip, or on the member standing on the right now opens the conversation where that member is doing the work.
+
 ## 0.8.6 — 2026-11-27
 - Fixed: Checklist steps in member conversations now show in your language (translated item by item, not rewritten), and Chinese step labels read naturally instead of "STEP 01".
 
