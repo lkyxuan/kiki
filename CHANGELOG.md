@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.89 — 2026-11-26
+- Added: Settings › Remote access › Remote relay lets you open your Kiki from your phone or another computer anywhere, without installing Tailscale. Turn it on, scan the pairing code once, and only the devices you paired can connect. Off by default.
+
 ## 0.7.88 — 2026-11-26
 - Changed: the Gemini tools' monthly budget now lives on Settings › Providers › Google and in the budget table, next to the other services; you can pick "Ask me" or "Pause" at the cap, and Kiki tells you at 80% and at the cap.
 
