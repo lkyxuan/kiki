@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.2 — 2026-11-27
+- Fixed: The "quota running low" note no longer repeats for the same plan and window when the reset time shifts by a few seconds; it only speaks again when the quota runs out.
+- Fixed: When a background job stops, Kiki now says in one plain sentence which job it was and whether you need to do anything, instead of quoting the member's internal note.
+
 ## 0.8.1 — 2026-11-27
 - Fixed: documents your team members write in English now open in your own language inside Kiki; code, file paths and links stay exactly as written.
 - Fixed: "Waiting for your approval" cards from Claude Code and other external agents can now always be dismissed, and they clear themselves once the agent has moved on.
