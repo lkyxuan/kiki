@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.92 — 2026-11-26
+- Fixed: cards in Space no longer show a long colored bar under each title; each step is now a small dot, and the Kiki page cards drop their orange top line.
+
 ## 0.7.91 — 2026-11-26
 - Added: In a member's main conversation, a row of available models sits at the top. Drag one onto a conversation on the right and that conversation uses it from the next message on.
 
