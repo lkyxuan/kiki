@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.73 — 2026-11-26
+- Changed: the Kiki page now has a center stage. Kiki stands on the left and the member working for you on the right; in the middle, her lines sit in a dialogue box above the to-do list. While you chat with her, the dialogue box shows the last few turns and the list folds into one line you can tap to open.
+
 ## 0.7.72 — 2026-11-26
 - Changed: members switched to Claude Code now use only the tools Kiki gives them (their own folder, commands, browser and so on) under the same safety rules as other members. Tick "Keep Claude Code's own tools" in a member's settings for coding members.
 
