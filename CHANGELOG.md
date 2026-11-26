@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.79 — 2026-11-26
+- Improved: flowcharts and other diagrams in chat have a cleaner, magazine-style look: a title and type label on top, a dotted canvas, thin outlines, straight right-angle lines with labels beside them, small notes under step names, a highlighted main path and a legend.
+- Changed: the hand-drawn diagram style is now optional; switch it with the button under a diagram (it downloads only when you pick it).
+
 ## 0.7.78 — 2026-11-26
 - Changed: when the team reports back, Kiki now tells you in two lines at most (the outcome, and whether you need to do anything); the full account sits folded underneath under "In detail".
 - Changed: on a member's page, finished work is now explained in detail (what was done, what was found, files, what is left) instead of one short line.
