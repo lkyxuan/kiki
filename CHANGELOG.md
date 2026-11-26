@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.10 — 2026-11-27
+- Improved: the DeepSeek Harness engine now takes about 600 MB on disk instead of about 1 GB. If you already installed it, uninstall and reinstall it in Settings › Extensions to free the space.
+
 ## 0.8.9 — 2026-11-27
 - Changed: Kiki now splits new work into steps by the kind of skill each needs, hands each step to the member who does that kind of work, and runs independent steps at the same time.
 - Changed: HR, the archivist and the ops helper are Kiki's own background helpers; they no longer pick up leftover project work.
