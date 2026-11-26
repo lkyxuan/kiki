@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.4 — 2026-11-27
+- Fixed: members can now click buttons they can see on a page but that weren't in the element list (like Xiaohongshu's red Publish button), by the words on the button. Needs the Kiki Chrome extension 0.1.7.
+- Fixed: when a member's job is waiting on something and you tell it to carry on in that conversation, it can use the browser again instead of saying it isn't allowed.
+
 ## 0.8.3 — 2026-11-27
 - Added: Kiki's official pictures (144 outfits, avatars, scene backgrounds and logo) now sit in a brand assets folder inside your Kiki data folder with a short guide, so every team member can find a picture of Kiki for a post without searching your disk.
 
