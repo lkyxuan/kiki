@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.0 — 2026-11-26
+- Fixed: The member conversation panel on the Kiki page now follows your chosen style's shape (rounded styles stay rounded); only the HUD styles cut corners.
+- Fixed: Member conversations no longer show Kiki's internal English reminders or raw "handed in" results; review cards use the member's own summary in your language.
+- Fixed: After you tap Yes or No on a proposal card, the member page shows one short line instead of the internal instructions, and the member always gets the full card content.
+
 ## 0.7.99 — 2026-11-26
 - Improved: When Kiki mentions a card that's waiting for you, the card now shows up right under her reply so you can answer it there.
 
