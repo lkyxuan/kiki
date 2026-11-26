@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.85 — 2026-11-26
+- Changed: on the Kiki page, her dialogue box now shows only your message, her reply and one line saying what she needs from you; notices about other things moved to a small count next to Log, and "waiting for review" reads "Done, take a look".
+
 ## 0.7.84 — 2026-11-26
 - Fixed: updating Kiki no longer fails with "can't replace the old app" when Kiki had already updated itself in the background while the window was open.
 - Fixed: Launchpad no longer shows two Kiki icons after an update.
