@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.98 — 2026-11-26
+- Fixed: When you talk to a team member directly in one of its conversations, its reply now counts as finished. It no longer gets told "you didn't hand in", answers a second time and posts an extra hand-in.
+
 ## 0.7.97 — 2026-11-26
 - Fixed: Notices where a team member asks you something now say who is asking and in which conversation, and no longer start with a pause-like "⏸" symbol.
 - Fixed: The reminder stack (external agent cards, system status) no longer shows up as a jumbled line in Kiki's dialogue box.
