@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.75 — 2026-11-26
+- Fixed: On the Kiki page, her "something needs your decision" line now goes away as soon as the last card is handled elsewhere, instead of lingering for a few seconds.
+
 ## 0.7.74 — 2026-11-26
 - Fixed: a document a member only plans to write later (for example "on its first job it will keep notes in notes/x.md") no longer shows a "not written" card.
 - Fixed: after Kiki answers you herself, a second, vaguer message no longer shows up half a minute later contradicting what happened next.
