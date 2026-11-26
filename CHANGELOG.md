@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.3 — 2026-11-27
+- Added: Kiki's official pictures (144 outfits, avatars, scene backgrounds and logo) now sit in a brand assets folder inside your Kiki data folder with a short guide, so every team member can find a picture of Kiki for a post without searching your disk.
+
 ## 0.8.2 — 2026-11-27
 - Fixed: The "quota running low" note no longer repeats for the same plan and window when the reset time shifts by a few seconds; it only speaks again when the quota runs out.
 - Fixed: When a background job stops, Kiki now says in one plain sentence which job it was and whether you need to do anything, instead of quoting the member's internal note.
