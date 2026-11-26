@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.72 — 2026-11-26
+- Changed: members switched to Claude Code now use only the tools Kiki gives them (their own folder, commands, browser and so on) under the same safety rules as other members. Tick "Keep Claude Code's own tools" in a member's settings for coding members.
+
 ## 0.7.71 — 2026-11-26
 - Added: members can now ask Google Gemini to make images, speech and video, read large files and run deep research, using the Google key you entered under Settings › Providers. Video and deep research ask you first, and spending stops at a monthly limit ($1 by default, you can raise it).
 
