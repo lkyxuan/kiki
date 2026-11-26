@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.97 — 2026-11-26
+- Fixed: Notices where a team member asks you something now say who is asking and in which conversation, and no longer start with a pause-like "⏸" symbol.
+- Fixed: The reminder stack (external agent cards, system status) no longer shows up as a jumbled line in Kiki's dialogue box.
+- Changed: Settings no longer shows a "sees images" tag next to models either, matching the model menu.
+
 ## 0.7.96 — 2026-11-26
 - Fixed: cards in Space no longer get a red or orange border when something is waiting or failed; the small status dot shows it instead.
 
