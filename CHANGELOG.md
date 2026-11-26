@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.94 — 2026-11-26
+- Fixed: members running on Claude Code no longer get stuck on its "do you trust this folder" question; Kiki marks its own data folder and the member's work folder as trusted before starting.
+
 ## 0.7.93 — 2026-11-26
 - Changed: the model menu no longer shows a "sees images" tag next to each model; images still go to a model that can read them automatically.
 
