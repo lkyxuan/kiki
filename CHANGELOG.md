@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.82 — 2026-11-26
+- Improved: On large screens (2K and up) the task board, document viewer and Settings now use the whole window: the board spreads its four columns across the screen with status labels on each column, documents with several headings get a clickable outline on the left, and Settings lays its cards out in several columns. Laptop screens look the same as before.
+
 ## 0.7.81 — 2026-11-26
 - Added: when a team member learns something about you or your computer (like which SSH key works), Kiki asks whether every member should know it. Say yes and all members start with it from then on; say "Forget it" and it is deleted.
 
