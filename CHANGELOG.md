@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.87 — 2026-11-26
+- Improved: The "move Kiki into Applications" window and the first-run welcome now use the same card style as the rest of the app: a small status tag (waiting / moving / moved / didn't move), numbered steps, and no orange bar across the top. On large screens the welcome card and its options are bigger and easier to read.
+
 ## 0.7.86 — 2026-11-26
 - Changed: team members now work in English behind the scenes and write what you see in your own language themselves; Kiki and member pages show only that, never the raw notes.
 - Improved: if Kiki can't reach the model to put a result into words, she says so plainly instead of showing the members' raw notes, and member pages keep retrying on their own.
