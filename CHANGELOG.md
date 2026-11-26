@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.91 — 2026-11-26
+- Added: In a member's main conversation, a row of available models sits at the top. Drag one onto a conversation on the right and that conversation uses it from the next message on.
+
 ## 0.7.90 — 2026-11-26
 - Added: the button under the message box now picks who works on this one conversation and which model it uses, for example Kiki's own model in one conversation and Claude Code with Opus in another. Member settings stay the default for new conversations and tasks from others. Switching midway keeps the conversation so far.
 
