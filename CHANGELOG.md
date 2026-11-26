@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.81 — 2026-11-26
+- Added: when a team member learns something about you or your computer (like which SSH key works), Kiki asks whether every member should know it. Say yes and all members start with it from then on; say "Forget it" and it is deleted.
+
 ## 0.7.80 — 2026-11-26
 - Improved: when a team member saves something it learned, it now says so in that conversation ("Remembered: …"), naming the new or updated skill.
 
