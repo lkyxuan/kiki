@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.95 — 2026-11-26
+- Fixed: on the Kiki page, the Log drawer and the "Today" list no longer open on top of each other. Opening one closes the other, clicking the same button again closes it, and Esc closes whichever is open.
+
 ## 0.7.94 — 2026-11-26
 - Fixed: members running on Claude Code no longer get stuck on its "do you trust this folder" question; Kiki marks its own data folder and the member's work folder as trusted before starting.
 
