@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.6 — 2026-11-27
+- Fixed: Checklist steps in member conversations now show in your language (translated item by item, not rewritten), and Chinese step labels read naturally instead of "STEP 01".
+
 ## 0.8.5 — 2026-11-27
 - Fixed: the nightly self-review no longer turns its suggestions into jobs for HR or other members, and work meant for Kiki herself is no longer handed to a member who can only write a note about it.
 - Fixed: when a member says someone else still has to finish part of a job, that part is now handed to that member, together with the files written so far, instead of being marked done.
