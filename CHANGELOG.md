@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.1 — 2026-11-27
+- Fixed: documents your team members write in English now open in your own language inside Kiki; code, file paths and links stay exactly as written.
+- Fixed: "Waiting for your approval" cards from Claude Code and other external agents can now always be dismissed, and they clear themselves once the agent has moved on.
+
 ## 0.8.0 — 2026-11-26
 - Fixed: The member conversation panel on the Kiki page now follows your chosen style's shape (rounded styles stay rounded); only the HUD styles cut corners.
 - Fixed: Member conversations no longer show Kiki's internal English reminders or raw "handed in" results; review cards use the member's own summary in your language.
