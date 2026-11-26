@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.7.90 — 2026-11-26
+- Added: the button under the message box now picks who works on this one conversation and which model it uses, for example Kiki's own model in one conversation and Claude Code with Opus in another. Member settings stay the default for new conversations and tasks from others. Switching midway keeps the conversation so far.
+
 ## 0.7.89 — 2026-11-26
 - Added: Settings › Remote access › Remote relay lets you open your Kiki from your phone or another computer anywhere, without installing Tailscale. Turn it on, scan the pairing code once, and only the devices you paired can connect. Off by default.
 
