@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.9 — 2026-11-27
+- Changed: Kiki now splits new work into steps by the kind of skill each needs, hands each step to the member who does that kind of work, and runs independent steps at the same time.
+- Changed: HR, the archivist and the ops helper are Kiki's own background helpers; they no longer pick up leftover project work.
+- Changed: When no member does a step, Kiki hires one in the background and hands the step to the new member, telling you who joined instead of asking first.
+
 ## 0.8.8 — 2026-11-27
 - Fixed: when one message needs several members (for example "post this on all three platforms"), Kiki now hands a part to each of them instead of only the first.
 - Fixed: a member waiting for the browser while another member uses it now shows as "Queued" in the working strip, with who it is waiting for, instead of looking like it never got the job; only members actually working have a moving icon.
