@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.24 — 2026-11-27
+- Changed: Finished tasks no longer take a separate "Done N" row under each member in the sidebar; a small arrow next to the member name shows them, so members line up neatly.
+
 ## 0.8.23 — 2026-11-27
 - Improved: Settings › Add-ons now offers six local matching models that understand both English and Chinese, from a light 240MB one up to Microsoft's 17GB Harrier 27B for Macs with 64GB+ memory; each lists its download size and memory needs, and you pick the one you want.
 
