@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.21 — 2026-11-27
+- Changed: Kiki now follows your Mac's system language by default. On a Chinese system the interface and Kiki's summaries are in Chinese, on an English system in English. Settings › General › Language has a new "Follow system" option; a language you picked yourself stays as it is.
+
 ## 0.8.20 — 2026-11-27
 - Improved: on the Kiki page, the review desk now sits at the bottom just above the message box, matches its width, and no longer shows a scroll bar when there are only a few cards.
 
