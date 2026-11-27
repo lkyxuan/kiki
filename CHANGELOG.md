@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.17 — 2026-11-27
+- Fixed: Settings on large screens is a medium-sized window again with cards in one column, instead of filling the screen with ragged columns.
+- Changed: Auto-approve › "Payments for you" says plainly it means real purchases (not AI model costs), and the limits show "USD".
+- Changed: The send allowlist shows long IDs as "A conversation or project" with a short ID, and its source tags are plain words.
+
 ## 0.8.16 — 2026-11-27
 - Added: When nothing needs you, the Kiki page dialogue box now rotates through things Kiki is keeping track of for you — overdue or due-soon to-dos, work that hasn't moved in 3 days, items you set aside, and how the past week went. Each line has Open / Continue / Got it.
 
