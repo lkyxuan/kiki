@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.15 — 2026-11-27
+- Added: when a job is handed to a member, Kiki now shortlists the member's tools and a small "Tool picker" model (Settings › Models) chooses up to three to load first, falling back to keyword matching if the model is unavailable.
+
 ## 0.8.14 — 2026-11-27
 - Changed: A member's page now lists its work sessions instead of a chat. Typing there starts a new job for that member and opens it on the right; the result stays in that session.
 
