@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.18 — 2026-11-27
+- Removed: new installs no longer ask for a beta invite code. Open Kiki and start right away.
+
 ## 0.8.17 — 2026-11-27
 - Fixed: Settings on large screens is a medium-sized window again with cards in one column, instead of filling the screen with ragged columns.
 - Changed: Auto-approve › "Payments for you" says plainly it means real purchases (not AI model costs), and the limits show "USD".
