@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.12 — 2026-11-27
+- Changed: Kiki's speech box now keeps showing what needs your decision until it's done, says who is busy with what, and when nothing is going on shows today's tally instead of an old reply.
+- Fixed: asking Kiki a plain question no longer puts a "done, take a look" card on your desk.
+
 ## 0.8.11 — 2026-11-27
 - Improved: a follow-up message now joins the task it continues, and Kiki sees open work grouped by task, so a change reaches every part of that task.
 - Added: Kiki can break a big job down one layer at a time, and a member can hand back a job that is too big for one go.
