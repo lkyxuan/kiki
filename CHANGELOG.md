@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.23 — 2026-11-27
+- Improved: Settings › Add-ons now offers six local matching models that understand both English and Chinese, from a light 240MB one up to Microsoft's 17GB Harrier 27B for Macs with 64GB+ memory; each lists its download size and memory needs, and you pick the one you want.
+
 ## 0.8.22 — 2026-11-27
 - Added: a fresh Kiki chat now greets you with tap-to-ask questions ("What can you do?", "How do I use you?" and a few real examples), so you never face a blank page.
 - Added: "Set up Kiki" walks you through the remaining setup one step at a time (your name, the brain, the AI tools you use, Mac permissions, the browser extension, a first member, your phone), checks off what's done and lets you skip any step.
