@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.16 — 2026-11-27
+- Added: When nothing needs you, the Kiki page dialogue box now rotates through things Kiki is keeping track of for you — overdue or due-soon to-dos, work that hasn't moved in 3 days, items you set aside, and how the past week went. Each line has Open / Continue / Got it.
+
 ## 0.8.15 — 2026-11-27
 - Added: when a job is handed to a member, Kiki now shortlists the member's tools and a small "Tool picker" model (Settings › Models) chooses up to three to load first, falling back to keyword matching if the model is unavailable.
 
