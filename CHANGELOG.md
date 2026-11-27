@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.20 — 2026-11-27
+- Improved: on the Kiki page, the review desk now sits at the bottom just above the message box, matches its width, and no longer shows a scroll bar when there are only a few cards.
+
 ## 0.8.19 — 2026-11-27
 - Changed: The toolbox no longer labels available tools "Always on"; only exceptions are labeled, with a note that a work session only loads the basics plus the few tools picked for the job.
 
