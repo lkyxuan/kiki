@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.30 — 2026-11-27
+- Added: the Kiki page's home scene can now play a gently moving background (rain, rippling water, swaying trees, drifting sunset clouds) for times of day that have one; it pauses when you switch away, in Lite mode, or when Reduce Motion is on.
+
 ## 0.8.29 — 2026-11-27
 - Fixed: Kiki can now tell whether Screen Recording and Full Disk Access are on (they used to show nothing), and "Request all" shows the Screen Recording popup again.
 - Fixed: when macOS won't show a permission popup again (it only asks once), "Request all" opens the System Settings page for the first permission that is still off.
