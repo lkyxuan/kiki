@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.28 — 2026-11-27
+- Improved: the setup step for the AI tools you already use (Claude Code, Codex and others) now scans and connects them right in place, explains how it differs from connecting Kiki's own model, and lists only what you need to click yourself.
+- Fixed: the "Mac permissions" setup step now ticks itself a few seconds after you turn the permissions on, and says which ones are still off.
+
 ## 0.8.27 — 2026-11-27
 - Fixed: Members can click a button by its spot on a screenshot when the page hides it from the element list (Xiaohongshu's new publish button); publish-like or unreadable spots still go through your send approval.
 - Fixed: Uploading images through the Kiki Chrome extension works without turning on "Allow access to file URLs".
