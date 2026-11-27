@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.13 — 2026-11-27
+- Added: Leads. Ask Kiki to set up a lead (for example a promotion lead) and HR builds a normal member with a long-term duty and an alarm; each time it wakes it reads what was handed in for its area and can start new work for the right member.
+- Improved: Handing out work is faster and cheaper: which conversation a job goes into and which tools come with it are now picked by code from the request, instead of an extra model call per job. A member that gets a job it doesn't own can hand it back right away.
+
 ## 0.8.12 — 2026-11-27
 - Changed: Kiki's speech box now keeps showing what needs your decision until it's done, says who is busy with what, and when nothing is going on shows today's tally instead of an old reply.
 - Fixed: asking Kiki a plain question no longer puts a "done, take a look" card on your desk.
