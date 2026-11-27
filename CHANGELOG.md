@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.31 — 2026-11-27
+- Improved: when something a member did didn't work, Kiki sends it back to that member to check first, and if it goes to someone else, every step the first member took (and the exact errors) goes along instead of a two-line summary.
+
 ## 0.8.30 — 2026-11-27
 - Added: the Kiki page's home scene can now play a gently moving background (rain, rippling water, swaying trees, drifting sunset clouds) for times of day that have one; it pauses when you switch away, in Lite mode, or when Reduce Motion is on.
 
