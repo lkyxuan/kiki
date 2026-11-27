@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.27 — 2026-11-27
+- Fixed: Members can click a button by its spot on a screenshot when the page hides it from the element list (Xiaohongshu's new publish button); publish-like or unreadable spots still go through your send approval.
+- Fixed: Uploading images through the Kiki Chrome extension works without turning on "Allow access to file URLs".
+
 ## 0.8.26 — 2026-11-27
 - Fixed: The "Copy" button in the document viewer now copies the whole document in the Mac app, and says so if copying fails instead of doing nothing.
 
