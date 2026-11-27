@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.33 — 2026-11-27
+- Improved: Kiki's main chat no longer asks you to approve reading web pages, searching or sending a helper to look something up; it only stops for things that can't be undone.
+
 ## 0.8.32 — 2026-11-27
 - Fixed: Kiki no longer asks you to approve her own internal hand-offs (for example a scheduled check passed to the archivist), tapping "Allow" on an approval in her main chat now actually goes through instead of counting as a refusal, and approval cards no longer show raw tool text in English.
 
