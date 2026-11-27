@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.29 — 2026-11-27
+- Fixed: Kiki can now tell whether Screen Recording and Full Disk Access are on (they used to show nothing), and "Request all" shows the Screen Recording popup again.
+- Fixed: when macOS won't show a permission popup again (it only asks once), "Request all" opens the System Settings page for the first permission that is still off.
+
 ## 0.8.28 — 2026-11-27
 - Improved: the setup step for the AI tools you already use (Claude Code, Codex and others) now scans and connects them right in place, explains how it differs from connecting Kiki's own model, and lists only what you need to click yourself.
 - Fixed: the "Mac permissions" setup step now ticks itself a few seconds after you turn the permissions on, and says which ones are still off.
