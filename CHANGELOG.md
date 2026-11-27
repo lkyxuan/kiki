@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.34 — 2026-11-28
+- Added: before an agent hands in work that changed files, a model from a different AI company reads it and points out problems; if it finds any, the work goes back once to be fixed. Work with a GitHub pull request is skipped. You can turn it off or pick the checking model in Settings.
+
 ## 0.8.33 — 2026-11-27
 - Improved: Kiki's main chat no longer asks you to approve reading web pages, searching or sending a helper to look something up; it only stops for things that can't be undone.
 
