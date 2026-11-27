@@ -6,6 +6,15 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.22 — 2026-11-27
+- Added: a fresh Kiki chat now greets you with tap-to-ask questions ("What can you do?", "How do I use you?" and a few real examples), so you never face a blank page.
+- Added: "Set up Kiki" walks you through the remaining setup one step at a time (your name, the brain, the AI tools you use, Mac permissions, the browser extension, a first member, your phone), checks off what's done and lets you skip any step.
+- Changed: the first time you open Kiki you land in your chat with Kiki instead of the setup assistant's chat.
+- Added: picture guides for the steps you do in other apps (trusting Kiki in Codex, connecting the Claude desktop app), with simple step-by-step drawings you can page through or play.
+- Added: each AI provider in Settings › Providers has a "Show me" picture guide for getting an API key or signing in with your subscription.
+- Changed: the "Give Kiki a brain" page no longer pushes one provider. Sign in with your ChatGPT subscription (incl. Codex), or pick the provider you have an account with and paste its key, with a link to its site and a picture guide.
+- Fixed: when a task hit its spending limit and a step was cancelled while the "keep going?" card was still appearing, a later step no longer waits forever on that old card.
+
 ## 0.8.21 — 2026-11-27
 - Changed: Kiki now follows your Mac's system language by default. On a Chinese system the interface and Kiki's summaries are in Chinese, on an English system in English. Settings › General › Language has a new "Follow system" option; a language you picked yourself stays as it is.
 
