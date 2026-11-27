@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.26 — 2026-11-27
+- Fixed: The "Copy" button in the document viewer now copies the whole document in the Mac app, and says so if copying fails instead of doing nothing.
+
 ## 0.8.25 — 2026-11-27
 - Improved: Buttons, sending a message, approving, filters and counters now have small, smooth motion.
 - Added: In the dark plain look (Kiki character off), cards light up with a soft glow that follows your mouse, and the background is now pure black.
