@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.25 — 2026-11-27
+- Improved: Buttons, sending a message, approving, filters and counters now have small, smooth motion.
+- Added: In the dark plain look (Kiki character off), cards light up with a soft glow that follows your mouse, and the background is now pure black.
+- Added: Settings › Appearance › Style lets you pick one style for light mode and another for dark mode.
+
 ## 0.8.24 — 2026-11-27
 - Changed: Finished tasks no longer take a separate "Done N" row under each member in the sidebar; a small arrow next to the member name shows them, so members line up neatly.
 
