@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.42 — 2026-11-28
+- Added: Before a team member sends an email or message for you, Kiki checks any time it proposes against your timeline; clashes go back to be rewritten, and confirmed times are added to your timeline.
+
 ## 0.8.41 — 2026-11-28
 - Improved: on first launch you can sign in with your ChatGPT subscription right on the setup page, without opening Settings.
 - Added: after you connect a brain, a short "Getting Kiki ready" checklist runs and actually asks the model one question, so you know it works before you start (or why it doesn't).
