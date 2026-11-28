@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.44 — 2026-11-28
+- Fixed: when a member helps another member who is waiting on them, the rest of the work now goes straight back to the waiting member instead of starting extra side tasks, so one request no longer fans out into a pile of cards.
+
 ## 0.8.43 — 2026-11-28
 - Fixed: cards on the Kiki page now show a proper task name instead of a clipped piece of what you typed, and their one-line note skips technical details like addresses and account names.
 - Fixed: an opened card no longer says "Working on it" next to "Done, take a look"; with several cards it just marks the one you are viewing.
