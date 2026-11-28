@@ -6,6 +6,11 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.35 — 2026-11-28
+- Added: steps that used to wait for your tap or were simply blocked now get a second opinion first. When an agent wants to write outside its work folder, pay without a readable amount, or send to or pay someone not in your words or allow list after reading outside content, a model from a different AI company looks at it, and the step goes ahead unless it sees a clear risk. Going over budget still asks you. You can turn this off in Settings › Abilities.
+- Added: Kiki never opens your online banking or reads your text messages (where verification codes arrive), whoever asks.
+- Improved: on the character home page Kiki's words now appear as large subtitles right beside her instead of in a box, the background softens behind her, and the input box is a single thin line.
+
 ## 0.8.34 — 2026-11-28
 - Added: before an agent hands in work that changed files, a model from a different AI company reads it and points out problems; if it finds any, the work goes back once to be fixed. Work with a GitHub pull request is skipped. You can turn it off or pick the checking model in Settings.
 
