@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.40 — 2026-11-28
+- Added: Each agent now has its own "rules" note on its page in Space › Team. Only that agent reads it, so a rule like "post in English only" stays with the agent it's for. The shared About me appears there too, read-only, and you still edit it on Me.
+
 ## 0.8.39 — 2026-11-28
 - Added: Kiki keeps a timeline of your own plans. When a team member books something for you that clashes, it moves to the nearest free slot (or asks), and members can check when you're free before proposing a time.
 
