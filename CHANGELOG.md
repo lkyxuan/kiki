@@ -6,6 +6,10 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.41 — 2026-11-28
+- Improved: on first launch you can sign in with your ChatGPT subscription right on the setup page, without opening Settings.
+- Added: after you connect a brain, a short "Getting Kiki ready" checklist runs and actually asks the model one question, so you know it works before you start (or why it doesn't).
+
 ## 0.8.40 — 2026-11-28
 - Added: Each agent now has its own "rules" note on its page in Space › Team. Only that agent reads it, so a rule like "post in English only" stays with the agent it's for. The shared About me appears there too, read-only, and you still edit it on Me.
 
