@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.38 — 2026-11-28
+- Fixed: A longer note or list you send (for example your home network setup) now goes to the member who looks after that area, instead of being filed away by the archivist where that member never sees it.
+
 ## 0.8.37 — 2026-11-28
 - Improved: while chatting with Kiki on the home page, a "Do something else" button (or Esc) hides the chat so you can move on; she keeps working and tells you when done.
 
