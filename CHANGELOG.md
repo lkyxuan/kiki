@@ -6,6 +6,9 @@ Every Kiki release, newest first. Kiki updates itself; you can also read this in
      (start with Added / Fixed / Improved / … ). No internal details, PR numbers or private names. PRs don't edit this file: each adds a note in changelog.d/,
      and on merge the release workflow bumps the version and assembles the notes into a new section here. -->
 
+## 0.8.37 — 2026-11-28
+- Improved: while chatting with Kiki on the home page, a "Do something else" button (or Esc) hides the chat so you can move on; she keeps working and tells you when done.
+
 ## 0.8.36 — 2026-11-28
 - Added: you can now rename an agent from its settings (or right-click its name). Its chats, scheduled tasks, memory and skills move over, and the old name still finds it.
 - Fixed: new agents no longer get a doubled-up title like "Network Butler Agent" when their name already says what they do.
